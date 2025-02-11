@@ -1,0 +1,25 @@
+cc_library(
+    name = "binomial_tree",
+    hdrs = ["binomial_tree.h"],
+    deps = [
+        "@eigen",
+    ],
+)
+
+cc_test(
+    name = "binomial_tree_test",
+    srcs = ["binomial_tree_test.cpp"],
+    deps = [
+        ":binomial_tree",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "monte_carlo",
+    srcs = ["monte_carlo.cpp"],
+    hdrs = ["monte_carlo.h"],
+    deps = [
+        "@com_google_absl//absl/random",
+    ],
+)
