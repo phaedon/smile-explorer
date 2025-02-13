@@ -31,7 +31,7 @@ cc_binary(
         ":binomial_tree",
         "@eigen",
         "@glfw",
-        "@imgui-1.91.8",
+        "@imgui//:imgui-glfw-opengl3",
         "@implot-0.16",
     ],
 )
