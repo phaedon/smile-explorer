@@ -50,15 +50,16 @@ int main(int, char**) {
   bool show_demo_window = true;
   ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-  auto timestep = std::chrono::weeks(2);
+  const auto timestep = std::chrono::weeks(2);
   markets::BinomialTree tree(std::chrono::years(2), timestep);
   tree.setInitValue(5.0);
-  double vol = 0.15;  // Initial value
+  float vol = 0.15;  // Initial value
   tree.populateTreeForward(markets::genUpFn(vol, timestep),
                            markets::genDownFn(vol, timestep));
-  std::vector<Eigen::Vector2d> nodes = markets::getNodes(tree);
-  std::vector<double> x_coords, y_coords;
+  std::cout << tree.nodeValue(5, 4) << std::endl;
 
+  std::vector<Eigen::Vector2d> nodes;
+  std::vector<double> x_coords, y_coords;
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
 
@@ -66,58 +67,60 @@ int main(int, char**) {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    if (show_demo_window) ImGui::ShowDemoWindow(&show_demo_window);
+    // if (show_demo_window) ImGui::ShowDemoWindow(&show_demo_window);
 
-    {
-      ImGui::Begin("Binomial Tree Control");
+    ImGui::Begin("Binomial Tree");
 
-      // Volatility slider (only need this for the slider itself)
-      ImGui::SliderFloat("Volatility", (float*)&vol, 0.0f, 0.40f, "%.3f");
+    ImGui::SliderFloat("Volatility", &vol, 0.0f, 0.40f, "%.3f");
+    tree.populateTreeForward(markets::genUpFn(vol, timestep),
+                             markets::genDownFn(vol, timestep));
+    std::cout << vol << "  " << tree.nodeValue(5, 4) << std::endl;
 
-      ImGui::End();
+    nodes = markets::getNodes(tree);
+
+    x_coords.clear();
+    y_coords.clear();
+
+    for (const auto& node : nodes) {
+      x_coords.push_back(node.x());
+      y_coords.push_back(node.y());
     }
 
-    {
-      ImGui::Begin("Binomial Tree");
-
-      if (ImPlot::BeginPlot("Binomial Tree Plot", ImVec2(-1, -1))) {
-        ImPlotStyle& style = ImPlot::GetStyle();
-        style.MarkerSize = 1;
-
-        // *** UPDATE DATA HERE, EVERY FRAME ***
-        tree.populateTreeForward(
-            markets::genUpFn(vol, timestep),  // Use current vol
-            markets::genDownFn(vol, timestep));
-
-        std::vector<Eigen::Vector2d> nodes = markets::getNodes(tree);
-
-        std::vector<double> x_coords, y_coords;  // These can be local now
-        for (const auto& node : nodes) {
-          x_coords.push_back(node.x());
-          y_coords.push_back(node.y());
-        }
-
-        if (!nodes.empty()) {
-          ImPlot::SetupAxisLimits(
-              ImAxis_X1, 0, tree.numTimesteps(), ImPlotCond_Always);
-        }
-
-        if (!y_coords.empty()) {
-          auto [min_it, max_it] =
-              std::minmax_element(y_coords.begin(), y_coords.end());
-          double min_y = *min_it;
-          double max_y = *max_it;
-          ImPlot::SetupAxisLimits(ImAxis_Y1, 0, max_y, ImPlotCond_Always);
-        }
-
-        ImPlot::PlotScatter(
-            "Nodes", x_coords.data(), y_coords.data(), x_coords.size());
-
-        ImPlot::EndPlot();
+    if (ImPlot::BeginPlot("Binomial Tree Plot", ImVec2(-1, -1))) {
+      //  std::cout << "Volatility: " << vol <<
+      //  std::endl; std::cout << "Nodes size: " <<
+      //  nodes.size() << std::endl;
+      if (!x_coords.empty() && !y_coords.empty()) {
+        //     std::cout << "fifth node: x = " <<
+        //     x_coords[5]
+        //               << ", y = " << y_coords[5] <<
+        //               std::endl;
+        // Print a few more node values if needed
       }
 
-      ImGui::End();
+      ImPlotStyle& style = ImPlot::GetStyle();
+      style.MarkerSize = 1;
+
+      if (!nodes.empty()) {
+        ImPlot::SetupAxisLimits(
+            ImAxis_X1, 0, tree.numTimesteps(), ImPlotCond_Always);
+      }
+
+      if (!y_coords.empty()) {
+        auto [min_it, max_it] =
+            std::minmax_element(y_coords.begin(), y_coords.end());
+        double min_y = *min_it;
+        double max_y = *max_it;
+        ImPlot::SetupAxisLimits(ImAxis_Y1, 0, max_y, ImPlotCond_Always);
+      }
+
+      ImPlot::PlotScatter(
+          "Nodes", x_coords.data(), y_coords.data(), x_coords.size());
+
+      ImPlot::EndPlot();
     }
+
+    ImGui::End();
 
     ImGui::Render();
     int display_w, display_h;
