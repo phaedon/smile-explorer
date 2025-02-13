@@ -23,3 +23,15 @@ cc_library(
         "@com_google_absl//absl/random",
     ],
 )
+
+cc_binary(
+    name = "render_tree",
+    srcs = ["render_tree.cpp"],
+    deps = [
+        ":binomial_tree",
+        "@eigen",
+        "@glfw",
+        "@imgui-1.91.8",
+        "@implot-0.16",
+    ],
+)

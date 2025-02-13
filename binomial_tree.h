@@ -58,6 +58,10 @@ class BinomialTree {
 
   void print() const { std::cout << tree_; }
 
+  double nodeValue(int time, int node_index) const {
+    return tree_(time, node_index);
+  }
+
  private:
   Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> tree_;
 
@@ -65,5 +69,15 @@ class BinomialTree {
     tree_(time, node_index) = val;
   }
 };
+
+inline std::vector<Eigen::Vector2d> getNodes(const BinomialTree& tree) {
+  std::vector<Eigen::Vector2d> nodes;
+  for (int t = 0; t < tree.numTimesteps(); ++t) {
+    for (int i = 0; i <= t; ++i) {
+      nodes.emplace_back(Eigen::Vector2d{t, tree.nodeValue(t, i)});
+    }
+  }
+  return nodes;
+}
 
 }  // namespace markets
