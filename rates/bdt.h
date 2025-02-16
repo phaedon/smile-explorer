@@ -10,7 +10,7 @@ namespace markets {
 
 struct BdtPropagator {
   BdtPropagator(int num_timesteps, double b, double spot_rate)
-      : a_(num_timesteps, spot_rate), b_(b), num_timesteps_(num_timesteps) {}
+      : a_(num_timesteps, spot_rate), b_(b) {}
 
   double operator()(const BinomialTree& tree, int t, int i) const {
     return a_[t] * std::exp(b_ * i);
@@ -23,7 +23,6 @@ struct BdtPropagator {
 
  private:
   double b_;
-  int num_timesteps_;
 };
 
 struct BdtCalibrationCost {

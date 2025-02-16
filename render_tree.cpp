@@ -52,7 +52,6 @@ int main(int, char**) {
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init(glsl_version);
 
-  bool show_demo_window = true;
   ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
   // see for example
@@ -107,8 +106,6 @@ int main(int, char**) {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    // if (show_demo_window) ImGui::ShowDemoWindow(&show_demo_window);
-
     ImGui::Begin("Binomial Tree");
 
     static int current_item = 0;  // Index of the currently selected item
@@ -155,7 +152,7 @@ int main(int, char**) {
             std::minmax_element(r.y_coords.begin(), r.y_coords.end());
         double min_y = *min_it;
         double max_y = *max_it;
-        ImPlot::SetupAxisLimits(ImAxis_Y1, 0, max_y, ImPlotCond_Always);
+        ImPlot::SetupAxisLimits(ImAxis_Y1, min_y, max_y, ImPlotCond_Always);
       }
 
       // Plot the edges as line segments

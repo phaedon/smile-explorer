@@ -123,8 +123,6 @@ TreeRenderData getTreeRenderData(const BinomialTree& tree) {
 
   for (size_t i = 0; i < nodes.size(); ++i) {
     int t = static_cast<int>(nodes[i].x());
-    int j = i - t;
-
     if (t < tree.numTimesteps() - 1) {
       size_t child1Index = i + t + 1;
       size_t child2Index = i + t + 2;
