@@ -49,20 +49,20 @@ TEST(BinomialTree, BackwardInduction) {
   //                    std::chrono::days(1),
   //                    YearStyle::kBusinessDays252);
 
-  BinomialTree asset(1.0, 1 / 100., YearStyle::kBusinessDays252);
-  BinomialTree deriv(1.0, 1 / 100., YearStyle::kBusinessDays252);
+  BinomialTree asset(1.0, 1 / 360., YearStyle::kBusinessDays252);
+  BinomialTree deriv(1.0, 1 / 360., YearStyle::kBusinessDays252);
 
   CRRPropagator crr_prop(0.00, 0.158745, 100);
   asset.forwardPropagate(crr_prop);
   deriv.backPropagate(
       asset, crr_prop, std::bind_front(&call_payoff, 100.0), 1.0);
-  EXPECT_NEAR(7.5, deriv.nodeValue(0, 0), 0.005);
+  EXPECT_NEAR(6.326, deriv.nodeValue(0, 0), 0.005);
 
   JarrowRuddPropagator jr_prop(0.00, 0.158745, 100);
   asset.forwardPropagate(jr_prop);
   deriv.backPropagate(
       asset, jr_prop, std::bind_front(&call_payoff, 100.0), 1.0);
-  EXPECT_NEAR(7.5, deriv.nodeValue(0, 0), 0.005);
+  EXPECT_NEAR(6.326, deriv.nodeValue(0, 0), 0.005);
 
   // Verify put/call parity.
   asset.forwardPropagate(crr_prop);

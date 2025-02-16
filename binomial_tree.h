@@ -210,9 +210,13 @@ struct CRRPropagator {
   }
 
   double getUpProbAt(double dt, int t, int i) const {
-    // Arbitrary convention to avoid division by 0.
-    if (annualized_vol_ <= 0) return 0;
-    return 0.5 + 0.5 * (expected_drift_ / annualized_vol_) * std::sqrt(dt);
+    // The "modeled" probability is 0.5 + 0.5 * (expected_drift_ /
+    // annualized_vol_) * std::sqrt(dt); However here for asset pricing we use
+    // the risk-neutral:
+    double u = annualized_vol_ * std::sqrt(dt);
+    double d = -u;
+    double r_temp = 0.0;  // TODO add rate
+    return (std::exp(r_temp * dt) - std::exp(d)) / (std::exp(u) - std::exp(d));
   }
 
   void updateVol(double vol) { annualized_vol_ = vol; }
@@ -243,7 +247,14 @@ struct JarrowRuddPropagator {
     }
   }
 
-  double getUpProbAt(double dt, int t, int i) const { return 0.5; }
+  double getUpProbAt(double dt, int t, int i) const {
+    // The "modeled" probability is 0.5.
+    // However, here for asset pricing we use the risk-neutral:
+    double u = expected_drift_ * dt + annualized_vol_ * std::sqrt(dt);
+    double d = expected_drift_ * dt - annualized_vol_ * std::sqrt(dt);
+    double r_temp = 0.0;  // TODO add rate
+    return (std::exp(r_temp * dt) - std::exp(d)) / (std::exp(u) - std::exp(d));
+  }
 
   void updateVol(double vol) { annualized_vol_ = vol; }
 
