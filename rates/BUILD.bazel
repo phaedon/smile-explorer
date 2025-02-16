@@ -1,0 +1,28 @@
+package(default_visibility = ["//markets:__subpackages__"])
+
+cc_library(
+    name = "arrow_debreu",
+    hdrs = ["arrow_debreu.h"],
+    deps = ["//markets:binomial_tree"],
+)
+
+cc_library(
+    name = "bdt",
+    hdrs = ["bdt.h"],
+    deps = [
+        ":arrow_debreu",
+        ":swaps",
+        "//markets:binomial_tree",
+        "//markets:time",
+        "@ceres-solver//:ceres",
+    ],
+)
+
+cc_library(
+    name = "swaps",
+    hdrs = ["swaps.h"],
+    deps = [
+        "//markets:binomial_tree",
+        "//markets:time",
+    ],
+)

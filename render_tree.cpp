@@ -3,11 +3,15 @@
 #include <Eigen/Dense>
 #include <chrono>
 
-#include "imgui/backends/imgui_impl_glfw.h"
-#include "imgui/backends/imgui_impl_opengl3.h"
 #include "imgui/imgui.h"
+#include "imgui/imgui_impl_glfw.h"
+#include "imgui/imgui_impl_opengl3.h"
 #include "implot.h"
 #include "markets/binomial_tree.h"
+#include "markets/rates/arrow_debreu.h"
+#include "markets/rates/bdt.h"
+#include "markets/rates/swaps.h"
+#include "markets/yield_curve.h"
 #define GL_SILENCE_DEPRECATION
 #include <GLFW/glfw3.h>
 
@@ -29,7 +33,7 @@ int main(int, char**) {
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);  // macOS requires this
 
   GLFWwindow* window = glfwCreateWindow(
-      1280, 720, "Dear ImGui GLFW+OpenGL3 example", nullptr, nullptr);
+      1280, 720, "Binomial options visualizer!", nullptr, nullptr);
   if (window == nullptr) return 1;
   glfwMakeContextCurrent(window);
   glfwSwapInterval(1);  // Enable vsync
@@ -50,16 +54,49 @@ int main(int, char**) {
   bool show_demo_window = true;
   ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-  const auto timestep = std::chrono::weeks(2);
-  markets::BinomialTree tree(std::chrono::years(2), timestep);
-  tree.setInitValue(5.0);
-  float vol = 0.15;  // Initial value
-  tree.populateTreeForward(markets::genUpFn(vol, timestep),
-                           markets::genDownFn(vol, timestep));
-  std::cout << tree.nodeValue(5, 4) << std::endl;
+  // see for example
+  // https://sebgroup.com/our-offering/reports-and-publications/rates-and-iban/swap-rates
+  YieldCurve spot_curve({1, 2, 5, 7, 10},
+                        {0.045, 0.0423, 0.0401, 0.0398, 0.0397});
 
-  std::vector<Eigen::Vector2d> nodes;
-  std::vector<double> x_coords, y_coords;
+  float vol = 0.2;  // Initial value
+  double spot_rate = 0.05;
+  const auto timestep = std::chrono::weeks(4);
+  const auto tree_duration = std::chrono::years(5);
+  markets::BinomialTree tree(tree_duration, timestep);
+  tree.setInitValue(spot_rate);
+
+  markets::BdtPropagator bdt(tree.numTimesteps(), vol, spot_rate);
+  tree.forwardPropagate(bdt);
+
+  markets::ArrowDebreauPropagator arrowdeb(tree, tree.numTimesteps());
+  markets::BinomialTree adtree(tree_duration, timestep);
+  adtree.setInitValue(1.0);
+  adtree.forwardPropagate(arrowdeb);
+
+  std::vector<double> yield_curve(tree.numTimesteps());
+  for (int t = 0; t < tree.numTimesteps(); ++t) {
+    double yrs = t * tree.timestep().count() / 365.;
+    yield_curve[t] = spot_curve.getRate(yrs);
+    std::cout << "t:" << t << "   yrs:" << yrs << "  rate:" << yield_curve[t]
+              << std::endl;
+  }
+
+  // calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
+
+  for (int i = 1; i < 5; ++i) {
+    std::cout << "Swap rate at time:" << i << " = "
+              << markets::swapRate<markets::Period::kAnnual>(
+                     adtree, std::chrono::years(i))
+              << std::endl;
+  }
+
+  markets::CRRPropagator crr_prop(0.1, 0.2, 75);
+  markets::BinomialTree walmart(std::chrono::months(6),
+                                std::chrono::days(1),
+                                markets::YearStyle::kBusinessDays256);
+  walmart.forwardPropagate(crr_prop);
+
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
 
@@ -72,50 +109,39 @@ int main(int, char**) {
     ImGui::Begin("Binomial Tree");
 
     ImGui::SliderFloat("Volatility", &vol, 0.0f, 0.40f, "%.3f");
-    tree.populateTreeForward(markets::genUpFn(vol, timestep),
-                             markets::genDownFn(vol, timestep));
-    std::cout << vol << "  " << tree.nodeValue(5, 4) << std::endl;
+    crr_prop.updateVol(vol);
+    tree.forwardPropagate(bdt);
+    adtree.forwardPropagate(arrowdeb);
+    walmart.forwardPropagate(crr_prop);
 
-    nodes = markets::getNodes(tree);
-
-    x_coords.clear();
-    y_coords.clear();
-
-    for (const auto& node : nodes) {
-      x_coords.push_back(node.x());
-      y_coords.push_back(node.y());
-    }
+    const auto r = getTreeRenderData(walmart);
 
     if (ImPlot::BeginPlot("Binomial Tree Plot", ImVec2(-1, -1))) {
-      //  std::cout << "Volatility: " << vol <<
-      //  std::endl; std::cout << "Nodes size: " <<
-      //  nodes.size() << std::endl;
-      if (!x_coords.empty() && !y_coords.empty()) {
-        //     std::cout << "fifth node: x = " <<
-        //     x_coords[5]
-        //               << ", y = " << y_coords[5] <<
-        //               std::endl;
-        // Print a few more node values if needed
-      }
-
       ImPlotStyle& style = ImPlot::GetStyle();
       style.MarkerSize = 1;
 
-      if (!nodes.empty()) {
+      if (!r.x_coords.empty()) {
         ImPlot::SetupAxisLimits(
-            ImAxis_X1, 0, tree.numTimesteps(), ImPlotCond_Always);
+            ImAxis_X1, 0, walmart.numTimesteps(), ImPlotCond_Always);
       }
 
-      if (!y_coords.empty()) {
+      if (!r.y_coords.empty()) {
         auto [min_it, max_it] =
-            std::minmax_element(y_coords.begin(), y_coords.end());
+            std::minmax_element(r.y_coords.begin(), r.y_coords.end());
         double min_y = *min_it;
         double max_y = *max_it;
         ImPlot::SetupAxisLimits(ImAxis_Y1, 0, max_y, ImPlotCond_Always);
       }
 
+      // Plot the edges as line segments
+      ImPlot::PlotLine("##Edges",
+                       r.edge_x_coords.data(),
+                       r.edge_y_coords.data(),
+                       r.edge_x_coords.size(),
+                       ImPlotLineFlags_Segments);
+
       ImPlot::PlotScatter(
-          "Nodes", x_coords.data(), y_coords.data(), x_coords.size());
+          "Nodes", r.x_coords.data(), r.y_coords.data(), r.x_coords.size());
 
       ImPlot::EndPlot();
     }

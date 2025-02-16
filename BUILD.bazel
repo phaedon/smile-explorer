@@ -1,7 +1,10 @@
+package(default_visibility = ["//markets:__subpackages__"])
+
 cc_library(
     name = "binomial_tree",
     hdrs = ["binomial_tree.h"],
     deps = [
+        ":time",
         "@eigen",
     ],
 )
@@ -29,9 +32,28 @@ cc_binary(
     srcs = ["render_tree.cpp"],
     deps = [
         ":binomial_tree",
+        ":yield_curve",
+        "//markets/rates:arrow_debreu",
+        "//markets/rates:bdt",
+        "//markets/rates:swaps",
         "@eigen",
         "@glfw",
-        "@imgui//:imgui-glfw-opengl3",
-        "@implot-0.16",
+        "@imgui",
+        "@imgui//backends:platform-glfw",
+        "@imgui//backends:renderer-opengl3",
+        "@implot",
+    ],
+)
+
+cc_library(
+    name = "time",
+    hdrs = ["time.h"],
+)
+
+cc_library(
+    name = "yield_curve",
+    hdrs = ["yield_curve.h"],
+    deps = [
+        "@boost.math",
     ],
 )
