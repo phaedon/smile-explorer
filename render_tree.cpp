@@ -3,6 +3,7 @@
 #include <Eigen/Dense>
 #include <chrono>
 
+#include "binomial_tree.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
@@ -92,6 +93,8 @@ int main(int, char**) {
   }
 
   markets::CRRPropagator crr_prop(0.1, 0.2, 75);
+  markets::JarrowRuddPropagator jr_prop(0.1, 0.2, 75);
+
   markets::BinomialTree walmart(std::chrono::months(6),
                                 std::chrono::days(1),
                                 markets::YearStyle::kBusinessDays256);
@@ -108,11 +111,33 @@ int main(int, char**) {
 
     ImGui::Begin("Binomial Tree");
 
+    static int current_item = 0;  // Index of the currently selected item
+    const char* items[] = {"CRR",
+                           "Jarrow-Rudd"};  // The options in the dropdown
+    if (ImGui::BeginCombo("Select an option", items[current_item])) {
+      for (int n = 0; n < IM_ARRAYSIZE(items); n++) {
+        bool is_selected = (current_item == n);        // Is this item selected?
+        if (ImGui::Selectable(items[n], is_selected))  // If the item is clicked
+        {
+          current_item = n;  // Update the selection
+        }
+        if (is_selected)
+          ImGui::SetItemDefaultFocus();  // Set the initial focus when opening
+                                         // the combo
+      }
+      ImGui::EndCombo();
+    }
+
     ImGui::SliderFloat("Volatility", &vol, 0.0f, 0.40f, "%.3f");
     crr_prop.updateVol(vol);
-    tree.forwardPropagate(bdt);
-    adtree.forwardPropagate(arrowdeb);
-    walmart.forwardPropagate(crr_prop);
+    jr_prop.updateVol(vol);
+    // tree.forwardPropagate(bdt);
+    // adtree.forwardPropagate(arrowdeb);
+    if (current_item == 0) {
+      walmart.forwardPropagate(crr_prop);
+    } else if (current_item == 1) {
+      walmart.forwardPropagate(jr_prop);
+    }
 
     const auto r = getTreeRenderData(walmart);
 
