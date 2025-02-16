@@ -15,7 +15,7 @@ inline double swapRate<Period::kAnnual>(const BinomialTree& adtree,
   double df_sum = 0;
   double final_df = 0;
   for (int t = 1; t <= maturity.count(); ++t) {
-    int timestep_index = t * 365 / adtree.timestep().count();
+    int timestep_index = t / adtree.exactTimestepInYears();
     double df = adtree.sumAtTimestep(timestep_index);
     // std::cout << "df at time:" << t << " timestep_index:" << timestep_index
     //           << " df:" << df << std::endl;

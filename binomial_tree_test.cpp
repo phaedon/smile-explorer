@@ -90,8 +90,10 @@ TEST(BinomialTree, Derman_VolSmile_13_3) {
 TEST(BinomialTree, Derman_VolSmile_13_4) {
   EXPECT_NEAR(21.95, call(2000, 2100, 0.16, 0.25, 0.00, 0.04), 0.005);
 }
+
 TEST(BinomialTree, Derman_VolSmile_13_5) {
   EXPECT_NEAR(26.93, call(2000, 2100, 0.16, 0.25, 0.04, 0.04), 0.005);
 }
+
 }  // namespace
 }  // namespace markets

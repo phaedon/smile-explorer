@@ -59,7 +59,7 @@ int main(int, char**) {
   YieldCurve spot_curve({1, 2, 5, 7, 10},
                         {0.045, 0.0423, 0.0401, 0.0398, 0.0397});
 
-  float vol = 0.2;  // Initial value
+  float vol = 0.15875;  // Initial value
   double spot_rate = 0.05;
   const auto timestep = std::chrono::weeks(4);
   const auto tree_duration = std::chrono::years(5);
@@ -76,7 +76,7 @@ int main(int, char**) {
 
   std::vector<double> yield_curve(tree.numTimesteps());
   for (int t = 0; t < tree.numTimesteps(); ++t) {
-    double yrs = t * tree.timestep().count() / 365.;
+    double yrs = t * tree.exactTimestepInYears();
     yield_curve[t] = spot_curve.getRate(yrs);
     std::cout << "t:" << t << "   yrs:" << yrs << "  rate:" << yield_curve[t]
               << std::endl;
@@ -90,21 +90,19 @@ int main(int, char**) {
                      adtree, std::chrono::years(i))
               << std::endl;
   }
+  const double expected_drift = 0.0;
 
-  markets::CRRPropagator crr_prop(0.0, 0.2, 100);
-  markets::JarrowRuddPropagator jr_prop(0.0, 0.2, 100);
+  markets::CRRPropagator crr_prop(expected_drift, vol, 100);
+  markets::JarrowRuddPropagator jr_prop(expected_drift, vol, 100);
 
-  markets::BinomialTree asset(
-      std::chrono::months(12), std::chrono::days(30), markets::YearStyle::k360);
-  markets::BinomialTree deriv(
-      std::chrono::months(12), std::chrono::days(30), markets::YearStyle::k360);
+  markets::BinomialTree asset(std::chrono::months(12),
+                              std::chrono::days(5),
+                              markets::YearStyle::kBusinessDays252);
+  markets::BinomialTree deriv(std::chrono::months(12),
+                              std::chrono::days(5),
+                              markets::YearStyle::kBusinessDays252);
   double deriv_expiry = 1.0;
-
-  asset.forwardPropagate(crr_prop);
-  deriv.backPropagate(asset,
-                      crr_prop,
-                      std::bind_front(&markets::call_payoff, 100.0),
-                      deriv_expiry);
+  float strike = 100;
 
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
@@ -120,14 +118,17 @@ int main(int, char**) {
                            "Jarrow-Rudd"};  // The options in the dropdown
     if (ImGui::BeginCombo("Select an option", items[current_item])) {
       for (int n = 0; n < IM_ARRAYSIZE(items); n++) {
-        bool is_selected = (current_item == n);        // Is this item selected?
-        if (ImGui::Selectable(items[n], is_selected))  // If the item is clicked
+        bool is_selected = (current_item == n);  // Is this item selected?
+        if (ImGui::Selectable(items[n],
+                              is_selected))  // If the item is clicked
         {
           current_item = n;  // Update the selection
         }
         if (is_selected)
-          ImGui::SetItemDefaultFocus();  // Set the initial focus when opening
-                                         // the combo
+          ImGui::SetItemDefaultFocus();  // Set the initial
+                                         // focus when
+                                         // opening the
+                                         // combo
       }
       ImGui::EndCombo();
     }
@@ -135,20 +136,10 @@ int main(int, char**) {
     ImGui::SliderFloat("Volatility", &vol, 0.0f, 0.40f, "%.3f");
     crr_prop.updateVol(vol);
     jr_prop.updateVol(vol);
-    // tree.forwardPropagate(bdt);
-    // adtree.forwardPropagate(arrowdeb);
     if (current_item == 0) {
       asset.forwardPropagate(crr_prop);
-      deriv.backPropagate(asset,
-                          crr_prop,
-                          std::bind_front(&markets::call_payoff, 100.0),
-                          deriv_expiry);
     } else if (current_item == 1) {
       asset.forwardPropagate(jr_prop);
-      deriv.backPropagate(asset,
-                          jr_prop,
-                          std::bind_front(&markets::call_payoff, 100.0),
-                          deriv_expiry);
     }
 
     if (ImPlot::BeginPlot("Asset Tree Plot", ImVec2(-1, -1))) {
@@ -185,6 +176,32 @@ int main(int, char**) {
     ImGui::End();
 
     ImGui::Begin("Option Tree");
+    ImGui::SliderFloat("Strike", &strike, 1.0f, 200.f, "%.2f");
+    if (current_item == 0) {
+      deriv.backPropagate(asset,
+                          crr_prop,
+                          std::bind_front(&markets::call_payoff, strike),
+                          deriv_expiry);
+    } else if (current_item == 1) {
+      deriv.backPropagate(asset,
+                          jr_prop,
+                          std::bind_front(&markets::call_payoff, strike),
+                          deriv_expiry);
+    }
+
+    double computed_value = deriv.nodeValue(0, 0);
+    std::string value_str = std::to_string(computed_value);
+    char buffer[64];  // A buffer to hold the string (adjust
+                      // size as needed)
+    strncpy(buffer, value_str.c_str(),
+            sizeof(buffer) - 1);        // Copy to buffer
+    buffer[sizeof(buffer) - 1] = '\0';  // Ensure null termination
+
+    ImGui::InputText("European call",
+                     buffer,
+                     IM_ARRAYSIZE(buffer),
+                     ImGuiInputTextFlags_ReadOnly);
+
     if (ImPlot::BeginPlot("Option Tree Plot", ImVec2(-1, -1))) {
       const auto r = getTreeRenderData(deriv);
 

@@ -12,30 +12,6 @@
 
 namespace markets {
 
-auto genUpFn(double annual_vol, std::chrono::days timestep) {
-  double dt = static_cast<double>(timestep.count()) / 365.25;
-  double u = std::exp(annual_vol * std::sqrt(dt));
-  return [u](double curr) { return curr * u; };
-}
-
-auto genDownFn(double annual_vol, std::chrono::days timestep) {
-  double dt = static_cast<double>(timestep.count()) / 365.25;
-  double d = 1.0 / std::exp(annual_vol * std::sqrt(dt));
-  return [d](double curr) { return curr * d; };
-}
-
-auto genUpFn(double annual_vol, std::chrono::weeks timestep) {
-  double dt = static_cast<double>(timestep.count()) * 7 / 365.25;
-  double u = std::exp(annual_vol * std::sqrt(dt));
-  return [u](double curr) { return curr * u; };
-}
-
-auto genDownFn(double annual_vol, std::chrono::weeks timestep) {
-  double dt = static_cast<double>(timestep.count()) * 7 / 365.25;
-  double d = 1.0 / std::exp(annual_vol * std::sqrt(dt));
-  return [d](double curr) { return curr * d; };
-}
-
 class BinomialTree {
  public:
   BinomialTree(std::chrono::years total_duration,
@@ -126,10 +102,12 @@ class BinomialTree {
     return tree_(time, node_index);
   }
 
-  std::chrono::days timestep() const {
+  std::chrono::days approxTimestepInDays() const {
     int rounded_days = std::round(timestep_years_ * numDaysInYear(year_style_));
     return std::chrono::days(rounded_days);
   }
+
+  YearStyle getYearStyle() const { return year_style_; }
 
   double exactTimestepInYears() const { return timestep_years_; }
 

@@ -11,7 +11,7 @@ struct ArrowDebreauPropagator {
   double operator()(const BinomialTree& tree, int t, int i) const {
     if (t == 0) return 1.0;
     // TODO add compounding for actual time
-    double act_365 = rate_tree_.timestep().count() / 365.;
+    double act_365 = rate_tree_.exactTimestepInYears();
     double prev_down = i == 0 ? 0 : tree.nodeValue(t - 1, i - 1);
     double df_down =
         i == 0 ? 0 : 1 / (1 + act_365 * rate_tree_.nodeValue(t - 1, i - 1));

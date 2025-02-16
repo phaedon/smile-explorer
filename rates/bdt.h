@@ -47,8 +47,7 @@ struct BdtCalibrationCost {
     // Recompute the discount factors.
     adtree_.forwardPropagate(arrowdeb_prop_);
 
-    int num_years_to_maturity =
-        std::ceil(t_ * adtree_.timestep().count() / 365.);
+    int num_years_to_maturity = std::ceil(t_ * adtree_.exactTimestepInYears());
 
     double computed_rate = swapRate<Period::kAnnual>(
         adtree_, std::chrono::years(num_years_to_maturity));
