@@ -91,13 +91,20 @@ int main(int, char**) {
               << std::endl;
   }
 
-  markets::CRRPropagator crr_prop(0.1, 0.2, 75);
-  markets::JarrowRuddPropagator jr_prop(0.1, 0.2, 75);
+  markets::CRRPropagator crr_prop(0.0, 0.2, 100);
+  markets::JarrowRuddPropagator jr_prop(0.0, 0.2, 100);
 
-  markets::BinomialTree walmart(std::chrono::months(6),
-                                std::chrono::days(1),
-                                markets::YearStyle::kBusinessDays256);
-  walmart.forwardPropagate(crr_prop);
+  markets::BinomialTree asset(
+      std::chrono::months(12), std::chrono::days(30), markets::YearStyle::k360);
+  markets::BinomialTree deriv(
+      std::chrono::months(12), std::chrono::days(30), markets::YearStyle::k360);
+  double deriv_expiry = 1.0;
+
+  asset.forwardPropagate(crr_prop);
+  deriv.backPropagate(asset,
+                      crr_prop,
+                      std::bind_front(&markets::call_payoff, 100.0),
+                      deriv_expiry);
 
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
@@ -131,20 +138,28 @@ int main(int, char**) {
     // tree.forwardPropagate(bdt);
     // adtree.forwardPropagate(arrowdeb);
     if (current_item == 0) {
-      walmart.forwardPropagate(crr_prop);
+      asset.forwardPropagate(crr_prop);
+      deriv.backPropagate(asset,
+                          crr_prop,
+                          std::bind_front(&markets::call_payoff, 100.0),
+                          deriv_expiry);
     } else if (current_item == 1) {
-      walmart.forwardPropagate(jr_prop);
+      asset.forwardPropagate(jr_prop);
+      deriv.backPropagate(asset,
+                          jr_prop,
+                          std::bind_front(&markets::call_payoff, 100.0),
+                          deriv_expiry);
     }
 
-    const auto r = getTreeRenderData(walmart);
+    if (ImPlot::BeginPlot("Asset Tree Plot", ImVec2(-1, -1))) {
+      const auto r = getTreeRenderData(asset);
 
-    if (ImPlot::BeginPlot("Binomial Tree Plot", ImVec2(-1, -1))) {
       ImPlotStyle& style = ImPlot::GetStyle();
       style.MarkerSize = 1;
 
       if (!r.x_coords.empty()) {
         ImPlot::SetupAxisLimits(
-            ImAxis_X1, 0, walmart.numTimesteps(), ImPlotCond_Always);
+            ImAxis_X1, 0, asset.numTimesteps(), ImPlotCond_Always);
       }
 
       if (!r.y_coords.empty()) {
@@ -167,7 +182,40 @@ int main(int, char**) {
 
       ImPlot::EndPlot();
     }
+    ImGui::End();
 
+    ImGui::Begin("Option Tree");
+    if (ImPlot::BeginPlot("Option Tree Plot", ImVec2(-1, -1))) {
+      const auto r = getTreeRenderData(deriv);
+
+      ImPlotStyle& style = ImPlot::GetStyle();
+      style.MarkerSize = 1;
+
+      if (!r.x_coords.empty()) {
+        ImPlot::SetupAxisLimits(
+            ImAxis_X1, 0, asset.numTimesteps(), ImPlotCond_Always);
+      }
+
+      if (!r.y_coords.empty()) {
+        auto [min_it, max_it] =
+            std::minmax_element(r.y_coords.begin(), r.y_coords.end());
+        double min_y = *min_it;
+        double max_y = *max_it;
+        ImPlot::SetupAxisLimits(ImAxis_Y1, min_y, max_y, ImPlotCond_Always);
+      }
+
+      // Plot the edges as line segments
+      ImPlot::PlotLine("##Edges",
+                       r.edge_x_coords.data(),
+                       r.edge_y_coords.data(),
+                       r.edge_x_coords.size(),
+                       ImPlotLineFlags_Segments);
+
+      ImPlot::PlotScatter(
+          "Nodes", r.x_coords.data(), r.y_coords.data(), r.x_coords.size());
+
+      ImPlot::EndPlot();
+    }
     ImGui::End();
 
     ImGui::Render();

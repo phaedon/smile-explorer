@@ -60,6 +60,17 @@ class BinomialTree {
     tree_.setZero();
   }
 
+  BinomialTree(double total_duration_years,
+               double timestep_years,
+               YearStyle style = YearStyle::k365)
+      : tree_duration_years_(total_duration_years),
+        timestep_years_(timestep_years),
+        year_style_(style) {
+    int num_timesteps = std::ceil(tree_duration_years_ / timestep_years_) + 1;
+    tree_.resize(num_timesteps, num_timesteps);
+    tree_.setZero();
+  }
+
   int numTimesteps() const { return tree_.rows(); }
 
   void setInitValue(double val) { setValue(0, 0, val); }
@@ -73,9 +84,43 @@ class BinomialTree {
     }
   }
 
+  template <typename PropagatorT>
+  void backPropagate(const BinomialTree& diffusion,
+                     const PropagatorT& back_prop,
+                     const std::function<double(double)>& payoff_fn,
+                     double expiry_years) {
+    int t_final = getTimeIndexForExpiry(expiry_years);
+    for (int i = 0; i <= t_final; ++i) {
+      setValue(t_final, i, payoff_fn(diffusion.nodeValue(t_final, i)));
+    }
+
+    for (int t = t_final - 1; t >= 0; --t) {
+      for (int i = t; i >= 0; --i) {
+        double up = nodeValue(t + 1, i + 1);
+        double down = nodeValue(t + 1, i);
+        double up_prob = back_prop.getUpProbAt(exactTimestepInYears(), t, i);
+        double down_prob = 1 - up_prob;
+
+        // TODO no discounting (yet)
+        setValue(t, i, up * up_prob + down * down_prob);
+      }
+    }
+  }
+
+  int getTimeIndexForExpiry(double expiry_years) const {
+    // for example if expiry=0.5 and timestep=1/12, then we should return 6.
+    // if expiry=1/12 and timestep=1/365 then we should return 30 or 31
+    // (depending on rounding convention)
+    return std::round(expiry_years / timestep_years_);
+  }
+
   double sumAtTimestep(int t) const { return tree_.row(t).sum(); }
 
   void print() const { std::cout << tree_; }
+  void printAtTime(int t) const {
+    std::cout << "Time " << t << ": ";
+    std::cout << tree_.row(t) << std::endl;
+  }
 
   double nodeValue(int time, int node_index) const {
     return tree_(time, node_index);
@@ -154,7 +199,7 @@ struct CRRPropagator {
 
   double operator()(const BinomialTree& tree, int t, int i) const {
     if (t == 0) return spot_price_;
-    double u = annualized_vol_ * sqrt(tree.exactTimestepInYears());
+    double u = annualized_vol_ * std::sqrt(tree.exactTimestepInYears());
 
     if (i == 0) {
       double d = -u;
@@ -162,6 +207,12 @@ struct CRRPropagator {
     }
 
     return tree.nodeValue(t - 1, i - 1) * std::exp(u);
+  }
+
+  double getUpProbAt(double dt, int t, int i) const {
+    // Arbitrary convention to avoid division by 0.
+    if (annualized_vol_ <= 0) return 0;
+    return 0.5 + 0.5 * (expected_drift_ / annualized_vol_) * std::sqrt(dt);
   }
 
   void updateVol(double vol) { annualized_vol_ = vol; }
@@ -184,13 +235,15 @@ struct JarrowRuddPropagator {
     double dt = tree.exactTimestepInYears();
 
     if (i == 0) {
-      double d = expected_drift_ * dt - annualized_vol_ * sqrt(dt);
+      double d = expected_drift_ * dt - annualized_vol_ * std::sqrt(dt);
       return tree.nodeValue(t - 1, 0) * std::exp(d);
     } else {
-      double u = expected_drift_ * dt + annualized_vol_ * sqrt(dt);
+      double u = expected_drift_ * dt + annualized_vol_ * std::sqrt(dt);
       return tree.nodeValue(t - 1, i - 1) * std::exp(u);
     }
   }
+
+  double getUpProbAt(double dt, int t, int i) const { return 0.5; }
 
   void updateVol(double vol) { annualized_vol_ = vol; }
 
@@ -200,6 +253,14 @@ struct JarrowRuddPropagator {
 };
 
 class AssetTree {};
+
+double call_payoff(double strike, double val) {
+  return std::max(0.0, val - strike);
+}
+
+double put_payoff(double strike, double val) {
+  return std::max(0.0, strike - val);
+}
 
 }  // namespace markets
 

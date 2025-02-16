@@ -14,8 +14,14 @@ cc_test(
     srcs = ["binomial_tree_test.cpp"],
     deps = [
         ":binomial_tree",
+        ":bsm",
         "@googletest//:gtest_main",
     ],
+)
+
+cc_library(
+    name = "bsm",
+    hdrs = ["bsm.h"],
 )
 
 cc_library(
