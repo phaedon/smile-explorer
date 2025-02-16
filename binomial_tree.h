@@ -12,6 +12,8 @@
 
 namespace markets {
 
+using TimeDepVolFn = std::function<double(double)>;
+
 class BinomialTree {
  public:
   BinomialTree(std::chrono::years total_duration,
@@ -44,6 +46,29 @@ class BinomialTree {
         year_style_(style) {
     int num_timesteps = std::ceil(tree_duration_years_ / timestep_years_) + 1;
     tree_.resize(num_timesteps, num_timesteps);
+    tree_.setZero();
+  }
+
+  // Prepares a tree for time-dependent deterministic volaility
+  // (term structure, but no skew).
+  // Preserves timestep_years_ as the size of the initial timestep.
+  void resizeWithTimeDependentVol(const TimeDepVolFn& vol_fn) {
+    double total_time = 0;
+    double dt_curr = timestep_years_;
+    timesteps_.push_back(dt_curr);
+    total_times_.push_back(total_time);
+
+    while (total_time <= tree_duration_years_) {
+      double sig_curr = vol_fn(total_time);
+      total_time += dt_curr;
+      double sig_next = vol_fn(total_time);
+      double dt_next = sig_curr * sig_curr * dt_curr / (sig_next * sig_next);
+      timesteps_.push_back(dt_next);
+      total_times_.push_back(total_time);
+      dt_curr = dt_next;
+    }
+
+    tree_.resize(timesteps_.size(), timesteps_.size());
     tree_.setZero();
   }
 
@@ -110,12 +135,29 @@ class BinomialTree {
   YearStyle getYearStyle() const { return year_style_; }
 
   double exactTimestepInYears() const { return timestep_years_; }
+  double totalTimeAtIndex(int t) const {
+    if (total_times_.empty())
+      return timestep_years_ * t;
+    else
+      return total_times_[t];
+  }
+
+  double timestepAt(int t) const {
+    if (timesteps_.empty()) {
+      return timestep_years_;
+    }
+    return timesteps_[t];
+  }
 
  private:
   Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> tree_;
   double tree_duration_years_;
   double timestep_years_;
   YearStyle year_style_;
+
+  // Only used in case of time-dep vol. There is a better way to structure this.
+  std::vector<double> timesteps_;
+  std::vector<double> total_times_;
 
   void setValue(int time, int node_index, double val) {
     tree_(time, node_index) = val;
@@ -175,9 +217,27 @@ struct CRRPropagator {
         annualized_vol_(annualized_vol),
         spot_price_(spot_price) {}
 
+  CRRPropagator(double expected_drift,
+                double spot_price,
+                const TimeDepVolFn& vol_fn)
+      : expected_drift_(expected_drift),
+        spot_price_(spot_price),
+        vol_fn_(std::make_unique<const TimeDepVolFn>(vol_fn)) {}
+
+  double getVol(double t) const {
+    if (isVolConst()) {
+      return annualized_vol_;
+    }
+    return (*vol_fn_)(t);
+  }
+
+  bool isVolConst() const { return vol_fn_ == nullptr; }
+
   double operator()(const BinomialTree& tree, int t, int i) const {
     if (t == 0) return spot_price_;
-    double u = annualized_vol_ * std::sqrt(tree.exactTimestepInYears());
+    double curr_time = tree.totalTimeAtIndex(t);
+    double dt = isVolConst() ? tree.exactTimestepInYears() : tree.timestepAt(t);
+    double u = getVol(curr_time) * std::sqrt(dt);
 
     if (i == 0) {
       double d = -u;
@@ -202,6 +262,7 @@ struct CRRPropagator {
   double expected_drift_;
   double annualized_vol_;
   double spot_price_;
+  std::unique_ptr<const TimeDepVolFn> vol_fn_;
 };
 
 struct JarrowRuddPropagator {

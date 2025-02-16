@@ -95,5 +95,23 @@ TEST(BinomialTree, Derman_VolSmile_13_5) {
   EXPECT_NEAR(26.93, call(2000, 2100, 0.16, 0.25, 0.04, 0.04), 0.005);
 }
 
+double getTimeDependentVol(double t) {
+  // just a hard-coded example from Derman 13-6 to get started.
+  if (t < 1) return 0.2;
+  if (t < 2) return 0.255;
+  return 0.311;
+}
+
+TEST(BinomialTree, Derman_VolSmile_13_6) {
+  BinomialTree asset(3.0, 1 / 10., YearStyle::kBusinessDays252);
+  asset.resizeWithTimeDependentVol(&getTimeDependentVol);
+
+  CRRPropagator crr_prop(0.00, 100, &getTimeDependentVol);
+  asset.forwardPropagate(crr_prop);
+  for (int t = 0; t < asset.numTimesteps(); ++t) {
+    std::cout << "t:" << t << "   dt:" << asset.timestepAt(t) << std::endl;
+  }
+}
+
 }  // namespace
 }  // namespace markets
