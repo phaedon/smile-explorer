@@ -125,9 +125,11 @@ class BinomialTree {
       const double diff_curr = std::abs(total_times_[t] - expiry_years);
       const double diff_next = std::abs(total_times_[t + 1] - expiry_years);
       if (t == 0) {
-        if (diff_curr < diff_next) return t;
+        if (diff_curr < diff_next) {
+          return t;
+        }
       } else {
-        if (diff_curr <= std::abs(total_times_[t - 1] - expiry_years) ||
+        if (diff_curr <= std::abs(total_times_[t - 1] - expiry_years) &&
             diff_curr <= diff_next)
           return t;
       }
@@ -152,6 +154,12 @@ class BinomialTree {
   }
 
   YearStyle getYearStyle() const { return year_style_; }
+
+  bool isTreeEmptyAt(int t) const {
+    // current assumption: if an entire row is 0, nothing after it can be
+    // populated.
+    return tree_.row(t).isZero(0);
+  }
 
   double exactTimestepInYears() const { return timestep_years_; }
   double totalTimeAtIndex(int t) const {
@@ -186,6 +194,9 @@ class BinomialTree {
 inline std::vector<Eigen::Vector2d> getNodes(const BinomialTree& tree) {
   std::vector<Eigen::Vector2d> nodes;
   for (int t = 0; t < tree.numTimesteps(); ++t) {
+    if (tree.isTreeEmptyAt(t)) {
+      break;
+    }
     for (int i = 0; i <= t; ++i) {
       // nodes.emplace_back(Eigen::Vector2d{t, tree.nodeValue(t, i)});
       nodes.emplace_back(
@@ -261,7 +272,7 @@ struct CRRPropagator {
   double operator()(const BinomialTree& tree, int t, int i) const {
     if (t == 0) return spot_price_;
     double curr_time = tree.totalTimeAtIndex(t);
-    double dt = isVolConst() ? tree.exactTimestepInYears() : tree.timestepAt(t);
+    double dt = tree.timestepAt(t);
     double u = getVol(curr_time) * std::sqrt(dt);
 
     if (i == 0) {
@@ -300,7 +311,7 @@ struct JarrowRuddPropagator {
 
   double operator()(const BinomialTree& tree, int t, int i) const {
     if (t == 0) return spot_price_;
-    double dt = tree.exactTimestepInYears();
+    double dt = tree.timestepAt(t);
 
     if (i == 0) {
       double d = expected_drift_ * dt - annualized_vol_ * std::sqrt(dt);

@@ -28,9 +28,15 @@ double forwardVol(
 
 double getTimeDependentVol(double t) {
   // just a hard-coded example from Derman 13-6 to get started.
-  if (t <= 1) return 0.1;
-  if (t <= 2) return forwardVol(0, 1, 2, 0.1, 0.155);
-  return forwardVol(0, 2, 3, 0.155, 0.211);
+  double vol_0_1 = 0.10;
+  double vol_0_2 = 0.09;
+  double vol_0_3 = 0.085;
+  double t1 = 0.6;
+  double t2 = 2.0;
+  double t3 = 3.0;
+  if (t <= t1) return vol_0_1;
+  if (t <= t2) return forwardVol(0, t1, t2, vol_0_1, vol_0_2);
+  return forwardVol(0, t2, t3, vol_0_2, vol_0_3);
 }
 
 int main(int, char**) {
@@ -110,14 +116,12 @@ int main(int, char**) {
 
   markets::JarrowRuddPropagator jr_prop(expected_drift, vol, 100);
 
-  markets::BinomialTree asset(std::chrono::months(36),
-                              std::chrono::days(50),
-                              markets::YearStyle::kBusinessDays252);
+  markets::BinomialTree asset(
+      std::chrono::months(15), std::chrono::days(10), markets::YearStyle::k360);
   asset.resizeWithTimeDependentVol(&getTimeDependentVol);
 
-  markets::BinomialTree deriv(std::chrono::months(12),
-                              std::chrono::days(5),
-                              markets::YearStyle::kBusinessDays252);
+  markets::BinomialTree deriv(
+      std::chrono::months(15), std::chrono::days(10), markets::YearStyle::k360);
   deriv.resizeWithTimeDependentVol(&getTimeDependentVol);
 
   double deriv_expiry = 1.0;
@@ -232,7 +236,10 @@ int main(int, char**) {
 
       if (!r.x_coords.empty()) {
         ImPlot::SetupAxisLimits(
-            ImAxis_X1, 0, asset.numTimesteps(), ImPlotCond_Always);
+            ImAxis_X1,
+            0,
+            deriv.totalTimeAtIndex(deriv.numTimesteps() - 1),
+            ImPlotCond_Always);
       }
 
       if (!r.y_coords.empty()) {
