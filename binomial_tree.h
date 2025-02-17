@@ -92,6 +92,11 @@ class BinomialTree {
                      const std::function<double(double)>& payoff_fn,
                      double expiry_years) {
     int t_final = getTimeIndexForExpiry(expiry_years);
+
+    for (int i = t_final + 1; i < tree_.rows(); ++i) {
+      tree_.row(i).setZero();
+    }
+
     for (int i = 0; i <= t_final; ++i) {
       setValue(t_final, i, payoff_fn(diffusion.nodeValue(t_final, i)));
     }
@@ -346,6 +351,14 @@ double call_payoff(double strike, double val) {
 
 double put_payoff(double strike, double val) {
   return std::max(0.0, strike - val);
+}
+
+double digital_payoff(double strike, double val) {
+  double dist_from_strike = std::abs(strike - val);
+  if (dist_from_strike / strike < 0.05) {  // 5% on either side.
+    return 1.0;
+  }
+  return 0;
 }
 
 }  // namespace markets

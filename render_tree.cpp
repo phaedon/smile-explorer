@@ -28,9 +28,9 @@ double forwardVol(
 
 double getTimeDependentVol(double t) {
   // just a hard-coded example from Derman 13-6 to get started.
-  double vol_0_1 = 0.10;
-  double vol_0_2 = 0.09;
-  double vol_0_3 = 0.085;
+  double vol_0_1 = 0.1587;
+  double vol_0_2 = 0.1587;
+  double vol_0_3 = 0.1587;
   double t1 = 0.6;
   double t2 = 2.0;
   double t3 = 3.0;
@@ -124,7 +124,7 @@ int main(int, char**) {
       std::chrono::months(15), std::chrono::days(10), markets::YearStyle::k360);
   deriv.resizeWithTimeDependentVol(&getTimeDependentVol);
 
-  double deriv_expiry = 1.0;
+  float deriv_expiry = 1.0;
   float strike = 100;
 
   while (!glfwWindowShouldClose(window)) {
@@ -203,6 +203,7 @@ int main(int, char**) {
 
     ImGui::Begin("Option Tree");
     ImGui::SliderFloat("Strike", &strike, 1.0f, 200.f, "%.2f");
+    ImGui::SliderFloat("Expiry", &deriv_expiry, 0.0f, 3.0f, "%.2f");
     if (current_item == 0) {
       deriv.backPropagate(asset,
                           crr_prop,
