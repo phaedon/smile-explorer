@@ -100,7 +100,7 @@ class BinomialTree {
       for (int i = t; i >= 0; --i) {
         double up = nodeValue(t + 1, i + 1);
         double down = nodeValue(t + 1, i);
-        double up_prob = back_prop.getUpProbAt(exactTimestepInYears(), t, i);
+        double up_prob = back_prop.getUpProbAt(timestepAt(t), t, i);
         double down_prob = 1 - up_prob;
 
         // TODO no discounting (yet)
@@ -113,7 +113,25 @@ class BinomialTree {
     // for example if expiry=0.5 and timestep=1/12, then we should return 6.
     // if expiry=1/12 and timestep=1/365 then we should return 30 or 31
     // (depending on rounding convention)
-    return std::round(expiry_years / timestep_years_);
+    if (total_times_.empty()) {
+      return std::round(expiry_years / timestep_years_);
+    }
+
+    for (int t = 0; t < total_times_.size(); ++t) {
+      if (t == total_times_.size() - 1) {
+        return t;
+      }
+
+      const double diff_curr = std::abs(total_times_[t] - expiry_years);
+      const double diff_next = std::abs(total_times_[t + 1] - expiry_years);
+      if (t == 0) {
+        if (diff_curr < diff_next) return t;
+      } else {
+        if (diff_curr <= std::abs(total_times_[t - 1] - expiry_years) ||
+            diff_curr <= diff_next)
+          return t;
+      }
+    }
   }
 
   double sumAtTimestep(int t) const { return tree_.row(t).sum(); }

@@ -118,6 +118,8 @@ int main(int, char**) {
   markets::BinomialTree deriv(std::chrono::months(12),
                               std::chrono::days(5),
                               markets::YearStyle::kBusinessDays252);
+  deriv.resizeWithTimeDependentVol(&getTimeDependentVol);
+
   double deriv_expiry = 1.0;
   float strike = 100;
 
