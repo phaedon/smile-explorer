@@ -95,11 +95,18 @@ TEST(BinomialTree, Derman_VolSmile_13_5) {
   EXPECT_NEAR(26.93, call(2000, 2100, 0.16, 0.25, 0.04, 0.04), 0.005);
 }
 
+// Returns sig_t_T
+double forwardVol(
+    double t0, double t, double T, double sig_0_t, double sig_0_T) {
+  return std::sqrt((T * std::pow(sig_0_T, 2) - t * std::pow(sig_0_t, 2)) /
+                   (T - t));
+}
+
 double getTimeDependentVol(double t) {
   // just a hard-coded example from Derman 13-6 to get started.
-  if (t < 1) return 0.2;
-  if (t < 2) return 0.255;
-  return 0.311;
+  if (t <= 1) return 0.2;
+  if (t <= 2) return forwardVol(0, 1, 2, 0.2, 0.255);
+  return forwardVol(0, 2, 3, 0.255, 0.311);
 }
 
 TEST(BinomialTree, Derman_VolSmile_13_6) {
@@ -111,6 +118,9 @@ TEST(BinomialTree, Derman_VolSmile_13_6) {
   for (int t = 0; t < asset.numTimesteps(); ++t) {
     std::cout << "t:" << t << "   dt:" << asset.timestepAt(t) << std::endl;
   }
+
+  // just to trigger std::cout
+  EXPECT_TRUE(false);
 }
 
 }  // namespace
