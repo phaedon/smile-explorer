@@ -189,28 +189,31 @@ TreeRenderData getTreeRenderData(const BinomialTree& tree) {
     r.y_coords.push_back(node.y());
   }
 
-  for (size_t i = 0; i < nodes.size(); ++i) {
-    int t = tree.getTimeIndexForExpiry(nodes[i].x());
-    // static_cast<int>(nodes[i].x());
-    if (t < tree.numTimesteps() - 1) {
-      size_t child1Index = i + t + 1;
-      size_t child2Index = i + t + 2;
+  int cumul_start_index = 0;
+  for (int t = 0; t < tree.numTimesteps(); ++t) {
+    for (int i = 0; i <= t; ++i) {
+      if (t < tree.numTimesteps()) {
+        size_t parentIndex = cumul_start_index + i;
+        size_t child1Index = cumul_start_index + t + i + 0;
+        size_t child2Index = cumul_start_index + t + i + 1;
 
-      if (child1Index < nodes.size()) {
-        // Add coordinates for the segment
-        r.edge_x_coords.push_back(nodes[i].x());
-        r.edge_y_coords.push_back(nodes[i].y());
-        r.edge_x_coords.push_back(nodes[child1Index].x());
-        r.edge_y_coords.push_back(nodes[child1Index].y());
-      }
-      if (child2Index < nodes.size()) {
-        // Add coordinates for the segment
-        r.edge_x_coords.push_back(nodes[i].x());
-        r.edge_y_coords.push_back(nodes[i].y());
-        r.edge_x_coords.push_back(nodes[child2Index].x());
-        r.edge_y_coords.push_back(nodes[child2Index].y());
+        if (child1Index < nodes.size()) {
+          // Add coordinates for the segment
+          r.edge_x_coords.push_back(nodes[parentIndex].x());
+          r.edge_y_coords.push_back(nodes[parentIndex].y());
+          r.edge_x_coords.push_back(nodes[child1Index].x());
+          r.edge_y_coords.push_back(nodes[child1Index].y());
+        }
+        if (child2Index < nodes.size()) {
+          // Add coordinates for the segment
+          r.edge_x_coords.push_back(nodes[parentIndex].x());
+          r.edge_y_coords.push_back(nodes[parentIndex].y());
+          r.edge_x_coords.push_back(nodes[child2Index].x());
+          r.edge_y_coords.push_back(nodes[child2Index].y());
+        }
       }
     }
+    cumul_start_index += t;
   }
   return r;
 }
