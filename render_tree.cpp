@@ -105,15 +105,15 @@ int main(int, char**) {
   }
   const double expected_drift = 0.0;
 
-  markets::CRRPropagator crr_prop(expected_drift, vol, 100);
-  // markets::CRRPropagator crr_prop(0.00, 100, &getTimeDependentVol);
+  // markets::CRRPropagator crr_prop(expected_drift, vol, 100);
+  markets::CRRPropagator crr_prop(0.00, 100, &getTimeDependentVol);
 
   markets::JarrowRuddPropagator jr_prop(expected_drift, vol, 100);
 
   markets::BinomialTree asset(std::chrono::months(36),
                               std::chrono::days(50),
                               markets::YearStyle::kBusinessDays252);
-  // asset.resizeWithTimeDependentVol(&getTimeDependentVol);
+  asset.resizeWithTimeDependentVol(&getTimeDependentVol);
 
   markets::BinomialTree deriv(std::chrono::months(12),
                               std::chrono::days(5),
