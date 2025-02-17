@@ -168,7 +168,9 @@ inline std::vector<Eigen::Vector2d> getNodes(const BinomialTree& tree) {
   std::vector<Eigen::Vector2d> nodes;
   for (int t = 0; t < tree.numTimesteps(); ++t) {
     for (int i = 0; i <= t; ++i) {
-      nodes.emplace_back(Eigen::Vector2d{t, tree.nodeValue(t, i)});
+      // nodes.emplace_back(Eigen::Vector2d{t, tree.nodeValue(t, i)});
+      nodes.emplace_back(
+          Eigen::Vector2d{tree.totalTimeAtIndex(t), tree.nodeValue(t, i)});
     }
   }
   return nodes;
