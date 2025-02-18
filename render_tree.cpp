@@ -9,6 +9,7 @@
 #include "imgui/imgui_impl_opengl3.h"
 #include "implot.h"
 #include "markets/binomial_tree.h"
+#include "markets/propagators.h"
 #include "markets/rates/arrow_debreu.h"
 #include "markets/rates/bdt.h"
 #include "markets/rates/swaps.h"
@@ -18,6 +19,25 @@
 
 static void glfw_error_callback(int error, const char* description) {
   fprintf(stderr, "GLFW Error %d: %s\n", error, description);
+}
+
+double forwardVol(
+    double t0, double t, double T, double sig_0_t, double sig_0_T) {
+  return std::sqrt((T * std::pow(sig_0_T, 2) - t * std::pow(sig_0_t, 2)) /
+                   (T - t));
+}
+
+double getTimeDependentVol(double t) {
+  // just a hard-coded example from Derman 13-6 to get started.
+  double vol_0_1 = 0.1587;
+  double vol_0_2 = 0.1587;
+  double vol_0_3 = 0.1587;
+  double t1 = 0.6;
+  double t2 = 2.0;
+  double t3 = 3.0;
+  if (t <= t1) return vol_0_1;
+  if (t <= t2) return forwardVol(0, t1, t2, vol_0_1, vol_0_2);
+  return forwardVol(0, t2, t3, vol_0_2, vol_0_3);
 }
 
 int main(int, char**) {
@@ -92,16 +112,20 @@ int main(int, char**) {
   }
   const double expected_drift = 0.0;
 
-  markets::CRRPropagator crr_prop(expected_drift, vol, 100);
-  markets::JarrowRuddPropagator jr_prop(expected_drift, vol, 100);
+  markets::BinomialTree asset(
+      std::chrono::months(15), std::chrono::days(10), markets::YearStyle::k360);
+  asset.resizeWithTimeDependentVol(&getTimeDependentVol);
 
-  markets::BinomialTree asset(std::chrono::months(12),
-                              std::chrono::days(5),
-                              markets::YearStyle::kBusinessDays252);
-  markets::BinomialTree deriv(std::chrono::months(12),
-                              std::chrono::days(5),
-                              markets::YearStyle::kBusinessDays252);
-  double deriv_expiry = 1.0;
+  markets::BinomialTree deriv(
+      std::chrono::months(15), std::chrono::days(10), markets::YearStyle::k360);
+  deriv.resizeWithTimeDependentVol(&getTimeDependentVol);
+
+  float spot_price = 100;
+  markets::CRRPropagator crr_prop(
+      expected_drift, spot_price, &getTimeDependentVol);
+  markets::JarrowRuddPropagator jr_prop(expected_drift, vol, spot_price);
+
+  float deriv_expiry = 1.0;
   float strike = 100;
 
   while (!glfwWindowShouldClose(window)) {
@@ -136,6 +160,11 @@ int main(int, char**) {
     ImGui::SliderFloat("Volatility", &vol, 0.0f, 0.40f, "%.3f");
     crr_prop.updateVol(vol);
     jr_prop.updateVol(vol);
+
+    ImGui::DragFloat("Spot", &spot_price, 0.1f, 0.0f, 200.0f, "%.2f");
+    crr_prop.updateSpot(spot_price);
+    jr_prop.updateSpot(spot_price);
+
     if (current_item == 0) {
       asset.forwardPropagate(crr_prop);
     } else if (current_item == 1) {
@@ -150,7 +179,10 @@ int main(int, char**) {
 
       if (!r.x_coords.empty()) {
         ImPlot::SetupAxisLimits(
-            ImAxis_X1, 0, asset.numTimesteps(), ImPlotCond_Always);
+            ImAxis_X1,
+            0,
+            asset.totalTimeAtIndex(asset.numTimesteps() - 1),
+            ImPlotCond_Always);
       }
 
       if (!r.y_coords.empty()) {
@@ -177,6 +209,9 @@ int main(int, char**) {
 
     ImGui::Begin("Option Tree");
     ImGui::SliderFloat("Strike", &strike, 1.0f, 200.f, "%.2f");
+    ImGui::SliderFloat(
+        "Expiry", &deriv_expiry, 0.0f, asset.treeDurationYears(), "%.2f");
+
     if (current_item == 0) {
       deriv.backPropagate(asset,
                           crr_prop,
@@ -210,7 +245,10 @@ int main(int, char**) {
 
       if (!r.x_coords.empty()) {
         ImPlot::SetupAxisLimits(
-            ImAxis_X1, 0, asset.numTimesteps(), ImPlotCond_Always);
+            ImAxis_X1,
+            0,
+            deriv.totalTimeAtIndex(deriv.numTimesteps() - 1),
+            ImPlotCond_Always);
       }
 
       if (!r.y_coords.empty()) {

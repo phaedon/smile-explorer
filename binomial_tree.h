@@ -91,6 +91,11 @@ class BinomialTree {
                      const std::function<double(double)>& payoff_fn,
                      double expiry_years) {
     int t_final = getTimeIndexForExpiry(expiry_years);
+
+    for (int i = t_final + 1; i < tree_.rows(); ++i) {
+      tree_.row(i).setZero();
+    }
+
     for (int i = 0; i <= t_final; ++i) {
       setValue(t_final, i, payoff_fn(diffusion.nodeValue(t_final, i)));
     }
@@ -99,7 +104,7 @@ class BinomialTree {
       for (int i = t; i >= 0; --i) {
         double up = nodeValue(t + 1, i + 1);
         double down = nodeValue(t + 1, i);
-        double up_prob = back_prop.getUpProbAt(exactTimestepInYears(), t, i);
+        double up_prob = back_prop.getUpProbAt(timestepAt(t), t, i);
         double down_prob = 1 - up_prob;
 
         // TODO no discounting (yet)
@@ -112,7 +117,27 @@ class BinomialTree {
     // for example if expiry=0.5 and timestep=1/12, then we should return 6.
     // if expiry=1/12 and timestep=1/365 then we should return 30 or 31
     // (depending on rounding convention)
-    return std::round(expiry_years / timestep_years_);
+    if (total_times_.empty()) {
+      return std::round(expiry_years / timestep_years_);
+    }
+
+    for (int t = 0; t < total_times_.size(); ++t) {
+      if (t == total_times_.size() - 1) {
+        return t;
+      }
+
+      const double diff_curr = std::abs(total_times_[t] - expiry_years);
+      const double diff_next = std::abs(total_times_[t + 1] - expiry_years);
+      if (t == 0) {
+        if (diff_curr < diff_next) {
+          return t;
+        }
+      } else {
+        if (diff_curr <= std::abs(total_times_[t - 1] - expiry_years) &&
+            diff_curr <= diff_next)
+          return t;
+      }
+    }
   }
 
   double sumAtTimestep(int t) const { return tree_.row(t).sum(); }
@@ -127,12 +152,13 @@ class BinomialTree {
     return tree_(time, node_index);
   }
 
-  std::chrono::days approxTimestepInDays() const {
-    int rounded_days = std::round(timestep_years_ * numDaysInYear(year_style_));
-    return std::chrono::days(rounded_days);
-  }
-
   YearStyle getYearStyle() const { return year_style_; }
+
+  bool isTreeEmptyAt(int t) const {
+    // current assumption: if an entire row is 0, nothing after it can be
+    // populated.
+    return tree_.row(t).isZero(0);
+  }
 
   double exactTimestepInYears() const { return timestep_years_; }
   double totalTimeAtIndex(int t) const {
@@ -148,6 +174,8 @@ class BinomialTree {
     }
     return timesteps_[t];
   }
+
+  double treeDurationYears() const { return tree_duration_years_; }
 
  private:
   Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> tree_;
@@ -167,8 +195,12 @@ class BinomialTree {
 inline std::vector<Eigen::Vector2d> getNodes(const BinomialTree& tree) {
   std::vector<Eigen::Vector2d> nodes;
   for (int t = 0; t < tree.numTimesteps(); ++t) {
+    if (tree.isTreeEmptyAt(t)) {
+      break;
+    }
     for (int i = 0; i <= t; ++i) {
-      nodes.emplace_back(Eigen::Vector2d{t, tree.nodeValue(t, i)});
+      nodes.emplace_back(
+          Eigen::Vector2d{tree.totalTimeAtIndex(t), tree.nodeValue(t, i)});
     }
   }
   return nodes;
@@ -186,121 +218,34 @@ TreeRenderData getTreeRenderData(const BinomialTree& tree) {
     r.y_coords.push_back(node.y());
   }
 
-  for (size_t i = 0; i < nodes.size(); ++i) {
-    int t = static_cast<int>(nodes[i].x());
-    if (t < tree.numTimesteps() - 1) {
-      size_t child1Index = i + t + 1;
-      size_t child2Index = i + t + 2;
+  int cumul_start_index = 0;
+  for (int t = 0; t < tree.numTimesteps(); ++t) {
+    for (int i = 0; i <= t; ++i) {
+      if (t < tree.numTimesteps()) {
+        size_t parentIndex = cumul_start_index + i;
+        size_t child1Index = cumul_start_index + t + i + 0;
+        size_t child2Index = cumul_start_index + t + i + 1;
 
-      if (child1Index < nodes.size()) {
-        // Add coordinates for the segment
-        r.edge_x_coords.push_back(nodes[i].x());
-        r.edge_y_coords.push_back(nodes[i].y());
-        r.edge_x_coords.push_back(nodes[child1Index].x());
-        r.edge_y_coords.push_back(nodes[child1Index].y());
-      }
-      if (child2Index < nodes.size()) {
-        // Add coordinates for the segment
-        r.edge_x_coords.push_back(nodes[i].x());
-        r.edge_y_coords.push_back(nodes[i].y());
-        r.edge_x_coords.push_back(nodes[child2Index].x());
-        r.edge_y_coords.push_back(nodes[child2Index].y());
+        if (child1Index < nodes.size()) {
+          // Add coordinates for the segment
+          r.edge_x_coords.push_back(nodes[parentIndex].x());
+          r.edge_y_coords.push_back(nodes[parentIndex].y());
+          r.edge_x_coords.push_back(nodes[child1Index].x());
+          r.edge_y_coords.push_back(nodes[child1Index].y());
+        }
+        if (child2Index < nodes.size()) {
+          // Add coordinates for the segment
+          r.edge_x_coords.push_back(nodes[parentIndex].x());
+          r.edge_y_coords.push_back(nodes[parentIndex].y());
+          r.edge_x_coords.push_back(nodes[child2Index].x());
+          r.edge_y_coords.push_back(nodes[child2Index].y());
+        }
       }
     }
+    cumul_start_index += t;
   }
   return r;
 }
-
-struct CRRPropagator {
-  CRRPropagator(double expected_drift, double annualized_vol, double spot_price)
-      : expected_drift_(expected_drift),
-        annualized_vol_(annualized_vol),
-        spot_price_(spot_price) {}
-
-  CRRPropagator(double expected_drift,
-                double spot_price,
-                const TimeDepVolFn& vol_fn)
-      : expected_drift_(expected_drift),
-        spot_price_(spot_price),
-        vol_fn_(std::make_unique<const TimeDepVolFn>(vol_fn)) {}
-
-  double getVol(double t) const {
-    if (isVolConst()) {
-      return annualized_vol_;
-    }
-    return (*vol_fn_)(t);
-  }
-
-  bool isVolConst() const { return vol_fn_ == nullptr; }
-
-  double operator()(const BinomialTree& tree, int t, int i) const {
-    if (t == 0) return spot_price_;
-    double curr_time = tree.totalTimeAtIndex(t);
-    double dt = isVolConst() ? tree.exactTimestepInYears() : tree.timestepAt(t);
-    double u = getVol(curr_time) * std::sqrt(dt);
-
-    if (i == 0) {
-      double d = -u;
-      return tree.nodeValue(t - 1, 0) * std::exp(d);
-    }
-
-    return tree.nodeValue(t - 1, i - 1) * std::exp(u);
-  }
-
-  double getUpProbAt(double dt, int t, int i) const {
-    // The "modeled" probability is 0.5 + 0.5 * (expected_drift_ /
-    // annualized_vol_) * std::sqrt(dt); However here for asset pricing we use
-    // the risk-neutral:
-    double u = annualized_vol_ * std::sqrt(dt);
-    double d = -u;
-    double r_temp = 0.0;  // TODO add rate
-    return (std::exp(r_temp * dt) - std::exp(d)) / (std::exp(u) - std::exp(d));
-  }
-
-  void updateVol(double vol) { annualized_vol_ = vol; }
-
-  double expected_drift_;
-  double annualized_vol_;
-  double spot_price_;
-  std::unique_ptr<const TimeDepVolFn> vol_fn_;
-};
-
-struct JarrowRuddPropagator {
-  JarrowRuddPropagator(double expected_drift,
-                       double annualized_vol,
-                       double spot_price)
-      : expected_drift_(expected_drift),
-        annualized_vol_(annualized_vol),
-        spot_price_(spot_price) {}
-
-  double operator()(const BinomialTree& tree, int t, int i) const {
-    if (t == 0) return spot_price_;
-    double dt = tree.exactTimestepInYears();
-
-    if (i == 0) {
-      double d = expected_drift_ * dt - annualized_vol_ * std::sqrt(dt);
-      return tree.nodeValue(t - 1, 0) * std::exp(d);
-    } else {
-      double u = expected_drift_ * dt + annualized_vol_ * std::sqrt(dt);
-      return tree.nodeValue(t - 1, i - 1) * std::exp(u);
-    }
-  }
-
-  double getUpProbAt(double dt, int t, int i) const {
-    // The "modeled" probability is 0.5.
-    // However, here for asset pricing we use the risk-neutral:
-    double u = expected_drift_ * dt + annualized_vol_ * std::sqrt(dt);
-    double d = expected_drift_ * dt - annualized_vol_ * std::sqrt(dt);
-    double r_temp = 0.0;  // TODO add rate
-    return (std::exp(r_temp * dt) - std::exp(d)) / (std::exp(u) - std::exp(d));
-  }
-
-  void updateVol(double vol) { annualized_vol_ = vol; }
-
-  double expected_drift_;
-  double annualized_vol_;
-  double spot_price_;
-};
 
 class AssetTree {};
 
@@ -310,6 +255,14 @@ double call_payoff(double strike, double val) {
 
 double put_payoff(double strike, double val) {
   return std::max(0.0, strike - val);
+}
+
+double digital_payoff(double strike, double val) {
+  double dist_from_strike = std::abs(strike - val);
+  if (dist_from_strike / strike < 0.05) {  // 5% on either side.
+    return 1.0;
+  }
+  return 0;
 }
 
 }  // namespace markets
