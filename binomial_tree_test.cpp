@@ -4,6 +4,7 @@
 
 #include "binomial_tree.h"
 #include "bsm.h"
+#include "markets/propagators.h"
 #include "time.h"
 
 namespace markets {
@@ -120,7 +121,7 @@ TEST(BinomialTree, Derman_VolSmile_13_6) {
   }
 
   // just to trigger std::cout
-  EXPECT_TRUE(false);
+  // EXPECT_TRUE(false);
 }
 
 }  // namespace

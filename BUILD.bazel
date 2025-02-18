@@ -15,6 +15,7 @@ cc_test(
     deps = [
         ":binomial_tree",
         ":bsm",
+        ":propagators",
         "@googletest//:gtest_main",
     ],
 )
