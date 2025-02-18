@@ -33,11 +33,20 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "propagators",
+    hdrs = ["propagators.h"],
+    deps = [
+        ":binomial_tree",
+    ],
+)
+
 cc_binary(
     name = "render_tree",
     srcs = ["render_tree.cpp"],
     deps = [
         ":binomial_tree",
+        ":propagators",
         ":yield_curve",
         "//markets/rates:arrow_debreu",
         "//markets/rates:bdt",

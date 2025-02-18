@@ -9,6 +9,7 @@
 #include "imgui/imgui_impl_opengl3.h"
 #include "implot.h"
 #include "markets/binomial_tree.h"
+#include "markets/propagators.h"
 #include "markets/rates/arrow_debreu.h"
 #include "markets/rates/bdt.h"
 #include "markets/rates/swaps.h"
@@ -111,11 +112,6 @@ int main(int, char**) {
   }
   const double expected_drift = 0.0;
 
-  // markets::CRRPropagator crr_prop(expected_drift, vol, 100);
-  markets::CRRPropagator crr_prop(0.00, 100, &getTimeDependentVol);
-
-  markets::JarrowRuddPropagator jr_prop(expected_drift, vol, 100);
-
   markets::BinomialTree asset(
       std::chrono::months(15), std::chrono::days(10), markets::YearStyle::k360);
   asset.resizeWithTimeDependentVol(&getTimeDependentVol);
@@ -123,6 +119,11 @@ int main(int, char**) {
   markets::BinomialTree deriv(
       std::chrono::months(15), std::chrono::days(10), markets::YearStyle::k360);
   deriv.resizeWithTimeDependentVol(&getTimeDependentVol);
+
+  float spot_price = 100;
+  markets::CRRPropagator crr_prop(
+      expected_drift, spot_price, &getTimeDependentVol);
+  markets::JarrowRuddPropagator jr_prop(expected_drift, vol, spot_price);
 
   float deriv_expiry = 1.0;
   float strike = 100;
@@ -159,6 +160,11 @@ int main(int, char**) {
     ImGui::SliderFloat("Volatility", &vol, 0.0f, 0.40f, "%.3f");
     crr_prop.updateVol(vol);
     jr_prop.updateVol(vol);
+
+    ImGui::DragFloat("Spot", &spot_price, 0.1f, 0.0f, 200.0f, "%.2f");
+    crr_prop.updateSpot(spot_price);
+    jr_prop.updateSpot(spot_price);
+
     if (current_item == 0) {
       asset.forwardPropagate(crr_prop);
     } else if (current_item == 1) {
@@ -203,7 +209,9 @@ int main(int, char**) {
 
     ImGui::Begin("Option Tree");
     ImGui::SliderFloat("Strike", &strike, 1.0f, 200.f, "%.2f");
-    ImGui::SliderFloat("Expiry", &deriv_expiry, 0.0f, 3.0f, "%.2f");
+    ImGui::SliderFloat(
+        "Expiry", &deriv_expiry, 0.0f, asset.treeDurationYears(), "%.2f");
+
     if (current_item == 0) {
       deriv.backPropagate(asset,
                           crr_prop,
