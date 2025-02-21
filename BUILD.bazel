@@ -48,6 +48,7 @@ cc_binary(
     deps = [
         ":binomial_tree",
         ":propagators",
+        ":volatility",
         ":yield_curve",
         "//markets/rates:arrow_debreu",
         "//markets/rates:bdt",
@@ -64,6 +65,23 @@ cc_binary(
 cc_library(
     name = "time",
     hdrs = ["time.h"],
+)
+
+cc_library(
+    name = "volatility",
+    hdrs = ["volatility.h"],
+    deps = [
+        "@eigen",
+    ],
+)
+
+cc_test(
+    name = "volatility_test",
+    srcs = ["volatility_test.cpp"],
+    deps = [
+        ":volatility",
+        "@googletest//:gtest_main",
+    ],
 )
 
 cc_library(
