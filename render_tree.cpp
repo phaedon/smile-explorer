@@ -177,7 +177,7 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
   markets::Volatility volsurface(dermanvol);
 
   auto asset = markets::BinomialTree::create(
-      std::chrono::months(38), std::chrono::days(30), markets::YearStyle::k360);
+      std::chrono::months(38), std::chrono::days(10), markets::YearStyle::k360);
 
   float spot_price = 100;
   markets::CRRPropagator crr_prop(spot_price);
