@@ -78,6 +78,15 @@ cc_library(
     hdrs = ["time.h"],
 )
 
+cc_test(
+    name = "time_test",
+    srcs = ["time_test.cpp"],
+    deps = [
+        ":time",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "volatility",
     hdrs = ["volatility.h"],

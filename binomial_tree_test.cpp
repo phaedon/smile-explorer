@@ -48,7 +48,7 @@ TEST(BinomialTreeTest, Derman_VolSmile_13_2) {
 TEST(BinomialTree, BackwardInduction) {
   // TODO: For now, this must be slightly longer because we have problems when
   // the underlying tree is exactly the length of the derivative.
-  BinomialTree asset(1.2, 1 / 360.);
+  BinomialTree asset(1.1, 1 / 360.);
 
   Volatility vol(FlatVol(0.158745));
   CRRPropagator crr_prop(100);

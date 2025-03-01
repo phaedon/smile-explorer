@@ -43,7 +43,11 @@ class BinomialTree {
     return derived;
   }
 
-  int numTimesteps() const { return tree_.rows(); }
+  int numTimesteps() const {
+    // Subtract 1, because the number of timesteps represents the number of
+    // differences (dt's)
+    return tree_.rows() - 1;
+  }
 
   void setInitValue(double val) { setValue(0, 0, val); }
 
@@ -75,7 +79,12 @@ class BinomialTree {
   void backPropagate(const BinomialTree& diffusion,
                      const std::function<double(double)>& payoff_fn,
                      double expiry_years) {
-    int t_final = timegrid_.getTimeIndexForExpiry(expiry_years);
+    auto t_final_or = timegrid_.getTimeIndexForExpiry(expiry_years);
+    if (t_final_or == std::nullopt) {
+      // LOG ERROR
+      return;
+    }
+    int t_final = t_final_or.value();
 
     for (int i = t_final + 1; i < tree_.rows(); ++i) {
       tree_.row(i).setZero();

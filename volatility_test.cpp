@@ -12,7 +12,6 @@ TEST(VolatilityTest, FlatVol) {
 }
 
 struct TermStrucVol {
-  static constexpr VolSurfaceFnType type = VolSurfaceFnType::kTermStructure;
   double operator()(double t) const { return 1.1 * t; }
 };
 
@@ -23,8 +22,6 @@ TEST(VolatilityTest, TermStrucVol) {
 }
 
 struct VolSurfaceFn {
-  static constexpr VolSurfaceFnType type =
-      VolSurfaceFnType::kTimeVaryingSkewSmile;
   double operator()(double t, double s) const { return t + s; }
 };
 

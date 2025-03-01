@@ -8,12 +8,15 @@
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
 #include "implot.h"
+#include "implot3d.h"
 #include "markets/binomial_tree.h"
 #include "markets/propagators.h"
-#include "markets/rates/arrow_debreu.h"
-#include "markets/rates/bdt.h"
+// #include "markets/rates/arrow_debreu.h"
+// #include "markets/rates/bdt.h"
 #include "markets/rates/swaps.h"
+#include "markets/volatility.h"
 #include "markets/yield_curve.h"
+#include "volatility.h"
 #define GL_SILENCE_DEPRECATION
 #include <GLFW/glfw3.h>
 
@@ -21,24 +24,69 @@ static void glfw_error_callback(int error, const char* description) {
   fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
-double forwardVol(
-    double t0, double t, double T, double sig_0_t, double sig_0_T) {
-  return std::sqrt((T * std::pow(sig_0_T, 2) - t * std::pow(sig_0_t, 2)) /
-                   (T - t));
+namespace markets {
+
+struct DermanExampleVol {
+  static constexpr VolSurfaceFnType type = VolSurfaceFnType::kTermStructure;
+  double operator()(double t) const {
+    if (t <= 1) return 0.2;
+    if (t <= 2) return forwardVol(0, 1, 2, 0.2, 0.255);
+    // return forwardVol(0, 2, 3, 0.255, 0.311);
+    return forwardVol(0, 2, 3, 0.255, 0.22);
+  }
+};
+
+struct SmoothLocalVol {
+  static constexpr VolSurfaceFnType type =
+      VolSurfaceFnType::kTimeVaryingSkewSmile;
+  double operator()(double t, double s) const {
+    double base_vol = 0.20;
+    double term_factor = 1.0 + 0.3 * exp(-t / 0.5);
+    //    double skew_factor = 1.0 - 0.1 * (s - 100) / 100;
+    double skew_factor = 1.0 + 0.05 * (std::pow((s - 100) / 100, 2)) *
+                                   (1.0 + 0.1 * std::exp(-t));
+    return base_vol * term_factor * skew_factor;
+  }
+};
+
+void PlotVolSurface() {
+  DermanExampleVol dermanvol;
+  Volatility volsurface(dermanvol);
+  const auto timegrid = volsurface.generateTimegrid(5.0, 0.1);
+
+  double init_price = 80;
+  int num_price_gradations = 50;
+
+  const int xy = timegrid.size() * num_price_gradations;
+  std::vector<double> timestamps(xy);
+  std::vector<double> prices(xy);
+  std::vector<double> vols(xy);
+
+  for (int i = 0; i < timegrid.size(); ++i) {
+    for (int j = 0; j < num_price_gradations; ++j) {
+      int idx = i * num_price_gradations + j;
+      timestamps[idx] = timegrid.time(i);
+      prices[idx] = init_price + j * 1;
+      vols[idx] = volsurface.get(timegrid.time(i));
+    }
+  }
+
+  ImGui::Begin("Vol Surface");
+
+  ImPlot3D::CreateContext();
+  if (ImPlot3D::BeginPlot("Vol Surface")) {
+    ImPlot3D::PlotSurface("hello",
+                          timestamps.data(),
+                          prices.data(),
+                          vols.data(),
+                          num_price_gradations,
+                          timegrid.size());
+    ImPlot3D::EndPlot();
+  }
+  ImGui::End();
 }
 
-double getTimeDependentVol(double t) {
-  // just a hard-coded example from Derman 13-6 to get started.
-  double vol_0_1 = 0.1587;
-  double vol_0_2 = 0.1587;
-  double vol_0_3 = 0.1587;
-  double t1 = 0.6;
-  double t2 = 2.0;
-  double t3 = 3.0;
-  if (t <= t1) return vol_0_1;
-  if (t <= t2) return forwardVol(0, t1, t2, vol_0_1, vol_0_2);
-  return forwardVol(0, t2, t3, vol_0_2, vol_0_3);
-}
+}  // namespace markets
 
 int main(int, char**) {
   glfwSetErrorCallback(glfw_error_callback);
@@ -79,30 +127,31 @@ int main(int, char**) {
   YieldCurve spot_curve({1, 2, 5, 7, 10},
                         {0.045, 0.0423, 0.0401, 0.0398, 0.0397});
 
-  float vol = 0.15875;  // Initial value
-  double spot_rate = 0.05;
-  const auto timestep = std::chrono::weeks(4);
-  const auto tree_duration = std::chrono::years(5);
-  markets::BinomialTree tree(tree_duration, timestep);
-  tree.setInitValue(spot_rate);
+  /*
+double spot_rate = 0.05;
+const auto timestep = std::chrono::weeks(4);
+const auto tree_duration = std::chrono::years(5);
+auto tree = markets::BinomialTree::create(tree_duration, timestep);
+tree.setInitValue(spot_rate);
 
-  markets::BdtPropagator bdt(tree.numTimesteps(), vol, spot_rate);
-  tree.forwardPropagate(bdt);
+markets::BdtPropagator bdt(tree.numTimesteps(), vol, spot_rate);
+tree.forwardPropagate(bdt);
 
-  markets::ArrowDebreauPropagator arrowdeb(tree, tree.numTimesteps());
-  markets::BinomialTree adtree(tree_duration, timestep);
-  adtree.setInitValue(1.0);
-  adtree.forwardPropagate(arrowdeb);
+markets::ArrowDebreauPropagator arrowdeb(tree, tree.numTimesteps());
+markets::BinomialTree adtree(tree_duration, timestep);
+adtree.setInitValue(1.0);
+adtree.forwardPropagate(arrowdeb);
 
-  std::vector<double> yield_curve(tree.numTimesteps());
-  for (int t = 0; t < tree.numTimesteps(); ++t) {
-    double yrs = t * tree.exactTimestepInYears();
-    yield_curve[t] = spot_curve.getRate(yrs);
-    std::cout << "t:" << t << "   yrs:" << yrs << "  rate:" << yield_curve[t]
-              << std::endl;
-  }
+std::vector<double> yield_curve(tree.numTimesteps());
+for (int t = 0; t < tree.numTimesteps(); ++t) {
+double yrs = t * tree.exactTimestepInYears();
+yield_curve[t] = spot_curve.getRate(yrs);
+std::cout << "t:" << t << "   yrs:" << yrs << "  rate:" << yield_curve[t]
+<< std::endl;
+}
 
-  // calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
+calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
+
 
   for (int i = 1; i < 5; ++i) {
     std::cout << "Swap rate at time:" << i << " = "
@@ -110,19 +159,23 @@ int main(int, char**) {
                      adtree, std::chrono::years(i))
               << std::endl;
   }
+              */
+
+  float vol = 0.15875;  // Initial value
+
   const double expected_drift = 0.0;
 
-  markets::BinomialTree asset(
-      std::chrono::months(15), std::chrono::days(10), markets::YearStyle::k360);
-  asset.resizeWithTimeDependentVol(&getTimeDependentVol);
+  markets::DermanExampleVol dermanvol;
+  markets::Volatility volsurface(dermanvol);
 
-  markets::BinomialTree deriv(
-      std::chrono::months(15), std::chrono::days(10), markets::YearStyle::k360);
-  deriv.resizeWithTimeDependentVol(&getTimeDependentVol);
+  auto asset = markets::BinomialTree::create(
+      std::chrono::months(38), std::chrono::days(30), markets::YearStyle::k360);
 
   float spot_price = 100;
-  markets::CRRPropagator crr_prop(
-      expected_drift, spot_price, &getTimeDependentVol);
+  markets::CRRPropagator crr_prop(spot_price);
+  asset.forwardPropagate(crr_prop, volsurface);
+
+  auto deriv = markets::BinomialTree::createFrom(asset);
   markets::JarrowRuddPropagator jr_prop(expected_drift, vol, spot_price);
 
   float deriv_expiry = 1.0;
@@ -135,11 +188,15 @@ int main(int, char**) {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
+    markets::PlotVolSurface();
+
     ImGui::Begin("Binomial Tree");
 
     static int current_item = 0;  // Index of the currently selected item
-    const char* items[] = {"CRR",
-                           "Jarrow-Rudd"};  // The options in the dropdown
+    const char* items[] = {
+        "CRR",
+        "Jarrow-Rudd",
+        "Derman term structure example"};  // The options in the dropdown
     if (ImGui::BeginCombo("Select an option", items[current_item])) {
       for (int n = 0; n < IM_ARRAYSIZE(items); n++) {
         bool is_selected = (current_item == n);  // Is this item selected?
@@ -158,17 +215,21 @@ int main(int, char**) {
     }
 
     ImGui::SliderFloat("Volatility", &vol, 0.0f, 0.40f, "%.3f");
-    crr_prop.updateVol(vol);
-    jr_prop.updateVol(vol);
+    // jr_prop.updateVol(vol);
 
     ImGui::DragFloat("Spot", &spot_price, 0.1f, 0.0f, 200.0f, "%.2f");
     crr_prop.updateSpot(spot_price);
-    jr_prop.updateSpot(spot_price);
+    // jr_prop.updateSpot(spot_price);
 
     if (current_item == 0) {
-      asset.forwardPropagate(crr_prop);
+      asset.forwardPropagate(crr_prop,
+                             markets::Volatility(markets::FlatVol(vol)));
+      deriv = markets::BinomialTree::createFrom(asset);
     } else if (current_item == 1) {
-      asset.forwardPropagate(jr_prop);
+      //  asset.forwardPropagate(jr_prop);
+    } else if (current_item == 2) {
+      asset.forwardPropagate(crr_prop, volsurface);
+      deriv = markets::BinomialTree::createFrom(asset);
     }
 
     if (ImPlot::BeginPlot("Asset Tree Plot", ImVec2(-1, -1))) {
@@ -213,15 +274,11 @@ int main(int, char**) {
         "Expiry", &deriv_expiry, 0.0f, asset.treeDurationYears(), "%.2f");
 
     if (current_item == 0) {
-      deriv.backPropagate(asset,
-                          crr_prop,
-                          std::bind_front(&markets::call_payoff, strike),
-                          deriv_expiry);
+      deriv.backPropagate(
+          asset, std::bind_front(&markets::call_payoff, strike), deriv_expiry);
     } else if (current_item == 1) {
-      deriv.backPropagate(asset,
-                          jr_prop,
-                          std::bind_front(&markets::call_payoff, strike),
-                          deriv_expiry);
+      deriv.backPropagate(
+          asset, std::bind_front(&markets::call_payoff, strike), deriv_expiry);
     }
 
     double computed_value = deriv.nodeValue(0, 0);
