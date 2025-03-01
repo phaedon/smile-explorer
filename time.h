@@ -1,6 +1,9 @@
 #ifndef MARKETS_TIME_H_
 #define MARKETS_TIME_H_
 
+#include <optional>
+#include <vector>
+
 namespace markets {
 
 enum class Period { kSemi, kAnnual };
@@ -39,7 +42,12 @@ class Timegrid {
   Timegrid(int grid_size) : grid_(grid_size) {}
 
   void set(int ti, double val) { grid_[ti] = val; }
-  void append(double val) { grid_.emplace_back(val); }
+  void append(double val) {
+    if (grid_.back() == val) {
+      return;
+    }
+    grid_.emplace_back(val);
+  }
 
   // Returns the total time (in years) at time index `ti`.
   double time(int ti) const { return grid_[ti]; }
@@ -53,37 +61,46 @@ class Timegrid {
     return std::numeric_limits<double>::epsilon() * grid_.size();
   }
 
-  int getTimeIndexForExpiry(double expiry_years) const;
+  std::optional<int> getTimeIndexForExpiry(double expiry_years) const;
 
  private:
   std::vector<double> grid_;
 };
 
-int Timegrid::getTimeIndexForExpiry(double expiry_years) const {
+std::optional<int> Timegrid::getTimeIndexForExpiry(double expiry_years) const {
   // for example if expiry=0.5 and timestep=1/12, then we should return 6.
   // if expiry=1/12 and timestep=1/365 then we should return 30 or 31
   // (depending on rounding convention)
   if (grid_.empty()) {
-    // TODO log a fatal error? This should never happen.
+    // This scenario should never happen because of the design of the class.
+    return std::nullopt;
+  }
+
+  if (expiry_years > grid_.back() || expiry_years < 0) {
+    // The timegrid is not large enough to span the requested timestamp.
+    return std::nullopt;
   }
 
   for (int t = 0; t < grid_.size(); ++t) {
-    if (t == grid_.size() - 1) {
-      return t;
-    }
-
     const double diff_curr = std::abs(grid_[t] - expiry_years);
     const double diff_next = std::abs(grid_[t + 1] - expiry_years);
     if (t == 0) {
+      // Special case: there is no "previous" value to compare to. As we step
+      // forward, the difference gets larger, so it must be closest to 0.
       if (diff_curr < diff_next) {
-        return t;
+        return 0;
       }
     } else {
-      if (diff_curr <= std::abs(grid_[t - 1] - expiry_years) &&
-          diff_curr <= diff_next)
+      const double diff_prev = std::abs(grid_[t - 1] - expiry_years);
+      if (diff_curr <= diff_prev && diff_curr <= diff_next) {
         return t;
+      }
     }
   }
+
+  // Default return value. Should never reach this branch if timegrid is
+  // well-formed.
+  return std::nullopt;
 }
 
 }  // namespace markets
