@@ -18,6 +18,7 @@ struct ArrowDebreauPropagator {
     double prev_up = i == t ? 0 : tree.nodeValue(t - 1, i);
     double df_up =
         i == t ? 0 : 1 / (1 + act_365 * rate_tree_.nodeValue(t - 1, i));
+    // TODO this 0.5 business isn't quite right.
     return 0.5 * prev_up * df_up + 0.5 * prev_down * df_down;
   }
 

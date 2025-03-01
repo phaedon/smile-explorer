@@ -61,6 +61,15 @@ class BinomialTree {
     }
   }
 
+  template <typename PropagatorT>
+  void forwardPropagate(const PropagatorT& fwd_prop) {
+    for (int t = 0; t < numTimesteps(); t++) {
+      for (int i = 0; i <= t; ++i) {
+        setValue(t, i, fwd_prop(*this, t, i));
+      }
+    }
+  }
+
   // Returns the risk-neutral, no-arbitrage up-probability at time index t and
   // state i.
   double getUpProbAt(int t, int i) const;

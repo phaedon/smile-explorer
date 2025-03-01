@@ -6,6 +6,17 @@ cc_library(
     deps = ["//markets:binomial_tree"],
 )
 
+cc_test(
+    name = "arrow_debreu_test",
+    srcs = ["arrow_debreu_test.cpp"],
+    deps = [
+        ":arrow_debreu",
+        "//markets:binomial_tree",
+        "//markets:propagators",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "bdt",
     hdrs = ["bdt.h"],
