@@ -37,16 +37,16 @@ TEST(VolatilityTest, VolSurface) {
 
 TEST(VolatilityTest, ConstantTimeGrid) {
   Volatility vol(FlatVol(0.15));
-  auto timegrid = vol.getTimegrid(3.0, 0.3);
+  auto timegrid = vol.generateTimegrid(3.0, 0.3);
   ASSERT_EQ(11, timegrid.size());
   // The maturity is an exact multiple of the timestep.
-  EXPECT_DOUBLE_EQ(3.0, timegrid[timegrid.size() - 1]);
+  EXPECT_DOUBLE_EQ(3.0, timegrid.time(timegrid.size() - 1));
 
   // If the maturity is not an exact multiple, ensure that
   // the timegrid extends past the end of the desired maturity.
-  timegrid = vol.getTimegrid(3.0, 0.4);
+  timegrid = vol.generateTimegrid(3.0, 0.4);
   ASSERT_EQ(9, timegrid.size());
-  EXPECT_DOUBLE_EQ(3.2, timegrid[timegrid.size() - 1]);
+  EXPECT_DOUBLE_EQ(3.2, timegrid.time(timegrid.size() - 1));
 }
 
 struct FlatTermStrucVol {
@@ -62,11 +62,11 @@ TEST(VolatilityTest, TimeVaryingGridMatchesFlatVol) {
   Volatility flatvol(FlatVol(0.15));
 
   const double initial_timestep = 0.3;
-  auto timegrid = vol.getTimegrid(300.0, initial_timestep);
-  auto flattimegrid = flatvol.getTimegrid(300.0, initial_timestep);
+  auto timegrid = vol.generateTimegrid(300.0, initial_timestep);
+  auto flattimegrid = flatvol.generateTimegrid(300.0, initial_timestep);
   ASSERT_EQ(flattimegrid.size(), timegrid.size());
-  EXPECT_NEAR(flattimegrid[flattimegrid.size() - 1],
-              timegrid[timegrid.size() - 1],
+  EXPECT_NEAR(flattimegrid.time(flattimegrid.size() - 1),
+              timegrid.time(timegrid.size() - 1),
               initial_timestep * 0.0001);
 }
 
@@ -87,25 +87,25 @@ TEST(VolatilityTest, Derman_VolSmile_13_6) {
   EXPECT_NEAR(0.3, vol.get(1.5), 0.001);
   EXPECT_NEAR(0.4, vol.get(2.5), 0.001);
 
-  const auto timegrid = vol.getTimegrid(3.0, 0.1);
+  const auto timegrid = vol.generateTimegrid(3.0, 0.1);
 
   // Verify the dts in years 2 and 3:
-  EXPECT_NEAR(0.044, timegrid[30] - timegrid[29], 0.001);
-  EXPECT_NEAR(0.025, timegrid[50] - timegrid[49], 0.001);
+  EXPECT_NEAR(0.044, timegrid.dt(30), 0.001);
+  EXPECT_NEAR(0.025, timegrid.dt(50), 0.001);
 
   // TODO: This does not match Derman's estimates of 23 (to span year 2) and 40
   // (to span year 3). It may be that I am off-by-one in bridging the transition
   // points and that this propagates the error.
   for (int i = 1; i < timegrid.size(); ++i) {
-    if (timegrid[i] >= 1 && timegrid[i - 1] < 1) {
+    if (timegrid.time(i) >= 1 && timegrid.time(i - 1) < 1) {
       EXPECT_EQ(10, i - 1);
     }
 
-    if (timegrid[i] >= 2 && timegrid[i - 1] < 2) {
+    if (timegrid.time(i) >= 2 && timegrid.time(i - 1) < 2) {
       EXPECT_EQ(21, i - 1 - 10);
     }
 
-    if (timegrid[i] >= 3 && timegrid[i - 1] < 3) {
+    if (timegrid.time(i) >= 3 && timegrid.time(i - 1) < 3) {
       EXPECT_EQ(49, i - 1 - 21);
     }
   }

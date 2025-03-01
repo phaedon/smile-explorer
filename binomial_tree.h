@@ -9,133 +9,100 @@
 #include <vector>
 
 #include "markets/time.h"
+#include "markets/volatility.h"
 
 namespace markets {
 
-using TimeDepVolFn = std::function<double(double)>;
-
 class BinomialTree {
  public:
-  BinomialTree(std::chrono::years total_duration,
-               std::chrono::weeks timestep,
-               YearStyle style = YearStyle::k365)
-      : tree_duration_years_(total_duration.count()),
-        timestep_years_(timestep.count() * 7 / numDaysInYear(style)),
-        year_style_(style) {
-    int num_timesteps = std::ceil(tree_duration_years_ / timestep_years_) + 1;
-    tree_.resize(num_timesteps, num_timesteps);
-    tree_.setZero();
-  }
-
-  BinomialTree(std::chrono::months total_duration,
-               std::chrono::days timestep,
-               YearStyle style = YearStyle::k365)
-      : tree_duration_years_(total_duration.count() / 12.0),
-        timestep_years_(timestep.count() / numDaysInYear(style)),
-        year_style_(style) {
-    int num_timesteps = std::ceil(tree_duration_years_ / timestep_years_) + 1;
-    tree_.resize(num_timesteps, num_timesteps);
-    tree_.setZero();
-  }
-
-  BinomialTree(double total_duration_years,
-               double timestep_years,
-               YearStyle style = YearStyle::k365)
+  BinomialTree(double total_duration_years, double timestep_years)
       : tree_duration_years_(total_duration_years),
-        timestep_years_(timestep_years),
-        year_style_(style) {
+        timestep_years_(timestep_years) {
     int num_timesteps = std::ceil(tree_duration_years_ / timestep_years_) + 1;
     tree_.resize(num_timesteps, num_timesteps);
     tree_.setZero();
   }
 
-  // Prepares a tree for time-dependent deterministic volaility
-  // (term structure, but no skew).
-  // Preserves timestep_years_ as the size of the initial timestep.
-  void resizeWithTimeDependentVol(const TimeDepVolFn& vol_fn) {
-    double total_time = 0;
-    double dt_curr = timestep_years_;
-    timesteps_.push_back(dt_curr);
-    total_times_.push_back(total_time);
+  // Helper factory functions using the chrono library.
+  static BinomialTree create(std::chrono::years total_duration,
+                             std::chrono::weeks timestep,
+                             YearStyle style = YearStyle::k365) {
+    return BinomialTree(total_duration.count(),
+                        timestep.count() * 7 / numDaysInYear(style));
+  }
+  static BinomialTree create(std::chrono::months total_duration,
+                             std::chrono::days timestep,
+                             YearStyle style = YearStyle::k365) {
+    return BinomialTree(total_duration.count() / 12.0,
+                        timestep.count() / numDaysInYear(style));
+  }
 
-    while (total_time <= tree_duration_years_) {
-      double sig_curr = vol_fn(total_time);
-      total_time += dt_curr;
-      double sig_next = vol_fn(total_time);
-      double dt_next = sig_curr * sig_curr * dt_curr / (sig_next * sig_next);
-      timesteps_.push_back(dt_next);
-      total_times_.push_back(total_time);
-      dt_curr = dt_next;
-    }
-
-    tree_.resize(timesteps_.size(), timesteps_.size());
-    tree_.setZero();
+  static BinomialTree createFrom(const BinomialTree& underlying) {
+    BinomialTree derived = underlying;
+    derived.tree_.setZero();
+    return derived;
   }
 
   int numTimesteps() const { return tree_.rows(); }
 
   void setInitValue(double val) { setValue(0, 0, val); }
 
-  template <typename PropagatorT>
-  void forwardPropagate(const PropagatorT& fwd_prop) {
+  template <typename PropagatorT, typename VolatilityT>
+  void forwardPropagate(const PropagatorT& fwd_prop, const VolatilityT& vol) {
+    resizeWithTimeDependentVol(vol);
     for (int t = 0; t < numTimesteps(); t++) {
       for (int i = 0; i <= t; ++i) {
-        setValue(t, i, fwd_prop(*this, t, i));
+        setValue(t, i, fwd_prop(*this, vol, t, i));
       }
     }
   }
 
-  template <typename PropagatorT>
+  // Equation 13.23a (Derman) for the risk-neutral, no-arbitrage up probability.
+  double getUpProbAt(int t, int i) const {
+    // Hack:
+    if (t >= timegrid_.size() - 1) {
+      t = timegrid_.size() - 2;
+    }
+
+    double curr = nodeValue(t, i);
+    double up_ratio = nodeValue(t + 1, i + 1) / curr;
+    double down_ratio = nodeValue(t + 1, i) / curr;
+    double dt = timegrid_.dt(t);
+    double r_temp = 0.0;  // TODO add rate
+    return (std::exp(r_temp * dt) - down_ratio) / (up_ratio - down_ratio);
+  }
+
   void backPropagate(const BinomialTree& diffusion,
-                     const PropagatorT& back_prop,
                      const std::function<double(double)>& payoff_fn,
                      double expiry_years) {
-    int t_final = getTimeIndexForExpiry(expiry_years);
+    int t_final = timegrid_.getTimeIndexForExpiry(expiry_years);
 
     for (int i = t_final + 1; i < tree_.rows(); ++i) {
       tree_.row(i).setZero();
     }
 
+    // Set the payoff at each scenario on the maturity date.
     for (int i = 0; i <= t_final; ++i) {
       setValue(t_final, i, payoff_fn(diffusion.nodeValue(t_final, i)));
     }
 
+    // Back-propagation.
     for (int t = t_final - 1; t >= 0; --t) {
-      for (int i = t; i >= 0; --i) {
+      // std::cout << "At timeindex:" << t << std::endl;
+      for (int i = 0; i <= t; ++i) {
         double up = nodeValue(t + 1, i + 1);
         double down = nodeValue(t + 1, i);
-        double up_prob = back_prop.getUpProbAt(timestepAt(t), t, i);
+        double up_prob = diffusion.getUpProbAt(t, i);
         double down_prob = 1 - up_prob;
+
+        /*
+        std::cout << "    up:" << up << "  down:" << down
+                  << "  up_prob:" << up_prob << "  down_prob:" << down_prob
+                  << std::endl;
+*/
 
         // TODO no discounting (yet)
         setValue(t, i, up * up_prob + down * down_prob);
-      }
-    }
-  }
-
-  int getTimeIndexForExpiry(double expiry_years) const {
-    // for example if expiry=0.5 and timestep=1/12, then we should return 6.
-    // if expiry=1/12 and timestep=1/365 then we should return 30 or 31
-    // (depending on rounding convention)
-    if (total_times_.empty()) {
-      return std::round(expiry_years / timestep_years_);
-    }
-
-    for (int t = 0; t < total_times_.size(); ++t) {
-      if (t == total_times_.size() - 1) {
-        return t;
-      }
-
-      const double diff_curr = std::abs(total_times_[t] - expiry_years);
-      const double diff_next = std::abs(total_times_[t + 1] - expiry_years);
-      if (t == 0) {
-        if (diff_curr < diff_next) {
-          return t;
-        }
-      } else {
-        if (diff_curr <= std::abs(total_times_[t - 1] - expiry_years) &&
-            diff_curr <= diff_next)
-          return t;
       }
     }
   }
@@ -147,12 +114,26 @@ class BinomialTree {
     std::cout << "Time " << t << ": ";
     std::cout << tree_.row(t) << std::endl;
   }
+  void printUpTo(int ti) const {
+    for (int i = 0; i < ti; ++i) {
+      std::cout << "t:" << i << " ::  " << tree_.row(i).head(i + 1)
+                << std::endl;
+    }
+  }
+
+  void printProbabilitiesUpTo(int ti) const {
+    for (int t = 0; t < ti; ++t) {
+      std::cout << "t:" << t << " q:";
+      for (int i = 0; i <= t; ++i) {
+        std::cout << " " << getUpProbAt(t, i);
+      }
+      std::cout << std::endl;
+    }
+  }
 
   double nodeValue(int time, int node_index) const {
     return tree_(time, node_index);
   }
-
-  YearStyle getYearStyle() const { return year_style_; }
 
   bool isTreeEmptyAt(int t) const {
     // current assumption: if an entire row is 0, nothing after it can be
@@ -161,19 +142,8 @@ class BinomialTree {
   }
 
   double exactTimestepInYears() const { return timestep_years_; }
-  double totalTimeAtIndex(int t) const {
-    if (total_times_.empty())
-      return timestep_years_ * t;
-    else
-      return total_times_[t];
-  }
-
-  double timestepAt(int t) const {
-    if (timesteps_.empty()) {
-      return timestep_years_;
-    }
-    return timesteps_[t];
-  }
+  double totalTimeAtIndex(int ti) const { return timegrid_.time(ti); }
+  double timestepAt(int ti) const { return timegrid_.dt(ti); }
 
   double treeDurationYears() const { return tree_duration_years_; }
 
@@ -181,14 +151,18 @@ class BinomialTree {
   Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> tree_;
   double tree_duration_years_;
   double timestep_years_;
-  YearStyle year_style_;
 
-  // Only used in case of time-dep vol. There is a better way to structure this.
-  std::vector<double> timesteps_;
-  std::vector<double> total_times_;
+  Timegrid timegrid_;
 
   void setValue(int time, int node_index, double val) {
     tree_(time, node_index) = val;
+  }
+
+  template <typename VolSurfaceT>
+  void resizeWithTimeDependentVol(const Volatility<VolSurfaceT>& volfn) {
+    timegrid_ = volfn.generateTimegrid(tree_duration_years_, timestep_years_);
+    tree_.resize(timegrid_.size(), timegrid_.size());
+    tree_.setZero();
   }
 };
 

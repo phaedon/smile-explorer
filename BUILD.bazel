@@ -5,6 +5,7 @@ cc_library(
     hdrs = ["binomial_tree.h"],
     deps = [
         ":time",
+        ":volatility",
         "@eigen",
     ],
 )
@@ -23,6 +24,15 @@ cc_test(
 cc_library(
     name = "bsm",
     hdrs = ["bsm.h"],
+)
+
+cc_test(
+    name = "bsm_test",
+    srcs = ["bsm_test.cpp"],
+    deps = [
+        ":bsm",
+        "@googletest//:gtest_main",
+    ],
 )
 
 cc_library(
@@ -59,6 +69,7 @@ cc_binary(
         "@imgui//backends:platform-glfw",
         "@imgui//backends:renderer-opengl3",
         "@implot",
+        "@implot3d",
     ],
 )
 
@@ -71,6 +82,7 @@ cc_library(
     name = "volatility",
     hdrs = ["volatility.h"],
     deps = [
+        ":time",
         "@eigen",
     ],
 )
