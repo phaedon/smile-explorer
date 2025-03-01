@@ -16,7 +16,7 @@ enum class YearStyle {
   kBusinessDays256,
 };
 
-double numDaysInYear(YearStyle style) {
+inline double numDaysInYear(YearStyle style) {
   switch (style) {
     case YearStyle::k365WithLeapYears:
       return 365.25;
@@ -67,7 +67,8 @@ class Timegrid {
   std::vector<double> grid_;
 };
 
-std::optional<int> Timegrid::getTimeIndexForExpiry(double expiry_years) const {
+inline std::optional<int> Timegrid::getTimeIndexForExpiry(
+    double expiry_years) const {
   // for example if expiry=0.5 and timestep=1/12, then we should return 6.
   // if expiry=1/12 and timestep=1/365 then we should return 30 or 31
   // (depending on rounding convention)

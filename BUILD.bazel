@@ -2,10 +2,12 @@ package(default_visibility = ["//markets:__subpackages__"])
 
 cc_library(
     name = "binomial_tree",
+    srcs = ["binomial_tree.cpp"],
     hdrs = ["binomial_tree.h"],
     deps = [
         ":time",
         ":volatility",
+        "@abseil-cpp//absl/log",
         "@eigen",
     ],
 )
@@ -40,7 +42,7 @@ cc_library(
     srcs = ["monte_carlo.cpp"],
     hdrs = ["monte_carlo.h"],
     deps = [
-        "@com_google_absl//absl/random",
+        "@abseil-cpp//absl/random",
     ],
 )
 

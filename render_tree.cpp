@@ -26,6 +26,14 @@ static void glfw_error_callback(int error, const char* description) {
 
 namespace markets {
 
+double call_payoff(double strike, double val) {
+  return std::max(0.0, val - strike);
+}
+
+double put_payoff(double strike, double val) {
+  return std::max(0.0, strike - val);
+}
+
 struct DermanExampleVol {
   static constexpr VolSurfaceFnType type = VolSurfaceFnType::kTermStructure;
   double operator()(double t) const {

@@ -45,6 +45,15 @@ TEST(BinomialTreeTest, Derman_VolSmile_13_2) {
   EXPECT_NEAR(73.21, walmart.nodeValue(2, 0), 0.005);
 }
 */
+
+double call_payoff(double strike, double val) {
+  return std::max(0.0, val - strike);
+}
+
+double put_payoff(double strike, double val) {
+  return std::max(0.0, strike - val);
+}
+
 TEST(BinomialTree, BackwardInduction) {
   // TODO: For now, this must be slightly longer because we have problems when
   // the underlying tree is exactly the length of the derivative.
