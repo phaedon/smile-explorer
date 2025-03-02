@@ -11,6 +11,32 @@
 
 namespace markets {
 
+double dfByPeriod(double r, double dt, CompoundingPeriod period) {
+  switch (period) {
+    case CompoundingPeriod::kContinuous:
+      return std::exp(-r * dt);
+    case CompoundingPeriod::kAnnual:
+      return 1. / std::pow(1 + r, dt);
+    default:
+      return 0.0;  // TODO unimplemented
+  }
+}
+
+double fwdRateByPeriod(double df_start,
+                       double df_end,
+                       double dt,
+                       CompoundingPeriod period) {
+  double df_ratio = df_start / df_end;
+  switch (period) {
+    case CompoundingPeriod::kContinuous:
+      return std::log(df_ratio) / dt;
+    case CompoundingPeriod::kAnnual:
+      return std::pow(df_ratio, 1. / dt) - 1;
+    default:
+      return 0.0;  // TODO unimplemented
+  }
+}
+
 class SimpleUncalibratedShortRatesCurve {
  public:
   SimpleUncalibratedShortRatesCurve(double time_span_years, double timestep)
@@ -30,29 +56,15 @@ class SimpleUncalibratedShortRatesCurve {
     arrowdeb_tree_.forwardPropagate(arrowdeb_prop);
 
     timegrid_ = rate_tree_.getTimegrid();
-
-    rate_tree_.printUpTo(6);
-    arrowdeb_tree_.printUpTo(6);
   }
 
-  double getForwardRateByIndices(int start_ti, int end_ti) const {
-    double df_start = arrowdeb_tree_.sumAtTimestep(start_ti);
-    double df_end = arrowdeb_tree_.sumAtTimestep(end_ti);
-    return std::log(df_start / df_end) /
-           (timegrid_.time(end_ti) - timegrid_.time(start_ti));
-  }
-
-  double getForwardRate(double start_time, double end_time) {
+  double getForwardRate(double start_time, double end_time) const {
     // TODO Add some error handling for cases like end_time <= start_time, etc.
     double df_start = df(start_time);
     double df_end = df(end_time);
-    double df_ratio = df_start / df_end;
     double dt = end_time - start_time;
-    // if (period_ == CompoundingPeriod::kContinuous) {
-    return std::log(df_ratio) / dt;
-    // } else if (period_ == CompoundingPeriod::kAnnual) {
-    //   return std::pow(df_ratio, 1. / dt) - 1;
-    // }
+    return fwdRateByPeriod(
+        df_start, df_end, dt, CompoundingPeriod::kContinuous);
   }
 
   double df(double time) const {
@@ -72,14 +84,23 @@ class SimpleUncalibratedShortRatesCurve {
     }
 
     double fwdrate = getForwardRateByIndices(ti_left, ti_right);
+    double dt = time - timegrid_.time(ti_left);
     return arrowdeb_tree_.sumAtTimestep(ti_left) *
-           std::exp(-fwdrate * (time - timegrid_.time(ti_left)));
+           dfByPeriod(fwdrate, dt, CompoundingPeriod::kContinuous);
   }
 
  private:
   BinomialTree rate_tree_;
   BinomialTree arrowdeb_tree_;
   Timegrid timegrid_;
+
+  double getForwardRateByIndices(int start_ti, int end_ti) const {
+    double df_start = arrowdeb_tree_.sumAtTimestep(start_ti);
+    double df_end = arrowdeb_tree_.sumAtTimestep(end_ti);
+    double dt = timegrid_.time(end_ti) - timegrid_.time(start_ti);
+    return fwdRateByPeriod(
+        df_start, df_end, dt, CompoundingPeriod::kContinuous);
+  }
 };
 
 class ZeroSpotCurve {
@@ -97,11 +118,7 @@ class ZeroSpotCurve {
 
     for (int i = 0; i < maturities.size(); ++i) {
       df_maturities_.push_back(maturities[i]);
-      if (period == CompoundingPeriod::kContinuous) {
-        discrete_dfs_.push_back(std::exp(-rates_[i] * maturities_[i]));
-      } else if (period == CompoundingPeriod::kAnnual) {
-        discrete_dfs_.push_back(1.0 / std::pow(1 + rates_[i], maturities_[i]));
-      }
+      discrete_dfs_.push_back(dfByPeriod(rates_[i], maturities_[i], period));
     }
   }
 
@@ -122,23 +139,14 @@ class ZeroSpotCurve {
 
     double fwdrate = getForwardRateByIndices(ti_left, ti_right);
     double dt = time - df_maturities_[ti_left];
-    if (period_ == CompoundingPeriod::kContinuous) {
-      return discrete_dfs_[ti_left] * std::exp(-fwdrate * dt);
-    } else if (period_ == CompoundingPeriod::kAnnual) {
-      return discrete_dfs_[ti_left] / std::pow(1 + fwdrate, dt);
-    }
+    return discrete_dfs_[ti_left] * dfByPeriod(fwdrate, dt, period_);
   }
 
-  double getForwardRate(double start_time, double end_time) {
+  double getForwardRate(double start_time, double end_time) const {
     double df_start = df(start_time);
     double df_end = df(end_time);
-    double df_ratio = df_start / df_end;
     double dt = end_time - start_time;
-    if (period_ == CompoundingPeriod::kContinuous) {
-      return std::log(df_ratio) / dt;
-    } else if (period_ == CompoundingPeriod::kAnnual) {
-      return std::pow(df_ratio, 1. / dt) - 1;
-    }
+    return fwdRateByPeriod(df_start, df_end, dt, period_);
   }
 
  private:
@@ -168,13 +176,8 @@ class ZeroSpotCurve {
   double getForwardRateByIndices(int start_ti, int end_ti) const {
     double df_start = discrete_dfs_[start_ti];
     double df_end = discrete_dfs_[end_ti];
-    double df_ratio = df_start / df_end;
     double dt = df_maturities_[end_ti] - df_maturities_[start_ti];
-    if (period_ == CompoundingPeriod::kContinuous) {
-      return std::log(df_ratio) / dt;
-    } else if (period_ == CompoundingPeriod::kAnnual) {
-      return std::pow(df_ratio, 1. / dt) - 1;
-    }
+    return fwdRateByPeriod(df_start, df_end, dt, period_);
   }
 };
 
