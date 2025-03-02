@@ -2,6 +2,12 @@
 
 #include <gtest/gtest.h>
 
+#include "binomial_tree.h"
+#include "markets/binomial_tree.h"
+#include "markets/propagators.h"
+#include "markets/rates/rates_curve.h"
+#include "rates/rates_curve.h"
+
 namespace markets {
 
 namespace {
@@ -106,6 +112,22 @@ TEST(VolatilityTest, Derman_VolSmile_13_6) {
       EXPECT_EQ(49, i - 1 - 21);
     }
   }
+
+  // This doesn't quite belong in this module, but it's grouped here for
+  // simplicity of reference (to the textbook).
+  BinomialTree tree(3.0, 0.1);
+  CRRPropagator crr_prop(100);
+
+  tree.setRatesCurve(ZeroSpotCurve(
+      {1, 2, 3}, {0.05, 0.0747, 0.0992}, CompoundingPeriod::kAnnual));
+  tree.forwardPropagate(crr_prop, vol);
+
+  // TODO. These tests are failing. Probably best to just print out the specific
+  // components at getUpProbAt to figure out where the breakage is happening.
+  EXPECT_DOUBLE_EQ(0.5238, tree.getUpProbAt(6, 3));
+  EXPECT_DOUBLE_EQ(0.5194, tree.getUpProbAt(20, 10));
+  EXPECT_DOUBLE_EQ(0.5139, tree.getUpProbAt(50, 25));
+  EXPECT_EQ(70, tree.getTimegrid().size());
 }
 
 }  // namespace

@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include "tree_curves.h"
+
 namespace markets {
 namespace {
 

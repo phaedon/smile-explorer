@@ -14,8 +14,16 @@ double BinomialTree::getUpProbAt(int t, int i) const {
   double up_ratio = nodeValue(t + 1, i + 1) / curr;
   double down_ratio = nodeValue(t + 1, i) / curr;
   double dt = timegrid_.dt(t);
-  double r_temp = 0.0;  // TODO add rate
-  return (std::exp(r_temp * dt) - down_ratio) / (up_ratio - down_ratio);
+  double r = 0.0;
+  double df_ratio = 1.0;
+  if (curve_.index() != 0) {
+    const auto& curve = std::get<1>(curve_);
+    r = std::get<1>(curve_).getForwardRate(timegrid_.time(t),
+                                           timegrid_.time(t + 1));
+
+    df_ratio = curve.df(timegrid_.time(t)) / curve.df(timegrid_.time(t + 1));
+  }
+  return (df_ratio - down_ratio) / (up_ratio - down_ratio);
 }
 
 void BinomialTree::backPropagate(const BinomialTree& diffusion,
@@ -46,12 +54,6 @@ void BinomialTree::backPropagate(const BinomialTree& diffusion,
       double down = nodeValue(t + 1, i);
       double up_prob = diffusion.getUpProbAt(t, i);
       double down_prob = 1 - up_prob;
-
-      /*
-      std::cout << "    up:" << up << "  down:" << down
-       << "  up_prob:" << up_prob << "  down_prob:" << down_prob
-       << std::endl;
-      */
 
       // TODO no discounting (yet)
       setValue(t, i, up * up_prob + down * down_prob);

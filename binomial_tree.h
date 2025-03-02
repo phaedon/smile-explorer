@@ -8,12 +8,14 @@
 #include <memory>
 #include <vector>
 
+#include "markets/rates/rates_curve.h"
 #include "markets/time.h"
 #include "markets/volatility.h"
 #include "time.h"
 
 namespace markets {
 
+// template <RatesCurve Curve>
 class BinomialTree {
  public:
   BinomialTree(double total_duration_years, double timestep_years)
@@ -25,6 +27,8 @@ class BinomialTree {
   }
 
   BinomialTree() {}
+
+  void setRatesCurve(const RatesCurve& curve) { curve_ = curve; }
 
   // Helper factory functions using the chrono library.
   static BinomialTree create(std::chrono::years total_duration,
@@ -51,8 +55,6 @@ class BinomialTree {
     // differences (dt's)
     return tree_.rows() - 1;
   }
-
-  void setInitValue(double val) { setValue(0, 0, val); }
 
   template <typename PropagatorT, typename VolatilityT>
   void forwardPropagate(const PropagatorT& fwd_prop, const VolatilityT& vol) {
@@ -127,6 +129,7 @@ class BinomialTree {
   double timestep_years_;
 
   Timegrid timegrid_;
+  RatesCurve curve_;
 
   void setValue(int time, int node_index, double val) {
     tree_(time, node_index) = val;
