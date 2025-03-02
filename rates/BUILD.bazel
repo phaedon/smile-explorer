@@ -30,6 +30,27 @@ cc_library(
 )
 
 cc_library(
+    name = "rates_curve",
+    hdrs = ["rates_curve.h"],
+    deps = [
+        ":arrow_debreu",
+        "//markets:binomial_tree",
+        "//markets:propagators",
+        "//markets:time",
+        "//markets:volatility",
+    ],
+)
+
+cc_test(
+    name = "rates_curve_test",
+    srcs = ["rates_curve_test.cpp"],
+    deps = [
+        ":rates_curve",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "swaps",
     hdrs = ["swaps.h"],
     deps = [

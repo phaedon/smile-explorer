@@ -10,6 +10,7 @@
 
 #include "markets/time.h"
 #include "markets/volatility.h"
+#include "time.h"
 
 namespace markets {
 
@@ -22,6 +23,8 @@ class BinomialTree {
     tree_.resize(num_timesteps, num_timesteps);
     tree_.setZero();
   }
+
+  BinomialTree() {}
 
   // Helper factory functions using the chrono library.
   static BinomialTree create(std::chrono::years total_duration,
@@ -110,6 +113,8 @@ class BinomialTree {
     // populated.
     return tree_.row(t).isZero(0);
   }
+
+  const Timegrid& getTimegrid() const { return timegrid_; }
 
   double exactTimestepInYears() const { return timestep_years_; }
   double totalTimeAtIndex(int ti) const { return timegrid_.time(ti); }
@@ -236,6 +241,7 @@ inline TreeRenderData getTreeRenderData(const BinomialTree& tree) {
 
   return r;
 }
+
 class AssetTree {};
 
 }  // namespace markets
