@@ -13,9 +13,11 @@
 #include "markets/propagators.h"
 // #include "markets/rates/arrow_debreu.h"
 // #include "markets/rates/bdt.h"
+#include "markets/rates/rates_curve.h"
 #include "markets/rates/swaps.h"
 #include "markets/volatility.h"
 #include "markets/yield_curve.h"
+#include "time.h"
 #include "volatility.h"
 #define GL_SILENCE_DEPRECATION
 #include <GLFW/glfw3.h>
@@ -90,6 +92,33 @@ void PlotVolSurface() {
                           num_price_gradations,
                           timegrid.size());
     ImPlot3D::EndPlot();
+  }
+  ImGui::End();
+}
+
+void PlotForwardRateCurves() {
+  ZeroSpotCurve curve({1, 2, 3, 5, 10, 15},
+                      {0.03, 0.035, 0.038, 0.04, 0.045, 0.05},
+                      CompoundingPeriod::kAnnual);
+  // SimpleUncalibratedShortRatesCurve curve(10, 0.1);
+
+  std::vector<float> timestamps;
+  std::vector<float> spot_rates;
+  std::vector<float> fwd_rates;
+
+  for (double t = 1.0; t <= 10.0; t += 0.5) {
+    timestamps.push_back(t);
+    spot_rates.push_back(curve.getForwardRate(0.0, t));
+    fwd_rates.push_back(curve.getForwardRate(t, t + 0.5));
+  }
+
+  ImGui::Begin("Spot/Forward Rates");
+  if (ImPlot::BeginPlot("Rates")) {
+    ImPlot::PlotLine(
+        "Spot", timestamps.data(), spot_rates.data(), spot_rates.size());
+    ImPlot::PlotLine(
+        "Forward", timestamps.data(), fwd_rates.data(), fwd_rates.size());
+    ImPlot::EndPlot();
   }
   ImGui::End();
 }
@@ -197,6 +226,7 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
     ImGui::NewFrame();
 
     markets::PlotVolSurface();
+    markets::PlotForwardRateCurves();
 
     ImGui::Begin("Binomial Tree");
 

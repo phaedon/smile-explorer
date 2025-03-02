@@ -6,12 +6,12 @@
 
 namespace markets {
 
-template <Period>
+template <CompoundingPeriod>
 double swapRate(const BinomialTree& adtree, std::chrono::years maturity);
 
 template <>
-inline double swapRate<Period::kAnnual>(const BinomialTree& adtree,
-                                        std::chrono::years maturity) {
+inline double swapRate<CompoundingPeriod::kAnnual>(
+    const BinomialTree& adtree, std::chrono::years maturity) {
   double df_sum = 0;
   double final_df = 0;
   for (int t = 1; t <= maturity.count(); ++t) {

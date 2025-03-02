@@ -64,6 +64,7 @@ cc_binary(
         ":yield_curve",
         "//markets/rates:arrow_debreu",
         "//markets/rates:bdt",
+        "//markets/rates:rates_curve",
         "//markets/rates:swaps",
         "@eigen",
         "@glfw",
