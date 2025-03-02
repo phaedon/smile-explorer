@@ -6,7 +6,13 @@
 
 namespace markets {
 
-enum class CompoundingPeriod { kSemi, kAnnual, kContinuous };
+enum class CompoundingPeriod {
+  kMonthly,
+  kQuarterly,
+  kSemi,
+  kAnnual,
+  kContinuous
+};
 
 enum class YearStyle {
   k365,
