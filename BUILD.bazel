@@ -7,7 +7,6 @@ cc_library(
     deps = [
         ":time",
         ":volatility",
-        "//markets/rates:rates_curve",
         "@abseil-cpp//absl/log",
         "@eigen",
     ],
@@ -18,8 +17,6 @@ cc_test(
     srcs = ["binomial_tree_test.cpp"],
     deps = [
         ":binomial_tree",
-        ":bsm",
-        ":propagators",
         "@googletest//:gtest_main",
     ],
 )
@@ -34,6 +31,27 @@ cc_test(
     srcs = ["bsm_test.cpp"],
     deps = [
         ":bsm",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "derivative",
+    hdrs = ["derivative.h"],
+    deps = [
+        ":stochastic_tree_model",
+        "//markets/rates:rates_curve",
+    ],
+)
+
+cc_test(
+    name = "derivative_test",
+    srcs = ["derivative_test.cpp"],
+    deps = [
+        ":bsm",
+        ":derivative",
+        ":propagators",
+        ":volatility",
         "@googletest//:gtest_main",
     ],
 )
@@ -78,6 +96,24 @@ cc_binary(
 )
 
 cc_library(
+    name = "stochastic_tree_model",
+    hdrs = ["stochastic_tree_model.h"],
+    deps = [
+        ":binomial_tree",
+    ],
+)
+
+cc_test(
+    name = "stochastic_tree_model_test",
+    srcs = ["stochastic_tree_model_test.cpp"],
+    deps = [
+        ":propagators",
+        ":stochastic_tree_model",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "time",
     hdrs = ["time.h"],
 )
@@ -104,8 +140,6 @@ cc_test(
     name = "volatility_test",
     srcs = ["volatility_test.cpp"],
     deps = [
-        ":binomial_tree",
-        ":propagators",
         ":volatility",
         "@googletest//:gtest_main",
     ],

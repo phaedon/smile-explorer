@@ -5,17 +5,13 @@
 #include <chrono>
 #include <cmath>
 #include <iostream>
-#include <memory>
 #include <vector>
 
-#include "markets/rates/rates_curve.h"
-#include "markets/time.h"
-#include "markets/volatility.h"
 #include "time.h"
+#include "volatility.h"
 
 namespace markets {
 
-// template <RatesCurve Curve>
 class BinomialTree {
  public:
   BinomialTree(double total_duration_years, double timestep_years)
@@ -27,8 +23,6 @@ class BinomialTree {
   }
 
   BinomialTree() {}
-
-  void setRatesCurve(const RatesCurve& curve) { curve_ = curve; }
 
   // Helper factory functions using the chrono library.
   static BinomialTree create(std::chrono::years total_duration,
@@ -56,32 +50,7 @@ class BinomialTree {
     return tree_.rows() - 1;
   }
 
-  template <typename PropagatorT, typename VolatilityT>
-  void forwardPropagate(const PropagatorT& fwd_prop, const VolatilityT& vol) {
-    resizeWithTimeDependentVol(vol);
-    for (int t = 0; t < numTimesteps(); t++) {
-      for (int i = 0; i <= t; ++i) {
-        setValue(t, i, fwd_prop(*this, vol, t, i));
-      }
-    }
-  }
-
-  template <typename PropagatorT>
-  void forwardPropagate(const PropagatorT& fwd_prop) {
-    for (int t = 0; t < numTimesteps(); t++) {
-      for (int i = 0; i <= t; ++i) {
-        setValue(t, i, fwd_prop(*this, t, i));
-      }
-    }
-  }
-
-  // Returns the risk-neutral, no-arbitrage up-probability at time index t and
-  // state i.
   double getUpProbAt(int t, int i) const;
-
-  void backPropagate(const BinomialTree& diffusion,
-                     const std::function<double(double)>& payoff_fn,
-                     double expiry_years);
 
   double sumAtTimestep(int t) const { return tree_.row(t).sum(); }
 
@@ -93,6 +62,12 @@ class BinomialTree {
     for (int i = 0; i < ti; ++i) {
       std::cout << "t:" << i << " ::  " << tree_.row(i).head(i + 1)
                 << std::endl;
+    }
+  }
+
+  void setZeroAfterIndex(int ti) {
+    for (int i = ti + 1; i < tree_.rows(); ++i) {
+      tree_.row(i).setZero();
     }
   }
 
@@ -123,81 +98,31 @@ class BinomialTree {
   double timestepAt(int ti) const { return timegrid_.dt(ti); }
   double treeDurationYears() const { return tree_duration_years_; }
 
- private:
-  Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> tree_;
-  double tree_duration_years_;
-  double timestep_years_;
-
-  Timegrid timegrid_;
-  RatesCurve curve_;
-
   void setValue(int time, int node_index, double val) {
     tree_(time, node_index) = val;
   }
 
+  // TODO make this not take a vol, that makes it brittle.
   template <typename VolSurfaceT>
   void resizeWithTimeDependentVol(const Volatility<VolSurfaceT>& volfn) {
     timegrid_ = volfn.generateTimegrid(tree_duration_years_, timestep_years_);
     tree_.resize(timegrid_.size(), timegrid_.size());
     tree_.setZero();
   }
-};
 
-inline std::vector<Eigen::Vector2d> getNodes(const BinomialTree& tree) {
-  std::vector<Eigen::Vector2d> nodes;
-  for (int t = 0; t < tree.numTimesteps(); ++t) {
-    if (tree.isTreeEmptyAt(t)) {
-      break;
-    }
-    for (int i = 0; i <= t; ++i) {
-      nodes.emplace_back(
-          Eigen::Vector2d{tree.totalTimeAtIndex(t), tree.nodeValue(t, i)});
-    }
-  }
-  return nodes;
-}
+ private:
+  Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> tree_;
+  double tree_duration_years_;
+  double timestep_years_;
+
+  Timegrid timegrid_;
+};
 
 struct TreeRenderData {
   std::vector<double> x_coords, y_coords, edge_x_coords, edge_y_coords;
 };
 
-inline TreeRenderData legacy_getTreeRenderData(const BinomialTree& tree) {
-  TreeRenderData r;
-  const auto nodes = getNodes(tree);
-  for (const auto& node : nodes) {
-    r.x_coords.push_back(node.x());
-    r.y_coords.push_back(node.y());
-  }
-
-  int cumul_start_index = 0;
-  for (int t = 0; t < tree.numTimesteps(); ++t) {
-    for (int i = 0; i <= t; ++i) {
-      if (t < tree.numTimesteps()) {
-        size_t parentIndex = cumul_start_index + i;
-        size_t child1Index = cumul_start_index + t + i + 0;
-        size_t child2Index = cumul_start_index + t + i + 1;
-
-        if (child1Index < nodes.size()) {
-          // Add coordinates for the segment
-          r.edge_x_coords.push_back(nodes[parentIndex].x());
-          r.edge_y_coords.push_back(nodes[parentIndex].y());
-          r.edge_x_coords.push_back(nodes[child1Index].x());
-          r.edge_y_coords.push_back(nodes[child1Index].y());
-        }
-        if (child2Index < nodes.size()) {
-          // Add coordinates for the segment
-          r.edge_x_coords.push_back(nodes[parentIndex].x());
-          r.edge_y_coords.push_back(nodes[parentIndex].y());
-          r.edge_x_coords.push_back(nodes[child2Index].x());
-          r.edge_y_coords.push_back(nodes[child2Index].y());
-        }
-      }
-    }
-    cumul_start_index += t;
-  }
-  return r;
-}
-
+template <typename PropT>
 inline TreeRenderData getTreeRenderData(const BinomialTree& tree) {
   TreeRenderData r;
 
@@ -244,8 +169,6 @@ inline TreeRenderData getTreeRenderData(const BinomialTree& tree) {
 
   return r;
 }
-
-class AssetTree {};
 
 }  // namespace markets
 

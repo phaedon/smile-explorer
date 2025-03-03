@@ -2,6 +2,7 @@
 #ifndef MARKETS_RATES_TREE_CURVES_H_
 #define MARKETS_RATES_TREE_CURVES_H_
 
+#include "curve_calculators.h"
 #include "markets/binomial_tree.h"
 #include "markets/propagators.h"
 #include "markets/rates/arrow_debreu.h"
