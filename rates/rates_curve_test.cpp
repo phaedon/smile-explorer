@@ -37,10 +37,10 @@ TEST(RatesCurveTest, ZeroSpotCurve) {
 
   EXPECT_DOUBLE_EQ(1.0, zeros.df(0.0));
   EXPECT_EQ(0, zeros.findClosestMaturityIndex(0.1));
-  EXPECT_NEAR(std::exp(-0.05 * 0.1), zeros.df(0.1), 0.001);
+  EXPECT_NEAR(std::exp(-0.05 * 0.1), zeros.df(0.1), 0.0005);
 
   for (double i = 0.0; i < 0.9; i += 0.1) {
-    EXPECT_NEAR(0.05, zeros.getForwardRate(i, i + 0.1), 0.005);
+    EXPECT_NEAR(0.05, zeros.getForwardRate(i, i + 0.1), 0.0005);
   }
 }
 
