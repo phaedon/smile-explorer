@@ -1,6 +1,7 @@
 #ifndef MARKETS_TIME_H_
 #define MARKETS_TIME_H_
 
+#include <limits>
 #include <optional>
 #include <vector>
 

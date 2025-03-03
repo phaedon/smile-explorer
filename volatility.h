@@ -85,8 +85,6 @@ Timegrid Volatility<VolSurfaceT>::generateTimegrid(
     }
 
     return grid;
-  } else {
-    static_assert(false, "Unsupported VolSurfaceFnType");
   }
 }
 
