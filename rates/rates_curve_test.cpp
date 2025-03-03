@@ -34,6 +34,14 @@ TEST(RatesCurveTest, ZeroSpotCurve) {
 
   // Ensure constant forwards past the end of the provided curve.
   EXPECT_NEAR(0.15, zeros.getForwardRate(100, 200), 0.0002);
+
+  EXPECT_DOUBLE_EQ(1.0, zeros.df(0.0));
+  EXPECT_EQ(0, zeros.findClosestMaturityIndex(0.1));
+  EXPECT_NEAR(std::exp(-0.05 * 0.1), zeros.df(0.1), 0.001);
+
+  for (double i = 0.0; i < 0.9; i += 0.1) {
+    EXPECT_NEAR(0.05, zeros.getForwardRate(i, i + 0.1), 0.005);
+  }
 }
 
 TEST(RatesCurveTest, ForwardRatesAndDiscountFactorsMatch) {

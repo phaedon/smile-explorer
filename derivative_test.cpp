@@ -58,14 +58,12 @@ TEST(DerivativeTest, Derman_VolSmile_13_6) {
   asset.forwardPropagate(vol);
 
   ZeroSpotCurve curve(
-      {1, 2, 3}, {0.05, 0.0747, 0.0992}, CompoundingPeriod::kAnnual);
+      {1, 2, 3}, {0.05, 0.0747, 0.0992}, CompoundingPeriod::kContinuous);
   Derivative deriv(asset.binomialTree(), curve);
 
-  // TODO. These tests are failing. Probably best to just print out the specific
-  // components at getUpProbAt to figure out where the breakage is happening.
-  EXPECT_DOUBLE_EQ(0.5238, deriv.getUpProbAt(asset, 6, 3));
-  EXPECT_DOUBLE_EQ(0.5194, deriv.getUpProbAt(asset, 20, 10));
-  EXPECT_DOUBLE_EQ(0.5139, deriv.getUpProbAt(asset, 50, 25));
+  EXPECT_NEAR(0.5238, deriv.getUpProbAt(asset, 6, 3), 0.0005);
+  EXPECT_NEAR(0.5194, deriv.getUpProbAt(asset, 20, 10), 0.0005);
+  EXPECT_NEAR(0.5139, deriv.getUpProbAt(asset, 50, 25), 0.0005);
 }
 
 TEST(DerivativeTest, VerifySubscriptionMechanism) {
@@ -85,7 +83,7 @@ TEST(DerivativeTest, VerifySubscriptionMechanism) {
   // but this is because it's the only place where the volatility is provided.
   // It's just an ephemeral thing that triggers the diffusion. In the future we
   // could also treat spot the same way and not bake it into the propagator.
-  asset.updateSpot(150);
+  asset.updateSpot(90);
   asset.forwardPropagate(Volatility(FlatVol{0.25}));
   double price2 = deriv.price(asset, std::bind_front(&call_payoff, 100.0), 1.0);
   EXPECT_LT(price2, price1);

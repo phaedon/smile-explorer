@@ -41,11 +41,15 @@ class ZeroSpotCurve {
     }
 
     // Get the timestamp indices surrounding the requested time.
-    int ti_left = ti - 1;
-    int ti_right = ti;
+    int ti_left = ti;
+    int ti_right = ti + 1;
     if (df_maturities_[ti] > time) {
-      ++ti_left;
-      ++ti_right;
+      --ti_left;
+      --ti_right;
+    } else if (ti >= df_maturities_.size() - 1) {
+      // Bug fix to extrapolate past the end of the curve.
+      ti_left = df_maturities_.size() - 2;
+      ti_right = ti_left + 1;
     }
 
     double fwdrate = getForwardRateByIndices(ti_left, ti_right);
@@ -59,15 +63,6 @@ class ZeroSpotCurve {
     double dt = end_time - start_time;
     return fwdRateByPeriod(df_start, df_end, dt, period_);
   }
-
- private:
-  std::vector<double> maturities_;
-  std::vector<double> rates_;
-
-  std::vector<double> discrete_dfs_;
-  std::vector<double> df_maturities_;
-
-  CompoundingPeriod period_;
 
   int findClosestMaturityIndex(double target) const {
     int closest_index = 0;
@@ -83,6 +78,15 @@ class ZeroSpotCurve {
 
     return closest_index;
   }
+
+ private:
+  std::vector<double> maturities_;
+  std::vector<double> rates_;
+
+  std::vector<double> discrete_dfs_;
+  std::vector<double> df_maturities_;
+
+  CompoundingPeriod period_;
 
   double getForwardRateByIndices(int start_ti, int end_ti) const {
     double df_start = discrete_dfs_[start_ti];
