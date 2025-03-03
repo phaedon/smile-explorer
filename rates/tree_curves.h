@@ -6,6 +6,7 @@
 #include "markets/binomial_tree.h"
 #include "markets/propagators.h"
 #include "markets/rates/arrow_debreu.h"
+#include "markets/stochastic_tree_model.h"
 #include "markets/time.h"
 
 namespace markets {
@@ -13,22 +14,26 @@ namespace markets {
 class SimpleUncalibratedShortRatesCurve {
  public:
   SimpleUncalibratedShortRatesCurve(double time_span_years, double timestep)
-      : rate_tree_(time_span_years, timestep) {
+      : short_rate_model_(BinomialTree(time_span_years, timestep),
+                          CRRPropagator(0.05)),
+        arrowdeb_model_(
+            BinomialTree::createFrom(short_rate_model_.binomialTree()),
+            ArrowDebreauPropagator(
+                short_rate_model_.binomialTree(),
+                short_rate_model_.binomialTree().numTimesteps())) {
     // Default hard-coded constants for initialisation.
     updateCurve(0.05, 0.10);
   }
 
   void updateCurve(double spot_rate, double vol) {
-    FlatVol flat_vol(vol);
-    Volatility rate_vol(flat_vol);
-    CRRPropagator crr_prop(spot_rate);
-    rate_tree_.forwardPropagate(crr_prop, rate_vol);
+    short_rate_model_.updateSpot(spot_rate);
+    Volatility rate_vol(FlatVol{vol});
+    short_rate_model_.forwardPropagate(rate_vol);
+    // These are already linked because the short_rate binomial tree was passed
+    // to this model by reference.
+    arrowdeb_model_.forwardPropagate();
 
-    ArrowDebreauPropagator arrowdeb_prop(rate_tree_, rate_tree_.numTimesteps());
-    arrowdeb_tree_ = BinomialTree::createFrom(rate_tree_);
-    arrowdeb_tree_.forwardPropagate(arrowdeb_prop);
-
-    timegrid_ = rate_tree_.getTimegrid();
+    timegrid_ = short_rate_model_.binomialTree().getTimegrid();
   }
 
   double getForwardRate(double start_time, double end_time) const {
@@ -45,7 +50,7 @@ class SimpleUncalibratedShortRatesCurve {
     int ti = timegrid_.getTimeIndexForExpiry(time).value();
 
     if (timegrid_.time(ti) == time) {
-      return arrowdeb_tree_.sumAtTimestep(ti);
+      return arrowdeb_model_.binomialTree().sumAtTimestep(ti);
     }
 
     // Get the timestamp indices surrounding the requested time.
@@ -58,18 +63,18 @@ class SimpleUncalibratedShortRatesCurve {
 
     double fwdrate = getForwardRateByIndices(ti_left, ti_right);
     double dt = time - timegrid_.time(ti_left);
-    return arrowdeb_tree_.sumAtTimestep(ti_left) *
+    return arrowdeb_model_.binomialTree().sumAtTimestep(ti_left) *
            dfByPeriod(fwdrate, dt, CompoundingPeriod::kContinuous);
   }
 
  private:
-  BinomialTree rate_tree_;
-  BinomialTree arrowdeb_tree_;
+  StochasticTreeModel<CRRPropagator> short_rate_model_;
+  StochasticTreeModel<ArrowDebreauPropagator> arrowdeb_model_;
   Timegrid timegrid_;
 
   double getForwardRateByIndices(int start_ti, int end_ti) const {
-    double df_start = arrowdeb_tree_.sumAtTimestep(start_ti);
-    double df_end = arrowdeb_tree_.sumAtTimestep(end_ti);
+    double df_start = arrowdeb_model_.binomialTree().sumAtTimestep(start_ti);
+    double df_end = arrowdeb_model_.binomialTree().sumAtTimestep(end_ti);
     double dt = timegrid_.time(end_ti) - timegrid_.time(start_ti);
     return fwdRateByPeriod(
         df_start, df_end, dt, CompoundingPeriod::kContinuous);

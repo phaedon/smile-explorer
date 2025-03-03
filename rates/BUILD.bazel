@@ -13,6 +13,7 @@ cc_test(
         ":arrow_debreu",
         "//markets:binomial_tree",
         "//markets:propagators",
+        "//markets:stochastic_tree_model",
         "@googletest//:gtest_main",
     ],
 )
@@ -72,5 +73,6 @@ cc_library(
         ":arrow_debreu",
         "//markets:binomial_tree",
         "//markets:propagators",
+        "//markets:stochastic_tree_model",
     ],
 )

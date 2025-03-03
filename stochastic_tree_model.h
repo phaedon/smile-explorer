@@ -28,7 +28,7 @@ class StochasticTreeModel {
     notifySubscribers();
   }
 
-  void forwardPropagate(const PropagatorT& fwd_prop) {
+  void forwardPropagate() {
     for (int t = 0; t < binomial_tree_.numTimesteps(); t++) {
       for (int i = 0; i <= t; ++i) {
         binomial_tree_.setValue(t, i, propagator_(binomial_tree_, t, i));
