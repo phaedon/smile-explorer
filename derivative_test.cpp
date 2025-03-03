@@ -24,9 +24,6 @@ TEST(DerivativeTest, BackpropApproxEqualsBSM) {
   // the underlying tree is exactly the length of the derivative.
   StochasticTreeModel<CRRPropagator> asset(BinomialTree(1.1, 1 / 360.),
                                            CRRPropagator(100));
-
-  // TODO can we not make this copy at construction time? Then we could declare
-  // the deriv anytime.
   Volatility flat_vol(FlatVol(0.158745));
   asset.forwardPropagate(flat_vol);
   Derivative deriv(asset.binomialTree());
@@ -69,6 +66,29 @@ TEST(DerivativeTest, Derman_VolSmile_13_6) {
   EXPECT_DOUBLE_EQ(0.5238, deriv.getUpProbAt(asset, 6, 3));
   EXPECT_DOUBLE_EQ(0.5194, deriv.getUpProbAt(asset, 20, 10));
   EXPECT_DOUBLE_EQ(0.5139, deriv.getUpProbAt(asset, 50, 25));
+}
+
+TEST(DerivativeTest, VerifySubscriptionMechanism) {
+  StochasticTreeModel<CRRPropagator> asset(BinomialTree(1.1, 1 / 360.),
+                                           CRRPropagator(100));
+  Volatility flat_vol(FlatVol(0.158745));
+  asset.forwardPropagate(flat_vol);
+  Derivative deriv(asset.binomialTree());
+  asset.registerForUpdates(&deriv);
+
+  double price0 = deriv.price(asset, std::bind_front(&call_payoff, 100.0), 1.0);
+  asset.forwardPropagate(Volatility(FlatVol{0.25}));
+  double price1 = deriv.price(asset, std::bind_front(&call_payoff, 100.0), 1.0);
+  EXPECT_LT(price0, price1);
+
+  // It's a bit annoying that you have to call forwardPropagate manually here,
+  // but this is because it's the only place where the volatility is provided.
+  // It's just an ephemeral thing that triggers the diffusion. In the future we
+  // could also treat spot the same way and not bake it into the propagator.
+  asset.updateSpot(150);
+  asset.forwardPropagate(Volatility(FlatVol{0.25}));
+  double price2 = deriv.price(asset, std::bind_front(&call_payoff, 100.0), 1.0);
+  EXPECT_LT(price2, price1);
 }
 
 }  // namespace

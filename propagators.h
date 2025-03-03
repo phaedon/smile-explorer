@@ -1,10 +1,7 @@
 #ifndef MARKETS_PROPAGATORS_H_
 #define MARKETS_PROPAGATORS_H_
 
-#include <memory>
-
 #include "markets/binomial_tree.h"
-#include "markets/volatility.h"
 
 namespace markets {
 

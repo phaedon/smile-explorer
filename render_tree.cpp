@@ -216,6 +216,7 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
   asset.forwardPropagate(volsurface);
 
   markets::Derivative deriv(asset.binomialTree());
+  asset.registerForUpdates(&deriv);
 
   markets::JarrowRuddPropagator jr_prop(expected_drift, vol, spot_price);
 
@@ -260,17 +261,15 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
     // jr_prop.updateVol(vol);
 
     ImGui::DragFloat("Spot", &spot_price, 0.1f, 0.0f, 200.0f, "%.2f");
-    crr_prop.updateSpot(spot_price);
+    asset.updateSpot(spot_price);
     // jr_prop.updateSpot(spot_price);
 
     if (current_item == 0) {
       asset.forwardPropagate(markets::Volatility(markets::FlatVol(vol)));
-      deriv = markets::Derivative(asset.binomialTree());
     } else if (current_item == 1) {
       //  asset.forwardPropagate(jr_prop);
     } else if (current_item == 2) {
       asset.forwardPropagate(volsurface);
-      deriv = markets::Derivative(asset.binomialTree());
     }
 
     if (ImPlot::BeginPlot("Asset Tree Plot", ImVec2(-1, -1))) {

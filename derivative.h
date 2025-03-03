@@ -4,7 +4,6 @@
 #include "absl/log/log.h"
 #include "binomial_tree.h"
 #include "markets/rates/rates_curve.h"
-#include "stochastic_tree_model.h"
 
 namespace markets {
 
@@ -89,6 +88,10 @@ class Derivative {
   }
 
   const BinomialTree& binomialTree() const { return deriv_tree_; }
+
+  void update(const BinomialTree& updated_tree) {
+    deriv_tree_ = BinomialTree::createFrom(updated_tree);
+  }
 
  private:
   BinomialTree deriv_tree_;

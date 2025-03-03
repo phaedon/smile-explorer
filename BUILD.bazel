@@ -39,7 +39,6 @@ cc_library(
     name = "derivative",
     hdrs = ["derivative.h"],
     deps = [
-        ":stochastic_tree_model",
         "//markets/rates:rates_curve",
     ],
 )
@@ -51,6 +50,7 @@ cc_test(
         ":bsm",
         ":derivative",
         ":propagators",
+        ":stochastic_tree_model",
         ":volatility",
         "@googletest//:gtest_main",
     ],
@@ -102,6 +102,7 @@ cc_library(
     hdrs = ["stochastic_tree_model.h"],
     deps = [
         ":binomial_tree",
+        ":derivative",
     ],
 )
 
