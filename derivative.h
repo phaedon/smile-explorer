@@ -88,6 +88,8 @@ class Derivative {
     }
   }
 
+  const BinomialTree& binomialTree() const { return deriv_tree_; }
+
  private:
   BinomialTree deriv_tree_;
   RatesCurve curve_;

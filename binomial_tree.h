@@ -122,7 +122,6 @@ struct TreeRenderData {
   std::vector<double> x_coords, y_coords, edge_x_coords, edge_y_coords;
 };
 
-template <typename PropT>
 inline TreeRenderData getTreeRenderData(const BinomialTree& tree) {
   TreeRenderData r;
 

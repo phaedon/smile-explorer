@@ -4,6 +4,7 @@
 #include <chrono>
 
 #include "binomial_tree.h"
+#include "derivative.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
@@ -14,9 +15,10 @@
 // #include "markets/rates/arrow_debreu.h"
 // #include "markets/rates/bdt.h"
 #include "markets/rates/rates_curve.h"
-#include "markets/rates/swaps.h"
+// #include "markets/rates/swaps.h"
 #include "markets/volatility.h"
 #include "markets/yield_curve.h"
+#include "stochastic_tree_model.h"
 #include "time.h"
 #include "volatility.h"
 #define GL_SILENCE_DEPRECATION
@@ -161,8 +163,8 @@ int main(int, char**) {
 
   // see for example
   // https://sebgroup.com/our-offering/reports-and-publications/rates-and-iban/swap-rates
-  YieldCurve spot_curve({1, 2, 5, 7, 10},
-                        {0.045, 0.0423, 0.0401, 0.0398, 0.0397});
+  // YieldCurve spot_curve({1, 2, 5, 7, 10},
+  //                       {0.045, 0.0423, 0.0401, 0.0398, 0.0397});
 
   /*
 double spot_rate = 0.05;
@@ -205,14 +207,16 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
   markets::DermanExampleVol dermanvol;
   markets::Volatility volsurface(dermanvol);
 
-  auto asset = markets::BinomialTree::create(
+  auto asset_tree = markets::BinomialTree::create(
       std::chrono::months(38), std::chrono::days(10), markets::YearStyle::k360);
 
   float spot_price = 100;
   markets::CRRPropagator crr_prop(spot_price);
-  asset.forwardPropagate(crr_prop, volsurface);
+  markets::StochasticTreeModel asset(std::move(asset_tree), crr_prop);
+  asset.forwardPropagate(volsurface);
 
-  auto deriv = markets::BinomialTree::createFrom(asset);
+  markets::Derivative deriv(asset.binomialTree());
+
   markets::JarrowRuddPropagator jr_prop(expected_drift, vol, spot_price);
 
   float deriv_expiry = 1.0;
@@ -260,28 +264,27 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
     // jr_prop.updateSpot(spot_price);
 
     if (current_item == 0) {
-      asset.forwardPropagate(crr_prop,
-                             markets::Volatility(markets::FlatVol(vol)));
-      deriv = markets::BinomialTree::createFrom(asset);
+      asset.forwardPropagate(markets::Volatility(markets::FlatVol(vol)));
+      deriv = markets::Derivative(asset.binomialTree());
     } else if (current_item == 1) {
       //  asset.forwardPropagate(jr_prop);
     } else if (current_item == 2) {
-      asset.forwardPropagate(crr_prop, volsurface);
-      deriv = markets::BinomialTree::createFrom(asset);
+      asset.forwardPropagate(volsurface);
+      deriv = markets::Derivative(asset.binomialTree());
     }
 
     if (ImPlot::BeginPlot("Asset Tree Plot", ImVec2(-1, -1))) {
-      const auto r = getTreeRenderData(asset);
+      const auto r = getTreeRenderData(asset.binomialTree());
 
       ImPlotStyle& style = ImPlot::GetStyle();
       style.MarkerSize = 1;
 
       if (!r.x_coords.empty()) {
-        ImPlot::SetupAxisLimits(
-            ImAxis_X1,
-            0,
-            asset.totalTimeAtIndex(asset.numTimesteps() - 1),
-            ImPlotCond_Always);
+        ImPlot::SetupAxisLimits(ImAxis_X1,
+                                0,
+                                asset.binomialTree().totalTimeAtIndex(
+                                    asset.binomialTree().numTimesteps() - 1),
+                                ImPlotCond_Always);
       }
 
       if (!r.y_coords.empty()) {
@@ -308,18 +311,18 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
 
     ImGui::Begin("Option Tree");
     ImGui::SliderFloat("Strike", &strike, 1.0f, 200.f, "%.2f");
-    ImGui::SliderFloat(
-        "Expiry", &deriv_expiry, 0.0f, asset.treeDurationYears(), "%.2f");
+    ImGui::SliderFloat("Expiry",
+                       &deriv_expiry,
+                       0.0f,
+                       asset.binomialTree().treeDurationYears(),
+                       "%.2f");
 
     if (current_item == 0) {
-      deriv.backPropagate(
-          asset, std::bind_front(&markets::call_payoff, strike), deriv_expiry);
     } else if (current_item == 1) {
-      deriv.backPropagate(
-          asset, std::bind_front(&markets::call_payoff, strike), deriv_expiry);
     }
 
-    double computed_value = deriv.nodeValue(0, 0);
+    double computed_value = deriv.price(
+        asset, std::bind_front(&markets::call_payoff, strike), deriv_expiry);
     std::string value_str = std::to_string(computed_value);
     char buffer[64];  // A buffer to hold the string (adjust
                       // size as needed)
@@ -333,17 +336,17 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
                      ImGuiInputTextFlags_ReadOnly);
 
     if (ImPlot::BeginPlot("Option Tree Plot", ImVec2(-1, -1))) {
-      const auto r = getTreeRenderData(deriv);
+      const auto r = getTreeRenderData(deriv.binomialTree());
 
       ImPlotStyle& style = ImPlot::GetStyle();
       style.MarkerSize = 1;
 
       if (!r.x_coords.empty()) {
-        ImPlot::SetupAxisLimits(
-            ImAxis_X1,
-            0,
-            deriv.totalTimeAtIndex(deriv.numTimesteps() - 1),
-            ImPlotCond_Always);
+        ImPlot::SetupAxisLimits(ImAxis_X1,
+                                0,
+                                deriv.binomialTree().totalTimeAtIndex(
+                                    deriv.binomialTree().numTimesteps() - 1),
+                                ImPlotCond_Always);
       }
 
       if (!r.y_coords.empty()) {

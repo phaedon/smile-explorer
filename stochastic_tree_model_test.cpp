@@ -13,11 +13,10 @@ TEST(StochasticTreeModelTest, Derman_VolSmile_13_1) {
   auto walmart_tree = BinomialTree::create(std::chrono::months(6),
                                            std::chrono::days(1),
                                            YearStyle::kBusinessDays256);
+  StochasticTreeModel asset(std::move(walmart_tree), crr_prop);
 
   Volatility vol(FlatVol(0.2));
-
-  StochasticTreeModel asset(std::move(walmart_tree), crr_prop, vol);
-  asset.forwardPropagate();
+  asset.forwardPropagate(vol);
 
   // Verify to the nearest cent.
   EXPECT_NEAR(75.94, asset.binomialTree().nodeValue(1, 1), 0.005);

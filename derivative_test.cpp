@@ -22,14 +22,13 @@ double put_payoff(double strike, double val) {
 TEST(DerivativeTest, BackpropApproxEqualsBSM) {
   // TODO: For now, this must be slightly longer because we have problems when
   // the underlying tree is exactly the length of the derivative.
-  StochasticTreeModel<CRRPropagator, Volatility<FlatVol>> asset(
-      BinomialTree(1.1, 1 / 360.),
-      CRRPropagator(100),
-      Volatility<FlatVol>(FlatVol(0.158745)));
+  StochasticTreeModel<CRRPropagator> asset(BinomialTree(1.1, 1 / 360.),
+                                           CRRPropagator(100));
 
   // TODO can we not make this copy at construction time? Then we could declare
   // the deriv anytime.
-  asset.forwardPropagate();
+  Volatility flat_vol(FlatVol(0.158745));
+  asset.forwardPropagate(flat_vol);
   Derivative deriv(asset.binomialTree());
 
   // Verify that tree pricing is close to the BSM closed-form price.
@@ -57,9 +56,9 @@ TEST(DerivativeTest, Derman_VolSmile_13_6) {
   // This is the final part of this textbook end-of-chapter question.
   Volatility vol(DermanExampleVol{});
 
-  StochasticTreeModel<CRRPropagator, Volatility<DermanExampleVol>> asset(
-      BinomialTree(3.0, 0.1), CRRPropagator(100), vol);
-  asset.forwardPropagate();
+  StochasticTreeModel<CRRPropagator> asset(BinomialTree(3.0, 0.1),
+                                           CRRPropagator(100));
+  asset.forwardPropagate(vol);
 
   ZeroSpotCurve curve(
       {1, 2, 3}, {0.05, 0.0747, 0.0992}, CompoundingPeriod::kAnnual);
