@@ -34,31 +34,30 @@ struct CRRPropagator {
 };
 
 struct JarrowRuddPropagator {
-  JarrowRuddPropagator(double expected_drift,
-                       double annualized_vol,
-                       double spot_price)
-      : expected_drift_(expected_drift),
-        annualized_vol_(annualized_vol),
-        spot_price_(spot_price) {}
+  JarrowRuddPropagator(double expected_drift, double spot_price)
+      : expected_drift_(expected_drift), spot_price_(spot_price) {}
 
-  double operator()(const BinomialTree& tree, int t, int i) const {
+  template <typename VolatilityT>
+  double operator()(const BinomialTree& tree,
+                    const VolatilityT& vol_fn,
+                    int t,
+                    int i) const {
     if (t == 0) return spot_price_;
     double dt = tree.timestepAt(t);
+    double curr_time = tree.totalTimeAtIndex(t);
 
     if (i == 0) {
-      double d = expected_drift_ * dt - annualized_vol_ * std::sqrt(dt);
+      double d = expected_drift_ * dt - vol_fn.get(curr_time) * std::sqrt(dt);
       return tree.nodeValue(t - 1, 0) * std::exp(d);
     } else {
-      double u = expected_drift_ * dt + annualized_vol_ * std::sqrt(dt);
+      double u = expected_drift_ * dt + vol_fn.get(curr_time) * std::sqrt(dt);
       return tree.nodeValue(t - 1, i - 1) * std::exp(u);
     }
   }
 
-  void updateVol(double vol) { annualized_vol_ = vol; }
   void updateSpot(double spot) { spot_price_ = spot; }
 
   double expected_drift_;
-  double annualized_vol_;
   double spot_price_;
 };
 
