@@ -73,6 +73,14 @@ class BinomialTree {
     return tree_(time, node_index);
   }
 
+  std::optional<double> safeNodeValue(int time, int node_index) const {
+    if (time < 0 || time >= tree_.rows() || node_index < 0 ||
+        node_index > time) {
+      return std::nullopt;
+    }
+    return nodeValue(time, node_index);
+  }
+
   bool isTreeEmptyAt(int t) const {
     // current assumption: if an entire row is 0, nothing after it can be
     // populated.

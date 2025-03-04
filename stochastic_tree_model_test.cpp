@@ -4,6 +4,7 @@
 
 #include "binomial_tree.h"
 #include "propagators.h"
+#include "rates/rates_curve.h"
 #include "time.h"
 #include "volatility.h"
 
@@ -51,11 +52,11 @@ TEST(BinomialTreeTest, Derman_VolSmile_13_2) {
 struct DermanKaniExampleVol {
   static constexpr VolSurfaceFnType type =
       VolSurfaceFnType::kTimeInvariantSkewSmile;
-  double operator()(double k) const {
+
+  double operator()(double fwd_difference) const {
     double atm_vol = 0.1;
-    double strike_difference = k - 100;  // TODO this needs to be the fwd.
     // Negative because drop in strike is positive change in vol.
-    double vol_adjustment = -0.005 * (strike_difference / 10);
+    double vol_adjustment = -0.005 * (fwd_difference / 10);
     return atm_vol + vol_adjustment;
   }
 };
@@ -74,7 +75,11 @@ TEST(StochasticTreeModelTest, DermanKani1994Example) {
   asset.forwardPropagate(Volatility(DermanKaniExampleVol()));
   std::cout << "fwdpropagate asset" << std::endl;
 
-  asset.binomialTree().printUpTo(4);
+  asset.binomialTree().printUpTo(5);
+  std::vector<double> expected_t_4{59.02, 79.43, 100.0, 120.51, 139.78};
+  for (int i = 0; i < 5; ++i) {
+    EXPECT_DOUBLE_EQ(expected_t_4[i], asset.binomialTree().nodeValue(4, i));
+  }
 }
 
 }  // namespace

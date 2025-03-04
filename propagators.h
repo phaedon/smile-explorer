@@ -78,35 +78,52 @@ struct LocalVolatilityPropagator {
                     int i) const {
     if (t == 0) return spot_price_;
 
-    double curr_time = tree.totalTimeAtIndex(t);
-    double dt = tree.timestepAt(t);
-    const double S = tree.nodeValue(t - 1, i - 1);
-    const double sigma =
-        vol_fn.get(S);  //, curr_time); // TODO add this back later!!
-
-    // First, handle the spine.
+    // Simplest case for the spine:
     if (i == t / 2 && t % 2 == 0) {
       // Odd number of nodes (even time-index)
       return spot_price_;
-    } else if (i == (t + 1) / 2 && t % 2 == 1) {
+    }
+
+    double curr_time = tree.totalTimeAtIndex(t);
+    double prev_time = tree.totalTimeAtIndex(t - 1);
+
+    double dt = tree.timestepAt(t - 1);
+
+    // The higher node in the previous timestep (if it exists).
+    const auto Sprev_high = tree.safeNodeValue(t - 1, i);
+
+    // The lower node in the previous timestep (if it exists).
+    const auto Sprev_low = tree.safeNodeValue(t - 1, i - 1);
+
+    double fwd_price = spot_price_ / curve_.df(prev_time);
+
+    if (i == (t + 1) / 2 && t % 2 == 1) {
       // Even number of nodes (odd time-index), upper spine:
+      double S = Sprev_low.value();
+      double sigma = vol_fn.get(S - fwd_price);
       return S * std::exp(sigma * std::sqrt(dt));
     } else if (i == (t - 1) / 2 && t % 2 == 1) {
       // Even number of nodes, lower spine:
+      double S = Sprev_high.value();
+      double sigma = vol_fn.get(S - fwd_price);
       return S * std::exp(-sigma * std::sqrt(dt));
     }
 
     // We're no longer on the spine:
     double half_t = t * 0.5;
-    double prev_time = tree.totalTimeAtIndex(t - 1);
-    const double F = S * curve_.df(prev_time) / curve_.df(curr_time);
     if (i > half_t) {
       // Populate upper nodes.
       const double S_d = tree.nodeValue(t, i - 1);
+      double S = Sprev_low.value();
+      const double F = S * curve_.df(prev_time) / curve_.df(curr_time);
+      double sigma = vol_fn.get(S - fwd_price);
       return F + (S * S * sigma * sigma * dt) / (F - S_d);
     } else {
       // Populate lower nodes.
       const double S_u = tree.nodeValue(t, i + 1);
+      double S = Sprev_high.value();
+      const double F = S * curve_.df(prev_time) / curve_.df(curr_time);
+      double sigma = vol_fn.get(S - fwd_price);
       return F - (S * S * sigma * sigma * dt) / (S_u - F);
     }
   }
