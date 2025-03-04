@@ -37,9 +37,12 @@ cc_test(
 
 cc_library(
     name = "derivative",
+    srcs = ["derivative.cpp"],
     hdrs = ["derivative.h"],
     deps = [
+        ":binomial_tree",
         "//markets/rates:rates_curve",
+        "@abseil-cpp//absl/log",
     ],
 )
 

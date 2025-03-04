@@ -50,8 +50,6 @@ class BinomialTree {
     return tree_.rows() - 1;
   }
 
-  double getUpProbAt(int t, int i) const;
-
   double sumAtTimestep(int t) const { return tree_.row(t).sum(); }
 
   void printAtTime(int t) const {
@@ -68,16 +66,6 @@ class BinomialTree {
   void setZeroAfterIndex(int ti) {
     for (int i = ti + 1; i < tree_.rows(); ++i) {
       tree_.row(i).setZero();
-    }
-  }
-
-  void printProbabilitiesUpTo(int ti) const {
-    for (int t = 0; t < ti; ++t) {
-      std::cout << "t:" << t << " q:";
-      for (int i = 0; i <= t; ++i) {
-        std::cout << " " << getUpProbAt(t, i);
-      }
-      std::cout << std::endl;
     }
   }
 

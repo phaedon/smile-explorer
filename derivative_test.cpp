@@ -81,9 +81,9 @@ TEST(DerivativeTest, Derman_VolSmile_13_6) {
       {1, 2, 3}, {0.05, 0.0747, 0.0992}, CompoundingPeriod::kContinuous);
   Derivative deriv(asset.binomialTree(), curve);
 
-  EXPECT_NEAR(0.5238, deriv.getUpProbAt(asset, 6, 3), 0.0005);
-  EXPECT_NEAR(0.5194, deriv.getUpProbAt(asset, 20, 10), 0.0005);
-  EXPECT_NEAR(0.5139, deriv.getUpProbAt(asset, 50, 25), 0.0005);
+  EXPECT_NEAR(0.5238, deriv.getUpProbAt(asset.binomialTree(), 6, 3), 0.0005);
+  EXPECT_NEAR(0.5194, deriv.getUpProbAt(asset.binomialTree(), 20, 10), 0.0005);
+  EXPECT_NEAR(0.5139, deriv.getUpProbAt(asset.binomialTree(), 50, 25), 0.0005);
 }
 
 TEST(DerivativeTest, VerifySubscriptionMechanism) {
