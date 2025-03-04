@@ -1,5 +1,7 @@
 #include "derivative.h"
 
+#include "absl/log/log.h"
+
 namespace markets {
 
 double Derivative::getUpProbAt(const BinomialTree& binomial_tree,

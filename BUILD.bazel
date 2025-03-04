@@ -73,6 +73,7 @@ cc_library(
     hdrs = ["propagators.h"],
     deps = [
         ":binomial_tree",
+        "//markets/rates:rates_curve",
     ],
 )
 

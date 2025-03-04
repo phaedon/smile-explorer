@@ -1,7 +1,6 @@
 #ifndef MARKETS_DERIVATIVE_H_
 #define MARKETS_DERIVATIVE_H_
 
-#include "absl/log/log.h"
 #include "binomial_tree.h"
 #include "markets/rates/rates_curve.h"
 

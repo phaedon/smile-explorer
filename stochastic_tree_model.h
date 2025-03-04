@@ -19,12 +19,46 @@ class StochasticTreeModel {
   template <typename VolatilityT>
   void forwardPropagate(const VolatilityT& volatility) {
     binomial_tree_.resizeWithTimeDependentVol(volatility);
-    for (int t = 0; t < binomial_tree_.numTimesteps(); t++) {
+
+    /*
+    for (int t = 0; t < binomial_tree_.numTimesteps(); ++t) {
       for (int i = 0; i <= t; ++i) {
         binomial_tree_.setValue(
             t, i, propagator_(binomial_tree_, volatility, t, i));
       }
     }
+      */
+
+    for (int t = 0; t < binomial_tree_.numTimesteps(); ++t) {
+      // Begin by setting the spine. For vol surfaces with no smile, the
+      // iteration order doesn't matter, apart from possible performance, but
+      // for local vol models, this is essential.
+      if (t % 2 == 0) {
+        binomial_tree_.setValue(
+            t, t / 2, propagator_(binomial_tree_, volatility, t, t / 2));
+      } else {
+        binomial_tree_.setValue(
+            t,
+            (t + 1) / 2,
+            propagator_(binomial_tree_, volatility, t, (t + 1) / 2));
+        binomial_tree_.setValue(
+            t,
+            (t - 1) / 2,
+            propagator_(binomial_tree_, volatility, t, (t - 1) / 2));
+      }
+
+      // Fix all the nodes above the spine.
+      for (int i = std::floor((t + 2) / 2); i <= t; ++i) {
+        binomial_tree_.setValue(
+            t, i, propagator_(binomial_tree_, volatility, t, i));
+      }
+      // And then below the spine.
+      for (int i = std::floor((t - 2) / 2); i >= 0; --i) {
+        binomial_tree_.setValue(
+            t, i, propagator_(binomial_tree_, volatility, t, i));
+      }
+    }
+
     notifySubscribers();
   }
 
