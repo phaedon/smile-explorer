@@ -34,6 +34,15 @@ class Derivative {
     deriv_tree_ = BinomialTree::createFrom(updated_tree);
   }
 
+  void printProbTreeUpTo(const BinomialTree& asset_tree, int ti) const {
+    for (int t = 0; t <= ti; ++t) {
+      for (int i = 0; i <= t; ++i) {
+        std::cout << getUpProbAt(asset_tree, t, i) << "  ";
+      }
+      std::cout << std::endl;
+    }
+  }
+
  private:
   BinomialTree deriv_tree_;
   RatesCurve curve_;
