@@ -81,8 +81,16 @@ class Derivative {
         double up_prob = getUpProbAt(asset, t, i);
         double down_prob = 1 - up_prob;
 
-        // TODO no discounting (yet)
-        deriv_tree_.setValue(t, i, up * up_prob + down * down_prob);
+        double df_ratio = 1.0;
+        if (curve_.index() != 0) {
+          const auto& timegrid = asset.binomialTree().getTimegrid();
+          const auto& curve = std::get<1>(curve_);
+
+          df_ratio =
+              curve.df(timegrid.time(t + 1)) / curve.df(timegrid.time(t));
+        }
+        deriv_tree_.setValue(
+            t, i, df_ratio * (up * up_prob + down * down_prob));
       }
     }
   }

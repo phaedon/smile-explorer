@@ -8,7 +8,5 @@ bazel test markets:binomial_tree_test markets:volatility_test
 ```
 
 Next steps:
-- Does Derivative need to copy the binomial tree at construction time? It seems that what is 
-necessary is the ability to subscribe to updates, so when the underlying Timegrid changes, then
-the derivative is notified and the deriv_tree is rebuilt. It could do this for a portfolio of derivs.
-And then maybe Derivative could just hold a pointer to the Asset so that it is always current.
+- Fix design for RatesCurve to make it default-copyable and allow Derivative to store it
+  as a reference. So that pricing automatically gets updates.

@@ -5,6 +5,7 @@
 #include "binomial_tree.h"
 #include "bsm.h"
 #include "propagators.h"
+#include "rates/rates_curve.h"
 #include "stochastic_tree_model.h"
 #include "volatility.h"
 
@@ -37,6 +38,15 @@ TEST(DerivativeTest, BackpropApproxEqualsBSM) {
   // Verify put-call parity since this is an ATM European option.
   EXPECT_NEAR(bsmcall,
               deriv.price(asset, std::bind_front(&put_payoff, 100.0), 1.0),
+              0.005);
+
+  // Verify that tree pricing matches BSM for an OTM option with discounting.
+  const double disc_rate = 0.12;
+  double bsm_otm_discounting = call(100, 105, 0.158745, 1.0, disc_rate);
+  deriv = Derivative(asset.binomialTree(),
+                     ZeroSpotCurve({1.0, 10.0}, {disc_rate, disc_rate}));
+  EXPECT_NEAR(bsm_otm_discounting,
+              deriv.price(asset, std::bind_front(&call_payoff, 105.0), 1.0),
               0.005);
 }
 
