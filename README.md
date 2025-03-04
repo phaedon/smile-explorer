@@ -4,9 +4,11 @@ Supports MacOS and Linux.
 To run the example and the tests:
 ```
 bazel run markets:render_tree
-bazel test markets:binomial_tree_test markets:volatility_test
+bazel test markets:all
 ```
 
 Next steps:
-- Fix design for RatesCurve to make it default-copyable and allow Derivative to store it
-  as a reference. So that pricing automatically gets updates.
+- Rethink design for RatesCurve to make it default-copyable and allow Derivative to store it
+  as a reference. So that pricing automatically gets updates. The use of std::variant is clumsy.
+- Implement local volatility.
+
