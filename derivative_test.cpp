@@ -42,10 +42,20 @@ TEST(DerivativeTest, BackpropApproxEqualsBSM) {
 
   // Verify that tree pricing matches BSM for an OTM option with discounting.
   const double disc_rate = 0.12;
+  ZeroSpotCurve curve({1.0, 10.0}, {disc_rate, disc_rate});
   double bsm_otm_discounting = call(100, 105, 0.158745, 1.0, disc_rate);
-  deriv = Derivative(asset.binomialTree(),
-                     ZeroSpotCurve({1.0, 10.0}, {disc_rate, disc_rate}));
+  deriv = Derivative(asset.binomialTree(), curve);
   EXPECT_NEAR(bsm_otm_discounting,
+              deriv.price(asset, std::bind_front(&call_payoff, 105.0), 1.0),
+              0.005);
+
+  // Verify that forward-propagation method doesn't affect the deriv price at
+  // the limit.
+  StochasticTreeModel<JarrowRuddPropagator> jrasset(
+      BinomialTree(1.1, 1 / 360.), JarrowRuddPropagator(0.1, 100));
+  jrasset.forwardPropagate(flat_vol);
+  Derivative jrderiv(jrasset.binomialTree(), curve);
+  EXPECT_NEAR(jrderiv.price(jrasset, std::bind_front(&call_payoff, 105.0), 1.0),
               deriv.price(asset, std::bind_front(&call_payoff, 105.0), 1.0),
               0.005);
 }
