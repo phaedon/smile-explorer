@@ -16,7 +16,21 @@ concept RatesCurve = requires(CurveT curve, double time, double dt) {
 };
 */
 
-class ZeroSpotCurve {
+class RatesCurve {
+ public:
+  virtual double df(double time) const = 0;
+  virtual double getForwardRate(double start_time, double end_time) const = 0;
+};
+
+class NoDiscountingCurve : public RatesCurve {
+ public:
+  double df(double time) const override { return 1.0; }
+  double getForwardRate(double start_time, double end_time) const override {
+    return 0.0;
+  }
+};
+
+class ZeroSpotCurve : public RatesCurve {
  public:
   // Expects two matching vectors in order of increasing maturity. Assumed to be
   // zero-coupon bond (spot) yields.
@@ -35,7 +49,7 @@ class ZeroSpotCurve {
     }
   }
 
-  double df(double time) const {
+  double df(double time) const override {
     int ti = findClosestMaturityIndex(time);
 
     if (df_maturities_[ti] == time) {
@@ -59,13 +73,14 @@ class ZeroSpotCurve {
     return discrete_dfs_[ti_left] * dfByPeriod(fwdrate, dt, period_);
   }
 
-  double getForwardRate(double start_time, double end_time) const {
+  double getForwardRate(double start_time, double end_time) const override {
     double df_start = df(start_time);
     double df_end = df(end_time);
     double dt = end_time - start_time;
     return fwdRateByPeriod(df_start, df_end, dt, period_);
   }
 
+  // TODO: Exposed for testing.
   int findClosestMaturityIndex(double target) const {
     int closest_index = 0;
     double min_difference = std::numeric_limits<double>::max();
@@ -99,7 +114,7 @@ class ZeroSpotCurve {
 };
 
 // Monostate simply allows no discounting at all.
-using RatesCurve = std::variant<std::monostate, ZeroSpotCurve>;
+using VariantRatesCurve = std::variant<std::monostate, ZeroSpotCurve>;
 
 }  // namespace markets
 

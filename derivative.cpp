@@ -4,36 +4,6 @@
 
 namespace markets {
 
-double Derivative::getUpProbAt(const BinomialTree& binomial_tree,
-                               int t,
-                               int i) const {
-  const auto& timegrid = binomial_tree.getTimegrid();
-  // Hack:
-  if (t >= timegrid.size() - 1) {
-    t = timegrid.size() - 2;
-  }
-
-  // Equation 13.23a (Derman) for the risk-neutral, no-arbitrage up
-  // probability.
-  double curr = binomial_tree.nodeValue(t, i);
-  double up_ratio = binomial_tree.nodeValue(t + 1, i + 1) / curr;
-  double down_ratio = binomial_tree.nodeValue(t + 1, i) / curr;
-  double df_ratio = 1.0;
-  if (curve_.index() != 0) {
-    const auto& curve = std::get<1>(curve_);
-    df_ratio = curve.df(timegrid.time(t)) / curve.df(timegrid.time(t + 1));
-  }
-  double risk_neutral_up_prob =
-      (df_ratio - down_ratio) / (up_ratio - down_ratio);
-  if (risk_neutral_up_prob <= 0.0 || risk_neutral_up_prob >= 1.0) {
-    LOG(ERROR) << "No-arbitrage condition violated as risk-neutral up-prob is "
-                  "outside the range (0,1).";
-  }
-  if (risk_neutral_up_prob <= 0.0) return 0.;
-  if (risk_neutral_up_prob >= 1.0) return 1.;
-  return risk_neutral_up_prob;
-}
-
 void Derivative::backPropagate(const BinomialTree& asset_tree,
                                const std::function<double(double)>& payoff_fn,
                                double expiry_years) {
@@ -58,16 +28,13 @@ void Derivative::backPropagate(const BinomialTree& asset_tree,
     for (int i = 0; i <= t; ++i) {
       double up = deriv_tree_.nodeValue(t + 1, i + 1);
       double down = deriv_tree_.nodeValue(t + 1, i);
-      double up_prob = getUpProbAt(asset_tree, t, i);
+      double up_prob = asset_tree.getUpProbAt(*curve_, t, i);
       double down_prob = 1 - up_prob;
 
-      double df_ratio = 1.0;
-      if (curve_.index() != 0) {
-        const auto& timegrid = asset_tree.getTimegrid();
-        const auto& curve = std::get<1>(curve_);
+      const auto& timegrid = asset_tree.getTimegrid();
+      double df_ratio =
+          curve_->df(timegrid.time(t + 1)) / curve_->df(timegrid.time(t));
 
-        df_ratio = curve.df(timegrid.time(t + 1)) / curve.df(timegrid.time(t));
-      }
       deriv_tree_.setValue(t, i, df_ratio * (up * up_prob + down * down_prob));
     }
   }

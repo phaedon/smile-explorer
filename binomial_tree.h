@@ -109,8 +109,8 @@ class BinomialTree {
 
   // TODO: Update this once there is an abstract base class for a discount
   // curve.
-  double getUpProbAt(const ZeroSpotCurve& curve, int t, int i) const;
-  void printProbTreeUpTo(const ZeroSpotCurve& curve, int ti) const {
+  double getUpProbAt(const RatesCurve& curve, int t, int i) const;
+  void printProbTreeUpTo(const RatesCurve& curve, int ti) const {
     for (int t = 0; t <= ti; ++t) {
       for (int i = 0; i <= t; ++i) {
         std::cout << getUpProbAt(curve, t, i) << "  ";

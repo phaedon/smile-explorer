@@ -68,7 +68,7 @@ struct JarrowRuddPropagator {
 // (since that is the approach) but for now separating this out seems like a
 // reasonable approach.
 struct LocalVolatilityPropagator {
-  LocalVolatilityPropagator(const ZeroSpotCurve& curve, double spot_price)
+  LocalVolatilityPropagator(const RatesCurve& curve, double spot_price)
       : curve_(curve), spot_price_(spot_price) {}
 
   template <typename VolatilityT>
@@ -134,7 +134,7 @@ struct LocalVolatilityPropagator {
  private:
   // For now, to avoid variant and templating we just start with the simplest
   // approach which still supports some kind of time-varying discount curve.
-  const ZeroSpotCurve& curve_;
+  const RatesCurve& curve_;
   double spot_price_;
 };
 

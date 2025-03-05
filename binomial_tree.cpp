@@ -1,12 +1,11 @@
 #include "binomial_tree.h"
 
 #include "absl/log/log.h"
+#include "rates/rates_curve.h"
 
 namespace markets {
 
-double BinomialTree::getUpProbAt(const ZeroSpotCurve& curve,
-                                 int t,
-                                 int i) const {
+double BinomialTree::getUpProbAt(const RatesCurve& curve, int t, int i) const {
   const auto& timegrid = getTimegrid();
   // Hack:
   if (t >= timegrid.size() - 1) {

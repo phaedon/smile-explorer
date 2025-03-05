@@ -27,7 +27,8 @@ TEST(DerivativeTest, BackpropApproxEqualsBSM) {
                                            CRRPropagator(100));
   Volatility flat_vol(FlatVol(0.158745));
   asset.forwardPropagate(flat_vol);
-  Derivative deriv(asset.binomialTree());
+  NoDiscountingCurve no_curve;
+  Derivative deriv(asset.binomialTree(), &no_curve);
 
   // Verify that tree pricing is close to the BSM closed-form price.
   double bsmcall = call(100, 100, 0.158745, 1.0);
@@ -44,7 +45,7 @@ TEST(DerivativeTest, BackpropApproxEqualsBSM) {
   const double disc_rate = 0.12;
   ZeroSpotCurve curve({1.0, 10.0}, {disc_rate, disc_rate});
   double bsm_otm_discounting = call(100, 105, 0.158745, 1.0, disc_rate);
-  deriv = Derivative(asset.binomialTree(), curve);
+  deriv = Derivative(asset.binomialTree(), &curve);
   EXPECT_NEAR(bsm_otm_discounting,
               deriv.price(asset, std::bind_front(&call_payoff, 105.0), 1.0),
               0.005);
@@ -54,7 +55,7 @@ TEST(DerivativeTest, BackpropApproxEqualsBSM) {
   StochasticTreeModel<JarrowRuddPropagator> jrasset(
       BinomialTree(1.1, 1 / 360.), JarrowRuddPropagator(0.1, 100));
   jrasset.forwardPropagate(flat_vol);
-  Derivative jrderiv(jrasset.binomialTree(), curve);
+  Derivative jrderiv(jrasset.binomialTree(), &curve);
   EXPECT_NEAR(jrderiv.price(jrasset, std::bind_front(&call_payoff, 105.0), 1.0),
               deriv.price(asset, std::bind_front(&call_payoff, 105.0), 1.0),
               0.005);
@@ -91,7 +92,9 @@ TEST(DerivativeTest, VerifySubscriptionMechanism) {
                                            CRRPropagator(100));
   Volatility flat_vol(FlatVol(0.158745));
   asset.forwardPropagate(flat_vol);
-  Derivative deriv(asset.binomialTree());
+  NoDiscountingCurve no_curve;
+
+  Derivative deriv(asset.binomialTree(), &no_curve);
   asset.registerForUpdates(&deriv);
 
   double price0 = deriv.price(asset, std::bind_front(&call_payoff, 100.0), 1.0);
