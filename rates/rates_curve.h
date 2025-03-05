@@ -1,20 +1,10 @@
 #ifndef MARKETS_RATES_RATES_CURVE_H_
 #define MARKETS_RATES_RATES_CURVE_H_
 
-#include <variant>
-
-#include "markets/rates/curve_calculators.h"
+#include "curve_calculators.h"
 #include "markets/time.h"
 
 namespace markets {
-
-/*
-template <typename CurveT>
-concept RatesCurve = requires(CurveT curve, double time, double dt) {
-{ curve.df(time) } -> std::same_as<double>;
-{ curve.getForwardRate(time, time + dt) } -> std::same_as<double>;
-};
-*/
 
 class RatesCurve {
  public:
@@ -112,9 +102,6 @@ class ZeroSpotCurve : public RatesCurve {
     return fwdRateByPeriod(df_start, df_end, dt, period_);
   }
 };
-
-// Monostate simply allows no discounting at all.
-using VariantRatesCurve = std::variant<std::monostate, ZeroSpotCurve>;
 
 }  // namespace markets
 

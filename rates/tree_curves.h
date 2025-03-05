@@ -2,16 +2,17 @@
 #ifndef MARKETS_RATES_TREE_CURVES_H_
 #define MARKETS_RATES_TREE_CURVES_H_
 
+#include "arrow_debreu.h"
 #include "curve_calculators.h"
 #include "markets/binomial_tree.h"
 #include "markets/propagators.h"
-#include "markets/rates/arrow_debreu.h"
 #include "markets/stochastic_tree_model.h"
 #include "markets/time.h"
+#include "rates_curve.h"
 
 namespace markets {
 
-class SimpleUncalibratedShortRatesCurve {
+class SimpleUncalibratedShortRatesCurve : public RatesCurve {
  public:
   SimpleUncalibratedShortRatesCurve(double time_span_years, double timestep)
       : short_rate_model_(BinomialTree(time_span_years, timestep),
@@ -36,7 +37,7 @@ class SimpleUncalibratedShortRatesCurve {
     timegrid_ = short_rate_model_.binomialTree().getTimegrid();
   }
 
-  double getForwardRate(double start_time, double end_time) const {
+  double getForwardRate(double start_time, double end_time) const override {
     // TODO Add some error handling for cases like end_time <= start_time, etc.
     double df_start = df(start_time);
     double df_end = df(end_time);
@@ -45,7 +46,7 @@ class SimpleUncalibratedShortRatesCurve {
         df_start, df_end, dt, CompoundingPeriod::kContinuous);
   }
 
-  double df(double time) const {
+  double df(double time) const override {
     // TODO add error handling
     int ti = timegrid_.getTimeIndexForExpiry(time).value();
 

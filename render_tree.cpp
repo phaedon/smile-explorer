@@ -125,6 +125,25 @@ void PlotForwardRateCurves() {
   ImGui::End();
 }
 
+struct DermanChapter14Vol {
+  static constexpr VolSurfaceFnType type =
+      VolSurfaceFnType::kTimeInvariantSkewSmile;
+  DermanChapter14Vol(double spot_price) : spot_price_(spot_price) {}
+
+  double operator()(double s) const {
+    // .5 / ( (1 + exp(.1(x - 80)))) + 0.1
+    double vol_range = 0.4;
+    double vol_floor = 0.12;
+    double stretchy = 0.1;
+    return vol_floor + vol_range / (1 + std::exp(stretchy * (s - spot_price_)));
+    // double v = std::max(0.15875 - 0.4 * (s - spot_price_) / spot_price_,
+    // 0.04); return std::min(v, 0.5);
+  }
+
+ private:
+  double spot_price_;
+};
+
 }  // namespace markets
 
 int main(int, char**) {
@@ -210,12 +229,23 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
   auto asset_tree = markets::BinomialTree::create(
       std::chrono::months(38), std::chrono::days(10), markets::YearStyle::k360);
 
+  markets::DermanChapter14Vol volsmile_example(100);
+  markets::Volatility volsmilesurface(volsmile_example);
+  auto localvol_asset_tree = markets::BinomialTree::create(
+      std::chrono::months(36), std::chrono::days(10), markets::YearStyle::k360);
+  markets::ZeroSpotCurve curve(
+      {0.01, 1.0}, {0.04, 0.04}, markets::CompoundingPeriod::kContinuous);
+  markets::LocalVolatilityPropagator lv_prop_with_rates(curve, 100.0);
+  markets::StochasticTreeModel localvol_asset(std::move(localvol_asset_tree),
+                                              lv_prop_with_rates);
+  localvol_asset.forwardPropagate(volsmilesurface);
+
   float spot_price = 100;
   markets::CRRPropagator crr_prop(spot_price);
   markets::StochasticTreeModel asset(std::move(asset_tree), crr_prop);
   asset.forwardPropagate(volsurface);
-
-  markets::Derivative deriv(asset.binomialTree());
+  markets::NoDiscountingCurve none_curve;
+  markets::Derivative deriv(asset.binomialTree(), &none_curve);
   asset.registerForUpdates(&deriv);
 
   markets::JarrowRuddPropagator jr_prop(expected_drift, spot_price);
@@ -236,10 +266,10 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
     ImGui::Begin("Binomial Tree");
 
     static int current_item = 0;  // Index of the currently selected item
-    const char* items[] = {
-        "CRR",
-        "Jarrow-Rudd",
-        "Derman term structure example"};  // The options in the dropdown
+    const char* items[] = {"CRR",
+                           "Jarrow-Rudd",
+                           "Derman term structure example",
+                           "Local vol example"};  // The options in the dropdown
     if (ImGui::BeginCombo("Select an option", items[current_item])) {
       for (int n = 0; n < IM_ARRAYSIZE(items); n++) {
         bool is_selected = (current_item == n);  // Is this item selected?
@@ -268,7 +298,11 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
       // asset.forwardPropagate(jr_prop);
     } else if (current_item == 2) {
       asset.forwardPropagate(volsurface);
+    } else if (current_item == 3) {
+      localvol_asset.forwardPropagate(volsmilesurface);
     }
+
+    ImGui::BeginChild("Plot1", ImVec2(0, 0), true);  // true for border
 
     if (ImPlot::BeginPlot("Asset Tree Plot", ImVec2(-1, -1))) {
       const auto r = getTreeRenderData(asset.binomialTree());
@@ -304,6 +338,47 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
 
       ImPlot::EndPlot();
     }
+    ImGui::EndChild();
+
+    ImGui::BeginChild("Plot2", ImVec2(0, 0), true);
+
+    if (ImPlot::BeginPlot("Asset With Local Vol Tree Plot")) {
+      const auto r = getTreeRenderData(localvol_asset.binomialTree());
+
+      ImPlotStyle& style = ImPlot::GetStyle();
+      style.MarkerSize = 1;
+
+      if (!r.x_coords.empty()) {
+        ImPlot::SetupAxisLimits(
+            ImAxis_X1,
+            0,
+            localvol_asset.binomialTree().totalTimeAtIndex(
+                localvol_asset.binomialTree().numTimesteps() - 1),
+            ImPlotCond_Always);
+      }
+
+      if (!r.y_coords.empty()) {
+        auto [min_it, max_it] =
+            std::minmax_element(r.y_coords.begin(), r.y_coords.end());
+        double min_y = *min_it;
+        double max_y = *max_it;
+        ImPlot::SetupAxisLimits(ImAxis_Y1, min_y, max_y, ImPlotCond_Always);
+      }
+
+      // Plot the edges as line segments
+      ImPlot::PlotLine("##Edges",
+                       r.edge_x_coords.data(),
+                       r.edge_y_coords.data(),
+                       r.edge_x_coords.size(),
+                       ImPlotLineFlags_Segments);
+
+      ImPlot::PlotScatter(
+          "Nodes", r.x_coords.data(), r.y_coords.data(), r.x_coords.size());
+
+      ImPlot::EndPlot();
+    }
+    ImGui::EndChild();
+
     ImGui::End();
 
     ImGui::Begin("Option Tree");
