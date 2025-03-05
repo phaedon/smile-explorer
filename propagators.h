@@ -107,20 +107,25 @@ struct LocalVolatilityPropagator {
       return S * std::exp(-sigma * std::sqrt(dt));
     }
 
+    // Helper function to calculate the forward price
+    auto calculateForward = [&](double S) {
+      return S * curve_.df(prev_time) / curve_.df(curr_time);
+    };
+
     // We're no longer on the spine:
     double half_t = t * 0.5;
     if (i > half_t) {
       // Populate upper nodes.
       const double S_d = tree.nodeValue(t, i - 1);
       double S = Sprev_low.value();
-      const double F = S * curve_.df(prev_time) / curve_.df(curr_time);
+      const double F = calculateForward(S);
       double sigma = vol_fn.get(S);
       return F + (S * S * sigma * sigma * dt) / (F - S_d);
     } else {
       // Populate lower nodes.
       const double S_u = tree.nodeValue(t, i + 1);
       double S = Sprev_high.value();
-      const double F = S * curve_.df(prev_time) / curve_.df(curr_time);
+      const double F = calculateForward(S);
       double sigma = vol_fn.get(S);
       return F - (S * S * sigma * sigma * dt) / (S_u - F);
     }
