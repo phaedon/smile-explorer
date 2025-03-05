@@ -117,6 +117,7 @@ cc_test(
     deps = [
         ":propagators",
         ":stochastic_tree_model",
+        "//markets/test:tree_matchers",
         "@googletest//:gtest_main",
     ],
 )

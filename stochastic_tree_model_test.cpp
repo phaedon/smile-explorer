@@ -6,6 +6,7 @@
 #include "derivative.h"
 #include "propagators.h"
 #include "rates/rates_curve.h"
+#include "test/tree_matchers.h"
 #include "time.h"
 #include "volatility.h"
 
@@ -23,13 +24,13 @@ TEST(StochasticTreeModelTest, Derman_VolSmile_13_1) {
   Volatility vol(FlatVol(0.2));
   asset.forwardPropagate(vol);
 
-  // Verify to the nearest cent.
-  EXPECT_NEAR(75.94, asset.binomialTree().nodeValue(1, 1), 0.005);
-  EXPECT_NEAR(74.07, asset.binomialTree().nodeValue(1, 0), 0.005);
+  std::vector<std::vector<double>> expected = {{75},
+                                               {74.07, 75.94},  //
+                                               {73.15, 75, 76.9}};
 
-  EXPECT_NEAR(76.90, asset.binomialTree().nodeValue(2, 2), 0.005);
-  EXPECT_NEAR(75, asset.binomialTree().nodeValue(2, 1), 0.005);
-  EXPECT_NEAR(73.15, asset.binomialTree().nodeValue(2, 0), 0.005);
+  // Verify to the nearest cent.
+  EXPECT_THAT(asset.binomialTree(),
+              BinomialTreeMatchesUpToTimeIndex(expected, 0.005));
 }
 
 TEST(BinomialTreeTest, Derman_VolSmile_13_2) {
@@ -41,13 +42,13 @@ TEST(BinomialTreeTest, Derman_VolSmile_13_2) {
   Volatility vol(FlatVol(0.2));
   asset.forwardPropagate(vol);
 
-  // Verify to the nearest cent.
-  EXPECT_NEAR(75.97, asset.binomialTree().nodeValue(1, 1), 0.005);
-  EXPECT_NEAR(74.10, asset.binomialTree().nodeValue(1, 0), 0.005);
+  std::vector<std::vector<double>> expected = {{75},
+                                               {74.1, 75.97},  //
+                                               {73.21, 75.06, 76.96}};
 
-  EXPECT_NEAR(76.96, asset.binomialTree().nodeValue(2, 2), 0.005);
-  EXPECT_NEAR(75.06, asset.binomialTree().nodeValue(2, 1), 0.005);
-  EXPECT_NEAR(73.21, asset.binomialTree().nodeValue(2, 0), 0.005);
+  // Verify to the nearest cent.
+  EXPECT_THAT(asset.binomialTree(),
+              BinomialTreeMatchesUpToTimeIndex(expected, 0.005));
 }
 
 struct DermanKaniExampleVol {
@@ -84,7 +85,7 @@ TEST(StochasticTreeModelTest, DermanKani1994Example) {
     // flaw in the design of the library, and/or the implementation of the unit
     // test. But there's no bug.
     //
-    // EXPECT_DOUBLE_EQ(expected_t_4[i], asset.binomialTree().nodeValue(4, i));
+    //  EXPECT_DOUBLE_EQ(expected_t_4[i], asset.binomialTree().nodeValue(4, i));
   }
 }
 
@@ -113,7 +114,6 @@ TEST(StochasticTreeModelTest, DermanChapter14_2) {
   LocalVolatilityPropagator lv_prop(curve, 100.0);
   StochasticTreeModel asset(std::move(tree), lv_prop);
   asset.forwardPropagate(Volatility(DermanChapter14Vol(100)));
-  asset.binomialTree().printUpTo(5);
 
   Derivative deriv(&asset, &curve);
   double price = deriv.price(std::bind_front(&call_payoff, 102.0), 0.04);
@@ -131,11 +131,17 @@ TEST(StochasticTreeModelTest, DermanChapter14_3) {
   Derivative deriv(&asset, &curve);
   double price = deriv.price(std::bind_front(&call_payoff, 102.0), 0.04);
 
-  // You can uncomment or maybe make a matcher for these trees to compare to the
-  // numbers on page 470.
-  //
-  // asset2.binomialTree().printUpTo(5);
-  // asset2.binomialTree().printProbTreeUpTo(curve, 5);
+  // These expected numbers are from page 470.
+  std::vector<std::vector<double>> expected = {
+      {100},
+      {98.91, 101.11},  //
+      {97.33, 100, 101.84},
+      {95.72, 98.91, 101.11, 102.6},
+      {93.53, 97.33, 100, 101.84, 103.08}};
+
+  // Verify to the nearest cent.
+  EXPECT_THAT(asset.binomialTree(),
+              BinomialTreeMatchesUpToTimeIndex(expected, 0.005));
 
   EXPECT_NEAR(0.12, price, 0.005);
 }
