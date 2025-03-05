@@ -27,8 +27,11 @@ double BinomialTree::getUpProbAt(const RatesCurve& curve, int t, int i) const {
     LOG(ERROR) << "No-arbitrage condition violated as risk-neutral up-prob is "
                   "outside the range (0,1).";
   }
+
+  // Clamp to [0, 1].
   if (risk_neutral_up_prob <= 0.0) return 0.;
   if (risk_neutral_up_prob >= 1.0) return 1.;
+
   return risk_neutral_up_prob;
 }
 

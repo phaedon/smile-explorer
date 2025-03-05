@@ -51,52 +51,56 @@ class BinomialTree {
     return tree_.rows() - 1;
   }
 
-  double sumAtTimestep(int t) const { return tree_.row(t).sum(); }
-
-  void printAtTime(int t) const {
-    std::cout << "Time " << t << ": ";
-    std::cout << tree_.row(t) << std::endl;
+  double sumAtTimestep(int time_index) const {
+    return tree_.row(time_index).sum();
   }
-  void printUpTo(int ti) const {
-    for (int i = 0; i < ti; ++i) {
+
+  void printAtTime(int time_index) const {
+    std::cout << "Time " << time_index << ": ";
+    std::cout << tree_.row(time_index) << std::endl;
+  }
+  void printUpTo(int time_index) const {
+    for (int i = 0; i < time_index; ++i) {
       std::cout << "t:" << i << " ::  " << tree_.row(i).head(i + 1)
                 << std::endl;
     }
   }
 
-  void setZeroAfterIndex(int ti) {
-    for (int i = ti + 1; i < tree_.rows(); ++i) {
+  void setZeroAfterIndex(int time_index) {
+    for (int i = time_index + 1; i < tree_.rows(); ++i) {
       tree_.row(i).setZero();
     }
   }
 
-  double nodeValue(int time, int node_index) const {
-    return tree_(time, node_index);
+  double nodeValue(int time_index, int node_index) const {
+    return tree_(time_index, node_index);
   }
 
-  std::optional<double> safeNodeValue(int time, int node_index) const {
-    if (time < 0 || time >= tree_.rows() || node_index < 0 ||
-        node_index > time) {
+  std::optional<double> safeNodeValue(int time_index, int node_index) const {
+    if (time_index < 0 || time_index >= tree_.rows() || node_index < 0 ||
+        node_index > time_index) {
       return std::nullopt;
     }
-    return nodeValue(time, node_index);
+    return nodeValue(time_index, node_index);
   }
 
-  bool isTreeEmptyAt(int t) const {
+  bool isTreeEmptyAt(int time_index) const {
     // current assumption: if an entire row is 0, nothing after it can be
     // populated.
-    return tree_.row(t).isZero(0);
+    return tree_.row(time_index).isZero(0);
   }
 
   const Timegrid& getTimegrid() const { return timegrid_; }
 
   double exactTimestepInYears() const { return timestep_years_; }
-  double totalTimeAtIndex(int ti) const { return timegrid_.time(ti); }
-  double timestepAt(int ti) const { return timegrid_.dt(ti); }
+  double totalTimeAtIndex(int time_index) const {
+    return timegrid_.time(time_index);
+  }
+  double timestepAt(int time_index) const { return timegrid_.dt(time_index); }
   double treeDurationYears() const { return tree_duration_years_; }
 
-  void setValue(int time, int node_index, double val) {
-    tree_(time, node_index) = val;
+  void setValue(int time_index, int node_index, double val) {
+    tree_(time_index, node_index) = val;
   }
 
   // TODO make this not take a vol, that makes it brittle.
@@ -107,9 +111,8 @@ class BinomialTree {
     tree_.setZero();
   }
 
-  // TODO: Update this once there is an abstract base class for a discount
-  // curve.
-  double getUpProbAt(const RatesCurve& curve, int t, int i) const;
+  double getUpProbAt(const RatesCurve& curve, int time_index, int i) const;
+
   void printProbTreeUpTo(const RatesCurve& curve, int ti) const {
     for (int t = 0; t <= ti; ++t) {
       for (int i = 0; i <= t; ++i) {
