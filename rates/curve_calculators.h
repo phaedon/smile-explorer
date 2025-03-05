@@ -1,6 +1,8 @@
 #ifndef MARKETS_RATES_CURVE_CALCULATORS_H_
 #define MARKETS_RATES_CURVE_CALCULATORS_H_
 
+#include <cmath>
+
 #include "markets/time.h"
 
 namespace markets {
