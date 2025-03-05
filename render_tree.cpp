@@ -245,8 +245,7 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
   markets::StochasticTreeModel asset(std::move(asset_tree), crr_prop);
   asset.forwardPropagate(volsurface);
   markets::NoDiscountingCurve none_curve;
-  markets::Derivative deriv(asset.binomialTree(), &none_curve);
-  asset.registerForUpdates(&deriv);
+  markets::Derivative deriv(&asset, &none_curve);
 
   markets::JarrowRuddPropagator jr_prop(expected_drift, spot_price);
 
@@ -295,7 +294,7 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
     if (current_item == 0) {
       asset.forwardPropagate(markets::Volatility(markets::FlatVol(vol)));
     } else if (current_item == 1) {
-      // asset.forwardPropagate(jr_prop);
+      asset.forwardPropagate(markets::Volatility(markets::FlatVol(vol)));
     } else if (current_item == 2) {
       asset.forwardPropagate(volsurface);
     } else if (current_item == 3) {
@@ -394,7 +393,7 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
     }
 
     double computed_value = deriv.price(
-        asset, std::bind_front(&markets::call_payoff, strike), deriv_expiry);
+        std::bind_front(&markets::call_payoff, strike), deriv_expiry);
     std::string value_str = std::to_string(computed_value);
     char buffer[64];  // A buffer to hold the string (adjust
                       // size as needed)

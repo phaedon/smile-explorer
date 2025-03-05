@@ -115,8 +115,8 @@ TEST(StochasticTreeModelTest, DermanChapter14_2) {
   asset.forwardPropagate(Volatility(DermanChapter14Vol(100)));
   asset.binomialTree().printUpTo(5);
 
-  Derivative deriv(asset.binomialTree(), &curve);
-  double price = deriv.price(asset, std::bind_front(&call_payoff, 102.0), 0.04);
+  Derivative deriv(&asset, &curve);
+  double price = deriv.price(std::bind_front(&call_payoff, 102.0), 0.04);
   EXPECT_NEAR(0.0966, price, 0.0001);
 }
 
@@ -128,8 +128,8 @@ TEST(StochasticTreeModelTest, DermanChapter14_3) {
 
   StochasticTreeModel asset(std::move(tree), lv_prop_with_rates);
   asset.forwardPropagate(Volatility(DermanChapter14Vol(100)));
-  Derivative deriv(asset.binomialTree(), &curve);
-  double price = deriv.price(asset, std::bind_front(&call_payoff, 102.0), 0.04);
+  Derivative deriv(&asset, &curve);
+  double price = deriv.price(std::bind_front(&call_payoff, 102.0), 0.04);
 
   // You can uncomment or maybe make a matcher for these trees to compare to the
   // numbers on page 470.

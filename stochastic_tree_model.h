@@ -53,8 +53,6 @@ class StochasticTreeModel {
         binomial_tree_.setValue(t, i, node_value);
       }
     }
-
-    notifySubscribers();
   }
 
   void forwardPropagate() {
@@ -63,30 +61,15 @@ class StochasticTreeModel {
         binomial_tree_.setValue(t, i, propagator_(binomial_tree_, t, i));
       }
     }
-    notifySubscribers();
   }
 
-  void updateSpot(double spot) {
-    propagator_.updateSpot(spot);
-    notifySubscribers();
-  }
+  void updateSpot(double spot) { propagator_.updateSpot(spot); }
 
   const BinomialTree& binomialTree() const { return binomial_tree_; }
-
-  void registerForUpdates(Derivative* subscriber) {
-    subscribers_.push_back((subscriber));
-  }
 
  private:
   BinomialTree binomial_tree_;
   PropagatorT propagator_;
-  std::vector<Derivative*> subscribers_;
-
-  void notifySubscribers() const {
-    for (auto* subscriber : subscribers_) {
-      subscriber->update(binomial_tree_);
-    }
-  }
 };
 
 }  // namespace markets
