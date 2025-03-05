@@ -2,6 +2,7 @@
 #ifndef MARKETS_STOCHASTIC_TREE_MODEL_H_
 #define MARKETS_STOCHASTIC_TREE_MODEL_H_
 
+#include "absl/log/log.h"
 #include "binomial_tree.h"
 #include "derivative.h"
 
@@ -54,8 +55,11 @@ class StochasticTreeModel {
       }
       // And then below the spine.
       for (int i = std::floor((t - 2) / 2); i >= 0; --i) {
-        binomial_tree_.setValue(
-            t, i, propagator_(binomial_tree_, volatility, t, i));
+        double node_value = propagator_(binomial_tree_, volatility, t, i);
+        if (node_value < 0) {
+          LOG(WARNING) << "Node is negative!";
+        }
+        binomial_tree_.setValue(t, i, node_value);
       }
     }
 

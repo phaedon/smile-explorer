@@ -23,7 +23,15 @@ double Derivative::getUpProbAt(const BinomialTree& binomial_tree,
     const auto& curve = std::get<1>(curve_);
     df_ratio = curve.df(timegrid.time(t)) / curve.df(timegrid.time(t + 1));
   }
-  return (df_ratio - down_ratio) / (up_ratio - down_ratio);
+  double risk_neutral_up_prob =
+      (df_ratio - down_ratio) / (up_ratio - down_ratio);
+  if (risk_neutral_up_prob <= 0.0 || risk_neutral_up_prob >= 1.0) {
+    LOG(ERROR) << "No-arbitrage condition violated as risk-neutral up-prob is "
+                  "outside the range (0,1).";
+  }
+  if (risk_neutral_up_prob <= 0.0) return 0.;
+  if (risk_neutral_up_prob >= 1.0) return 1.;
+  return risk_neutral_up_prob;
 }
 
 void Derivative::backPropagate(const BinomialTree& asset_tree,

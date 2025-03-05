@@ -3,6 +3,7 @@
 
 #include <cmath>
 
+#include "absl/log/log.h"
 #include "markets/binomial_tree.h"
 #include "rates/rates_curve.h"
 
