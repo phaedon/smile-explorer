@@ -32,10 +32,11 @@ void Derivative::backPropagate(const BinomialTree& asset_tree,
       double down_prob = 1 - up_prob;
 
       const auto& timegrid = asset_tree.getTimegrid();
-      double df_ratio =
-          curve_->df(timegrid.time(t + 1)) / curve_->df(timegrid.time(t));
+      double inv_fwd_df =
+          curve_->forwardDF(timegrid.time(t + 1), timegrid.time(t));
 
-      deriv_tree_.setValue(t, i, df_ratio * (up * up_prob + down * down_prob));
+      deriv_tree_.setValue(
+          t, i, inv_fwd_df * (up * up_prob + down * down_prob));
     }
   }
 }

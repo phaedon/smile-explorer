@@ -8,8 +8,14 @@ namespace markets {
 
 class RatesCurve {
  public:
+  // Return discount factor at any time in the future.
   virtual double df(double time) const = 0;
+
   virtual double getForwardRate(double start_time, double end_time) const = 0;
+
+  double forwardDF(double start_time, double end_time) const {
+    return df(start_time) / df(end_time);
+  }
 };
 
 class NoDiscountingCurve : public RatesCurve {

@@ -21,15 +21,6 @@ class StochasticTreeModel {
   void forwardPropagate(const VolatilityT& volatility) {
     binomial_tree_.resizeWithTimeDependentVol(volatility);
 
-    /*
-    for (int t = 0; t < binomial_tree_.numTimesteps(); ++t) {
-      for (int i = 0; i <= t; ++i) {
-        binomial_tree_.setValue(
-            t, i, propagator_(binomial_tree_, volatility, t, i));
-      }
-    }
-      */
-
     for (int t = 0; t < binomial_tree_.numTimesteps(); ++t) {
       // Begin by setting the spine. For vol surfaces with no smile, the
       // iteration order doesn't matter, apart from possible performance, but
