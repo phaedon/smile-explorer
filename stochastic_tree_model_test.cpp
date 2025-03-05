@@ -75,9 +75,7 @@ TEST(StochasticTreeModelTest, DermanKani1994Example) {
   std::cout << "fwdpropagate asset" << std::endl;
 
   asset.binomialTree().printUpTo(5);
-
-  Derivative deriv(asset.binomialTree(), curve);
-  deriv.printProbTreeUpTo(asset.binomialTree(), 4);
+  asset.binomialTree().printProbTreeUpTo(curve, 4);
 
   std::vector<double> expected_t_4{59.02, 79.43, 100.0, 120.51, 139.78};
   for (int i = 0; i < 5; ++i) {
@@ -137,7 +135,7 @@ TEST(StochasticTreeModelTest, DermanChapter14_3) {
   // numbers on page 470.
   //
   // asset2.binomialTree().printUpTo(5);
-  // deriv2.printProbTreeUpTo(asset2.binomialTree(), 5);
+  // asset2.binomialTree().printProbTreeUpTo(curve, 5);
 
   EXPECT_NEAR(0.12, price, 0.005);
 }

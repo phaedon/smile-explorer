@@ -7,6 +7,7 @@
 #include <iostream>
 #include <vector>
 
+#include "rates/rates_curve.h"
 #include "time.h"
 #include "volatility.h"
 
@@ -104,6 +105,18 @@ class BinomialTree {
     timegrid_ = volfn.generateTimegrid(tree_duration_years_, timestep_years_);
     tree_.resize(timegrid_.size(), timegrid_.size());
     tree_.setZero();
+  }
+
+  // TODO: Update this once there is an abstract base class for a discount
+  // curve.
+  double getUpProbAt(const ZeroSpotCurve& curve, int t, int i) const;
+  void printProbTreeUpTo(const ZeroSpotCurve& curve, int ti) const {
+    for (int t = 0; t <= ti; ++t) {
+      for (int i = 0; i <= t; ++i) {
+        std::cout << getUpProbAt(curve, t, i) << "  ";
+      }
+      std::cout << std::endl;
+    }
   }
 
  private:
