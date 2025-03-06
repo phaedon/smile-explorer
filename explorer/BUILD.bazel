@@ -21,6 +21,29 @@ cc_library(
     ],
 )
 
+cc_binary(
+    name = "explorer",
+    srcs = ["explorer.cpp"],
+    deps = [
+        ":asset_visualiser",
+        ":global_rates",
+        ":rate_curve_visualiser",
+        "//markets:binomial_tree",
+        "//markets:propagators",
+        "//markets:stochastic_tree_model",
+        "//markets:volatility",
+        "//markets:yield_curve",
+        "//markets/rates:rates_curve",
+        "@eigen",
+        "@glfw",
+        "@imgui",
+        "@imgui//backends:platform-glfw",
+        "@imgui//backends:renderer-opengl3",
+        "@implot",
+        "@implot3d",
+    ],
+)
+
 cc_library(
     name = "global_rates",
     hdrs = ["global_rates.h"],

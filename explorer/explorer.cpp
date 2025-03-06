@@ -6,12 +6,9 @@
 #include <memory>
 #include <string_view>
 
-#include "binomial_tree.h"
-#include "derivative.h"
-#include "explorer/asset_visualiser.h"
-#include "explorer/explorer_params.h"
-#include "explorer/global_rates.h"
-#include "explorer/rate_curve_visualiser.h"
+#include "asset_visualiser.h"
+#include "explorer_params.h"
+#include "global_rates.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw.h"
 #include "imgui/imgui_impl_opengl3.h"
@@ -20,11 +17,11 @@
 #include "markets/binomial_tree.h"
 #include "markets/propagators.h"
 #include "markets/rates/rates_curve.h"
+#include "markets/stochastic_tree_model.h"
 #include "markets/volatility.h"
 #include "markets/yield_curve.h"
-#include "stochastic_tree_model.h"
+#include "rate_curve_visualiser.h"
 #include "time.h"
-#include "volatility.h"
 #define GL_SILENCE_DEPRECATION
 #include <GLFW/glfw3.h>
 

@@ -77,30 +77,6 @@ cc_library(
     ],
 )
 
-cc_binary(
-    name = "render_tree",
-    srcs = ["render_tree.cpp"],
-    deps = [
-        ":binomial_tree",
-        ":derivative",
-        ":propagators",
-        ":stochastic_tree_model",
-        ":volatility",
-        ":yield_curve",
-        "//markets/explorer:asset_visualiser",
-        "//markets/explorer:global_rates",
-        "//markets/explorer:rate_curve_visualiser",
-        "//markets/rates:rates_curve",
-        "@eigen",
-        "@glfw",
-        "@imgui",
-        "@imgui//backends:platform-glfw",
-        "@imgui//backends:renderer-opengl3",
-        "@implot",
-        "@implot3d",
-    ],
-)
-
 cc_library(
     name = "stochastic_tree_model",
     hdrs = ["stochastic_tree_model.h"],
