@@ -106,7 +106,7 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
   Derivative deriv(&asset, prop_params.curve.get());
 
   // ImGuiTreeNodeFlags_DefaultOpen
-  ImGui::SetNextItemOpen(true);
+  ImGui::SetNextItemOpen(true, ImGuiCond_Once);
 
   if (ImGui::TreeNode("Section1")) {
     ImGui::SliderFloat(
