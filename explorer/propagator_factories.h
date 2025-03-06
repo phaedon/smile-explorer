@@ -18,7 +18,8 @@ inline CRRPropagator createDefaultPropagator<CRRPropagator>(
 template <>
 inline JarrowRuddPropagator createDefaultPropagator<JarrowRuddPropagator>(
     const ExplorerParams& params) {
-  return JarrowRuddPropagator(params.jr_expected_drift, params.spot_price);
+  return JarrowRuddPropagator(params.jarrowrudd_expected_drift,
+                              params.spot_price);
 }
 
 template <>
