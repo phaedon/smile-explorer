@@ -20,7 +20,7 @@ double put_payoff(double strike, double val) {
   return std::max(0.0, strike - val);
 }
 
-TEST(DerivativeTest, BackpropApproxEqualsBSM) {
+TEST(DerivativeTest, TreePricingApproxEqualsBSM) {
   // TODO: For now, this must be slightly longer because we have problems when
   // the underlying tree is exactly the length of the derivative.
   StochasticTreeModel<CRRPropagator> asset(BinomialTree(1.1, 1 / 360.),

@@ -17,15 +17,11 @@ class Derivative {
 
   double price(const std::function<double(double)>& payoff_fn,
                double expiry_years) {
-    backPropagate(payoff_fn, expiry_years);
+    runBackwardInduction(payoff_fn, expiry_years);
     return deriv_tree_.nodeValue(0, 0);
   }
 
   const BinomialTree& binomialTree() const { return deriv_tree_; }
-
-  // void update(const BinomialTree& updated_tree) {
-  //  deriv_tree_ = BinomialTree::createFrom(updated_tree);
-  // }
 
  private:
   BinomialTree deriv_tree_;
@@ -33,13 +29,13 @@ class Derivative {
   const AssetT* asset_;
   const RatesCurve* curve_;
 
-  void backPropagate(const std::function<double(double)>& payoff_fn,
-                     double expiry_years) {
+  void runBackwardInduction(const std::function<double(double)>& payoff_fn,
+                            double expiry_years) {
     const auto& asset_tree = asset_->binomialTree();
     auto t_final_or =
         deriv_tree_.getTimegrid().getTimeIndexForExpiry(expiry_years);
     if (t_final_or == std::nullopt) {
-      LOG(ERROR) << "Backpropagation is impossible for requested expiry "
+      LOG(ERROR) << "Backward induction is impossible for requested expiry "
                  << expiry_years;
       return;
     }
@@ -52,7 +48,7 @@ class Derivative {
           t_final, i, payoff_fn(asset_tree.nodeValue(t_final, i)));
     }
 
-    // Back-propagation.
+    // Backward induction.
     for (int t = t_final - 1; t >= 0; --t) {
       for (int i = 0; i <= t; ++i) {
         double up = deriv_tree_.nodeValue(t + 1, i + 1);
