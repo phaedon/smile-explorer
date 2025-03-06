@@ -1,0 +1,42 @@
+package(default_visibility = ["//markets:__subpackages__"])
+
+cc_library(
+    name = "asset_visualiser",
+    hdrs = ["asset_visualiser.h"],
+    deps = [
+        ":explorer_params",
+        ":propagator_factories",
+        "//markets:derivative",
+        "//markets:stochastic_tree_model",
+        "@imgui",
+        "@implot",
+    ],
+)
+
+cc_library(
+    name = "explorer_params",
+    hdrs = ["explorer_params.h"],
+    deps = [
+        "//markets/rates:rates_curve",
+    ],
+)
+
+cc_library(
+    name = "propagator_factories",
+    hdrs = ["propagator_factories.h"],
+    deps = [
+        ":explorer_params",
+        "//markets:propagators",
+    ],
+)
+
+cc_library(
+    name = "rate_curve_visualiser",
+    hdrs = ["rate_curve_visualiser.h"],
+    deps = [
+        ":explorer_params",
+        "//markets/rates:rates_curve",
+        "@imgui",
+        "@implot",
+    ],
+)
