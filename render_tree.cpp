@@ -161,7 +161,7 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
                        ImGuiSliderFlags_Logarithmic);
     asset.forwardPropagate(Volatility(flat_vol));
 
-    if (ImPlot::BeginPlot("Asset Tree Plot", ImVec2(0, 0))) {
+    if (ImPlot::BeginPlot("Asset Tree Plot", ImVec2(-1, 0))) {
       const auto r = getTreeRenderData(asset.binomialTree());
 
       ImPlotStyle& style = ImPlot::GetStyle();
@@ -313,18 +313,19 @@ void PlotForwardRateCurves(PropagatorParams& prop_params) {
   }
 
   ImGui::Begin("Spot/Forward Rates");
-  ImGui::SliderFloat4("{1,2,5,10}",
-                      prop_params.rates.data(),
-                      0.f,
-                      0.25f,
-                      "%.4f",
-                      ImGuiSliderFlags_Logarithmic);
+  ImGui::DragFloat4("{1,2,5,10}",
+                    prop_params.rates.data(),
+                    0.0005f,
+                    0.0001f,  // 1 basis point
+                    0.25f,
+                    "%.4f",
+                    ImGuiSliderFlags_Logarithmic);
   prop_params.curve = std::make_unique<ZeroSpotCurve>(ZeroSpotCurve(
       {1, 2, 5, 10},
       std::vector<double>(prop_params.rates.begin(), prop_params.rates.end()),
       CompoundingPeriod::kAnnual));
 
-  if (ImPlot::BeginPlot("Rates")) {
+  if (ImPlot::BeginPlot("Rates", ImVec2(-1, -1))) {
     ImPlot::SetupAxisLimits(ImAxis_Y1,
                             prop_params.rates[0] * 0.75,
                             prop_params.rates[3] * 1.5,
