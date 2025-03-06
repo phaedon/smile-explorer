@@ -20,6 +20,8 @@ class RatesCurve {
   }
 };
 
+// Only used for testing. This can be moved to the test lib (along with other
+// such things, like fake example vol surfaces with hardcoded params).
 class NoDiscountingCurve : public RatesCurve {
  public:
   ~NoDiscountingCurve() override = default;
