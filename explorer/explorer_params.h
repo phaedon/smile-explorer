@@ -11,7 +11,7 @@ struct ExplorerParams {
 
   float asset_tree_duration = 10.0;
   float asset_tree_timestep = 0.25;
-  double spot_price = 100.;
+  float spot_price = 100.;
 
   // Parameter for the Jarrow-Rudd convention.
   double jarrowrudd_expected_drift = 0.1;
@@ -36,6 +36,7 @@ struct ExplorerParams {
   std::array<float, 4> rates = {0.045, 0.0423, 0.0401, 0.0397};
 
   float option_expiry = 1.0;
+  float option_strike = 100.;
 
   // sqrt(252) is chosen as a reasonable initial value, in the absence of any
   // other info.

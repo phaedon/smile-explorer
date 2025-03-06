@@ -53,6 +53,15 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
                        "%.3f",
                        ImGuiSliderFlags_Logarithmic);
 
+    ImGui::DragFloat("Spot",
+                     &prop_params.spot_price,
+                     0.1f,
+                     0.0f,
+                     200.0f,
+                     "%.2f",
+                     ImGuiSliderFlags_Logarithmic);
+    asset.updateSpot(prop_params.spot_price);
+
     ImGui::SliderFloat("Volatility",
                        //             ImVec2(30, 100),
                        &prop_params.flat_vol,
@@ -109,8 +118,16 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
                        asset.binomialTree().treeDurationYears(),
                        "%.2f");
 
+    ImGui::SliderFloat("Strike",
+                       &prop_params.option_strike,
+                       prop_params.spot_price * 0.1,
+                       prop_params.spot_price * 2.,
+                       "%.2f",
+                       ImGuiSliderFlags_Logarithmic);
+
     double computed_value = deriv.price(
-        std::bind_front(&markets::call_payoff, 100), prop_params.option_expiry);
+        std::bind_front(&markets::call_payoff, prop_params.option_strike),
+        prop_params.option_expiry);
     std::string value_str = std::to_string(computed_value);
     char buffer[64];  // A buffer to hold the string (adjust
                       // size as needed)
@@ -123,7 +140,7 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
                      IM_ARRAYSIZE(buffer),
                      ImGuiInputTextFlags_ReadOnly);
 
-    if (ImPlot::BeginPlot("Option Tree Plot", ImVec2(0, 0))) {
+    if (ImPlot::BeginPlot("Option Tree Plot", ImVec2(-1, 0))) {
       const auto r = getTreeRenderData(deriv.binomialTree());
 
       ImPlotStyle& style = ImPlot::GetStyle();

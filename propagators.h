@@ -131,6 +131,8 @@ struct LocalVolatilityPropagator {
     }
   }
 
+  void updateSpot(double spot) { spot_price_ = spot; }
+
  private:
   const RatesCurve& curve_;
   double spot_price_;
