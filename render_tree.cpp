@@ -2,6 +2,8 @@
 
 #include <Eigen/Dense>
 #include <chrono>
+#include <memory>
+#include <string_view>
 
 #include "binomial_tree.h"
 #include "derivative.h"
@@ -60,6 +62,104 @@ struct SmoothLocalVol {
     return base_vol * term_factor * skew_factor;
   }
 };
+
+struct PropagatorParams {
+  double crr_spot_price = 100.;
+  double jr_expected_drift = 0.1;
+  double jr_spot_price = 100.;
+  std::unique_ptr<RatesCurve> curve;
+  double localvol_spot_price = 100.;
+
+  float flat_vol = 0.1587;
+
+  PropagatorParams()
+      : curve(std::make_unique<NoDiscountingCurve>(NoDiscountingCurve())
+                  .release()) {}
+};
+
+template <typename FwdPropT>
+FwdPropT createDefaultPropagator(const PropagatorParams& params);
+
+template <>
+CRRPropagator createDefaultPropagator<CRRPropagator>(
+    const PropagatorParams& params) {
+  return CRRPropagator(params.crr_spot_price);
+}
+
+template <>
+JarrowRuddPropagator createDefaultPropagator<JarrowRuddPropagator>(
+    const PropagatorParams& params) {
+  return JarrowRuddPropagator(params.jr_expected_drift, params.jr_spot_price);
+}
+
+template <typename FwdPropT>
+void displayPairedAssetDerivativePanel(std::string_view window_name,
+                                       PropagatorParams& prop_params) {
+  ImGui::Begin(window_name.data());
+
+  BinomialTree binomial_tree(10.0, .25);
+  StochasticTreeModel<FwdPropT> asset(
+      std::move(binomial_tree), createDefaultPropagator<FwdPropT>(prop_params));
+  FlatVol flat_vol(prop_params.flat_vol);
+  asset.forwardPropagate(Volatility(flat_vol));
+
+  Derivative deriv(&asset, prop_params.curve.get());
+
+  // ImGuiTreeNodeFlags_DefaultOpen
+  ImGui::SetNextItemOpen(true);
+
+  if (ImGui::TreeNode("Section1")) {
+    ImGui::SliderFloat(
+        "Volatility", &prop_params.flat_vol, 0.0f, 0.80f, "%.3f");
+    asset.forwardPropagate(Volatility(flat_vol));
+
+    if (ImPlot::BeginPlot("Asset Tree Plot", ImVec2(0, 0))) {
+      const auto r = getTreeRenderData(asset.binomialTree());
+
+      ImPlotStyle& style = ImPlot::GetStyle();
+      style.MarkerSize = 1;
+
+      if (!r.x_coords.empty()) {
+        ImPlot::SetupAxisLimits(ImAxis_X1,
+                                0,
+                                asset.binomialTree().totalTimeAtIndex(
+                                    asset.binomialTree().numTimesteps() - 1),
+                                ImPlotCond_Always);
+      }
+
+      if (!r.y_coords.empty()) {
+        auto [min_it, max_it] =
+            std::minmax_element(r.y_coords.begin(), r.y_coords.end());
+        double min_y = *min_it;
+        double max_y = *max_it;
+        ImPlot::SetupAxisLimits(ImAxis_Y1, min_y, max_y, ImPlotCond_Always);
+      }
+
+      // Plot the edges as line segments
+      ImPlot::PlotLine("##Edges",
+                       r.edge_x_coords.data(),
+                       r.edge_y_coords.data(),
+                       r.edge_x_coords.size(),
+                       ImPlotLineFlags_Segments);
+
+      ImPlot::PlotScatter(
+          "Nodes", r.x_coords.data(), r.y_coords.data(), r.x_coords.size());
+
+      ImPlot::EndPlot();
+    }
+
+    ImGui::TreePop();
+    ImGui::Spacing();
+  }
+
+  ImGui::SetNextItemOpen(true);
+  if (ImGui::TreeNode("Section2")) {
+    ImGui::TreePop();
+    ImGui::Spacing();
+  }
+
+  ImGui::End();
+}
 
 void PlotVolSurface() {
   DermanExampleVol dermanvol;
@@ -251,6 +351,8 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
 
   float deriv_expiry = 1.0;
   float strike = 100;
+  markets::PropagatorParams crr_prop_params;
+  markets::PropagatorParams jr_prop_params;
 
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
@@ -261,6 +363,11 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
 
     markets::PlotVolSurface();
     markets::PlotForwardRateCurves();
+
+    markets::displayPairedAssetDerivativePanel<markets::CRRPropagator>(
+        "Example with CRR Prop", crr_prop_params);
+    markets::displayPairedAssetDerivativePanel<markets::JarrowRuddPropagator>(
+        "Another Example with JR Prop", jr_prop_params);
 
     ImGui::Begin("Binomial Tree");
 
