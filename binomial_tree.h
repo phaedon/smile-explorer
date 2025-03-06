@@ -16,8 +16,13 @@ namespace markets {
 class BinomialTree {
  public:
   BinomialTree(double total_duration_years, double timestep_years)
-      : tree_duration_years_(total_duration_years),
-        timestep_years_(timestep_years) {
+      :  // Clamp to 1 hour (to avoid going to 0).
+        tree_duration_years_(std::max(total_duration_years, 1. / (24 * 365))),
+        timestep_years_(std::min(timestep_years, tree_duration_years_)) {
+    // Clamp to a 1-period tree in the case of a bad input for the timestep.
+    if (timestep_years_ <= 0) {
+      timestep_years_ = tree_duration_years_ * 0.5;
+    }
     int num_timesteps = std::ceil(tree_duration_years_ / timestep_years_) + 1;
     tree_.resize(num_timesteps, num_timesteps);
     tree_.setZero();

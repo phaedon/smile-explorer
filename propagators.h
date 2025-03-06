@@ -132,8 +132,6 @@ struct LocalVolatilityPropagator {
   }
 
  private:
-  // For now, to avoid variant and templating we just start with the simplest
-  // approach which still supports some kind of time-varying discount curve.
   const RatesCurve& curve_;
   double spot_price_;
 };

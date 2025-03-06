@@ -47,6 +47,7 @@ class ZeroSpotCurve : public RatesCurve {
       discrete_dfs_.push_back(dfByPeriod(rates_[i], maturities_[i], period));
     }
   }
+  ~ZeroSpotCurve() override = default;
 
   double df(double time) const override {
     int ti = findClosestMaturityIndex(time);

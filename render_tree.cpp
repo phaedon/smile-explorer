@@ -63,13 +63,34 @@ struct SmoothLocalVol {
   }
 };
 
-struct PropagatorParams {
-  double crr_spot_price = 100.;
-  double jr_expected_drift = 0.1;
-  double jr_spot_price = 100.;
-  std::unique_ptr<RatesCurve> curve;
-  double localvol_spot_price = 100.;
+struct SigmoidSmile {
+  static constexpr VolSurfaceFnType type =
+      VolSurfaceFnType::kTimeInvariantSkewSmile;
+  SigmoidSmile(double spot_price) : spot_price_(spot_price) {}
 
+  double operator()(double s) const {
+    double vol_range = 0.4;
+    double vol_floor = 0.12;
+    double stretchy = 0.1;
+    return vol_floor + vol_range / (1 + std::exp(stretchy * (s - spot_price_)));
+  }
+
+ private:
+  double spot_price_;
+};
+
+struct PropagatorParams {
+  float asset_tree_duration = 10.0;
+  float asset_tree_timestep = 0.25;
+  double spot_price = 100.;
+  double jr_expected_drift = 0.1;
+  std::unique_ptr<RatesCurve> curve;
+
+  // See for example
+  // https://sebgroup.com/our-offering/reports-and-publications/rates-and-iban/swap-rates
+  std::array<float, 4> rates = {0.045, 0.0423, 0.0401, 0.0397};
+
+  float option_expiry = 1.0;
   float flat_vol = 0.1587;
 
   PropagatorParams()
@@ -83,13 +104,19 @@ FwdPropT createDefaultPropagator(const PropagatorParams& params);
 template <>
 CRRPropagator createDefaultPropagator<CRRPropagator>(
     const PropagatorParams& params) {
-  return CRRPropagator(params.crr_spot_price);
+  return CRRPropagator(params.spot_price);
 }
 
 template <>
 JarrowRuddPropagator createDefaultPropagator<JarrowRuddPropagator>(
     const PropagatorParams& params) {
-  return JarrowRuddPropagator(params.jr_expected_drift, params.jr_spot_price);
+  return JarrowRuddPropagator(params.jr_expected_drift, params.spot_price);
+}
+
+template <>
+LocalVolatilityPropagator createDefaultPropagator<LocalVolatilityPropagator>(
+    const PropagatorParams& params) {
+  return LocalVolatilityPropagator(*params.curve, params.spot_price);
 }
 
 template <typename FwdPropT>
@@ -97,20 +124,41 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
                                        PropagatorParams& prop_params) {
   ImGui::Begin(window_name.data());
 
-  BinomialTree binomial_tree(10.0, .25);
+  BinomialTree binomial_tree(prop_params.asset_tree_duration,
+                             prop_params.asset_tree_timestep);
   StochasticTreeModel<FwdPropT> asset(
       std::move(binomial_tree), createDefaultPropagator<FwdPropT>(prop_params));
+
+  // TODO remove this hard-coding so that different panels can use different
+  // volatility types.
   FlatVol flat_vol(prop_params.flat_vol);
   asset.forwardPropagate(Volatility(flat_vol));
 
   Derivative deriv(&asset, prop_params.curve.get());
 
-  // ImGuiTreeNodeFlags_DefaultOpen
   ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+  if (ImGui::TreeNode("Asset")) {
+    ImGui::SliderFloat("Tree duration",
+                       &prop_params.asset_tree_duration,
+                       0.1f,
+                       20.f,
+                       "%.3f",
+                       ImGuiSliderFlags_Logarithmic);
 
-  if (ImGui::TreeNode("Section1")) {
-    ImGui::SliderFloat(
-        "Volatility", &prop_params.flat_vol, 0.0f, 0.80f, "%.3f");
+    ImGui::SliderFloat("Timestep (years)",
+                       &prop_params.asset_tree_timestep,
+                       1. / 252,
+                       1.f,
+                       "%.3f",
+                       ImGuiSliderFlags_Logarithmic);
+
+    ImGui::SliderFloat("Volatility",
+                       //             ImVec2(30, 100),
+                       &prop_params.flat_vol,
+                       0.0f,
+                       0.80f,
+                       "%.3f",
+                       ImGuiSliderFlags_Logarithmic);
     asset.forwardPropagate(Volatility(flat_vol));
 
     if (ImPlot::BeginPlot("Asset Tree Plot", ImVec2(0, 0))) {
@@ -152,8 +200,63 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
     ImGui::Spacing();
   }
 
-  ImGui::SetNextItemOpen(true);
-  if (ImGui::TreeNode("Section2")) {
+  ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+  if (ImGui::TreeNode("Option")) {
+    ImGui::SliderFloat("Expiry",
+                       &prop_params.option_expiry,
+                       0.0f,
+                       asset.binomialTree().treeDurationYears(),
+                       "%.2f");
+
+    double computed_value = deriv.price(
+        std::bind_front(&markets::call_payoff, 100), prop_params.option_expiry);
+    std::string value_str = std::to_string(computed_value);
+    char buffer[64];  // A buffer to hold the string (adjust
+                      // size as needed)
+    strncpy(buffer, value_str.c_str(),
+            sizeof(buffer) - 1);        // Copy to buffer
+    buffer[sizeof(buffer) - 1] = '\0';  // Ensure null termination
+
+    ImGui::InputText("European call",
+                     buffer,
+                     IM_ARRAYSIZE(buffer),
+                     ImGuiInputTextFlags_ReadOnly);
+
+    if (ImPlot::BeginPlot("Option Tree Plot", ImVec2(0, 0))) {
+      const auto r = getTreeRenderData(deriv.binomialTree());
+
+      ImPlotStyle& style = ImPlot::GetStyle();
+      style.MarkerSize = 1;
+
+      if (!r.x_coords.empty()) {
+        ImPlot::SetupAxisLimits(ImAxis_X1,
+                                0,
+                                deriv.binomialTree().totalTimeAtIndex(
+                                    deriv.binomialTree().numTimesteps() - 1),
+                                ImPlotCond_Always);
+      }
+
+      if (!r.y_coords.empty()) {
+        auto [min_it, max_it] =
+            std::minmax_element(r.y_coords.begin(), r.y_coords.end());
+        double min_y = *min_it;
+        double max_y = *max_it;
+        ImPlot::SetupAxisLimits(ImAxis_Y1, min_y, max_y, ImPlotCond_Always);
+      }
+
+      // Plot the edges as line segments
+      ImPlot::PlotLine("##Edges",
+                       r.edge_x_coords.data(),
+                       r.edge_y_coords.data(),
+                       r.edge_x_coords.size(),
+                       ImPlotLineFlags_Segments);
+
+      ImPlot::PlotScatter(
+          "Nodes", r.x_coords.data(), r.y_coords.data(), r.x_coords.size());
+
+      ImPlot::EndPlot();
+    }
+
     ImGui::TreePop();
     ImGui::Spacing();
   }
@@ -198,24 +301,35 @@ void PlotVolSurface() {
   ImGui::End();
 }
 
-void PlotForwardRateCurves() {
-  ZeroSpotCurve curve({1, 2, 3, 5, 10, 15},
-                      {0.03, 0.035, 0.038, 0.04, 0.045, 0.05},
-                      CompoundingPeriod::kAnnual);
-  // SimpleUncalibratedShortRatesCurve curve(10, 0.1);
-
+void PlotForwardRateCurves(PropagatorParams& prop_params) {
   std::vector<float> timestamps;
   std::vector<float> spot_rates;
   std::vector<float> fwd_rates;
 
-  for (double t = 1.0; t <= 10.0; t += 0.5) {
+  for (double t = 1.0; t <= 10.0; t += 0.1) {
     timestamps.push_back(t);
-    spot_rates.push_back(curve.getForwardRate(0.0, t));
-    fwd_rates.push_back(curve.getForwardRate(t, t + 0.5));
+    spot_rates.push_back(prop_params.curve->getForwardRate(0.0, t));
+    fwd_rates.push_back(prop_params.curve->getForwardRate(t, t + 1.0));
   }
 
   ImGui::Begin("Spot/Forward Rates");
+  ImGui::SliderFloat4("{1,2,5,10}",
+                      prop_params.rates.data(),
+                      0.f,
+                      0.25f,
+                      "%.4f",
+                      ImGuiSliderFlags_Logarithmic);
+  prop_params.curve = std::make_unique<ZeroSpotCurve>(ZeroSpotCurve(
+      {1, 2, 5, 10},
+      std::vector<double>(prop_params.rates.begin(), prop_params.rates.end()),
+      CompoundingPeriod::kAnnual));
+
   if (ImPlot::BeginPlot("Rates")) {
+    ImPlot::SetupAxisLimits(ImAxis_Y1,
+                            prop_params.rates[0] * 0.75,
+                            prop_params.rates[3] * 1.5,
+                            ImPlotCond_Always);
+
     ImPlot::PlotLine(
         "Spot", timestamps.data(), spot_rates.data(), spot_rates.size());
     ImPlot::PlotLine(
@@ -269,7 +383,7 @@ int main(int, char**) {
   ImGui::CreateContext();
   ImPlot::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
-  (void)io;
+  //(void)io;
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
@@ -279,11 +393,6 @@ int main(int, char**) {
   ImGui_ImplOpenGL3_Init(glsl_version);
 
   ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
-  // see for example
-  // https://sebgroup.com/our-offering/reports-and-publications/rates-and-iban/swap-rates
-  // YieldCurve spot_curve({1, 2, 5, 7, 10},
-  //                       {0.045, 0.0423, 0.0401, 0.0398, 0.0397});
 
   /*
 double spot_rate = 0.05;
@@ -353,6 +462,7 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
   float strike = 100;
   markets::PropagatorParams crr_prop_params;
   markets::PropagatorParams jr_prop_params;
+  markets::PropagatorParams localvol_prop_params;
 
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
@@ -362,12 +472,15 @@ calibrate(tree, bdt, adtree, arrowdeb, yield_curve);
     ImGui::NewFrame();
 
     markets::PlotVolSurface();
-    markets::PlotForwardRateCurves();
+    markets::PlotForwardRateCurves(crr_prop_params);
 
     markets::displayPairedAssetDerivativePanel<markets::CRRPropagator>(
         "Example with CRR Prop", crr_prop_params);
     markets::displayPairedAssetDerivativePanel<markets::JarrowRuddPropagator>(
         "Another Example with JR Prop", jr_prop_params);
+    markets::displayPairedAssetDerivativePanel<
+        markets::LocalVolatilityPropagator>("Check out this local vol",
+                                            localvol_prop_params);
 
     ImGui::Begin("Binomial Tree");
 
