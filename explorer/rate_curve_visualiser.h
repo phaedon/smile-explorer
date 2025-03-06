@@ -10,19 +10,51 @@ namespace markets {
 
 inline void PlotForwardRateCurves(ExplorerParams& prop_params) {
   ImGui::Begin("Spot/Forward Rates");
-  ImGui::DragFloat4("{1,2,5,10}",
-                    prop_params.rates.data(),
-                    0.0005f,
-                    0.0001f,  // 1 basis point
-                    0.25f,
-                    "%.4f",
-                    ImGuiSliderFlags_Logarithmic);
-  prop_params.global_rates->curves[prop_params.currency] =
-      std::make_unique<ZeroSpotCurve>(
-          ZeroSpotCurve({1, 2, 5, 10},
-                        std::vector<double>(prop_params.rates.begin(),
-                                            prop_params.rates.end()),
-                        CompoundingPeriod::kAnnual));
+
+  constexpr auto currency_names = magic_enum::enum_names<Currency>();
+  static int current_item = 0;  // Index of the currently selected item
+  // const char* items[] = currency_names.data();  // The options in the
+  // dropdown
+  if (ImGui::BeginCombo("Select an option",
+                        currency_names[current_item].data())) {
+    for (int n = 0; n < currency_names.size(); n++) {
+      bool is_selected = (current_item == n);  // Is this item selected?
+      if (ImGui::Selectable(currency_names[n].data(),
+                            is_selected))  // If the item is clicked
+      {
+        current_item = n;  // Update the selection
+      }
+      if (is_selected)
+        ImGui::SetItemDefaultFocus();  // Set the initial
+                                       // focus when
+                                       // opening the
+                                       // combo
+    }
+    ImGui::EndCombo();
+  }
+  prop_params.currency =
+      magic_enum::enum_cast<Currency>(currency_names[current_item]).value();
+
+  ZeroSpotCurve* zero_curve = dynamic_cast<ZeroSpotCurve*>(
+      prop_params.global_rates->curves[prop_params.currency].get());
+
+  if (zero_curve == nullptr) {
+    LOG(ERROR) << "Rates curve for currency:" << currency_names[current_item]
+               << " not convertible to a ZeroSpotCurve.";
+  } else {
+    std::vector<float> float_rates(zero_curve->getInputRates().begin(),
+                                   zero_curve->getInputRates().end());
+    ImGui::DragFloat4("{1,2,5,10}",
+                      float_rates.data(),
+                      0.0005f,
+                      0.0001f,  // 1 basis point
+                      0.25f,
+                      "%.4f",
+                      ImGuiSliderFlags_Logarithmic);
+    for (int i = 0; i < float_rates.size(); ++i) {
+      zero_curve->updateRateAtMaturityIndex(i, float_rates[i]);
+    }
+  }
 
   std::vector<float> timestamps;
   std::vector<float> spot_rates;

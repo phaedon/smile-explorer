@@ -37,15 +37,7 @@ class ZeroSpotCurve : public RatesCurve {
                 std::vector<double> rates,
                 CompoundingPeriod period = CompoundingPeriod::kContinuous)
       : maturities_(maturities), rates_(rates), period_(period) {
-    // Populate the vectors of the discount factors.
-    // DF at time 0.
-    discrete_dfs_.push_back(1.0);
-    df_maturities_.push_back(0.0);
-
-    for (int i = 0; i < maturities.size(); ++i) {
-      df_maturities_.push_back(maturities[i]);
-      discrete_dfs_.push_back(dfByPeriod(rates_[i], maturities_[i], period));
-    }
+    computeCurve();
   }
   ~ZeroSpotCurve() override = default;
 
@@ -96,6 +88,13 @@ class ZeroSpotCurve : public RatesCurve {
     return closest_index;
   }
 
+  void updateRateAtMaturityIndex(int mat_index, double updated_rate) {
+    rates_[mat_index] = updated_rate;
+    computeCurve();
+  }
+
+  const std::vector<double>& getInputRates() const { return rates_; }
+
  private:
   std::vector<double> maturities_;
   std::vector<double> rates_;
@@ -110,6 +109,24 @@ class ZeroSpotCurve : public RatesCurve {
     double df_end = discrete_dfs_[end_ti];
     double dt = df_maturities_[end_ti] - df_maturities_[start_ti];
     return fwdRateByPeriod(df_start, df_end, dt, period_);
+  }
+
+  void computeCurve() {
+    discrete_dfs_.clear();
+    df_maturities_.clear();
+
+    discrete_dfs_.reserve(maturities_.size() + 1);
+    df_maturities_.reserve(maturities_.size() + 1);
+
+    // Populate the vectors of the discount factors.
+    // DF at time 0.
+    discrete_dfs_.push_back(1.0);
+    df_maturities_.push_back(0.0);
+
+    for (int i = 0; i < maturities_.size(); ++i) {
+      df_maturities_.push_back(maturities_[i]);
+      discrete_dfs_.push_back(dfByPeriod(rates_[i], maturities_[i], period_));
+    }
   }
 };
 

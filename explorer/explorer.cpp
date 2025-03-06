@@ -148,8 +148,6 @@ int main(int, char**) {
 
   ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-  float vol = 0.15875;  // Initial value
-
   markets::DermanExampleVol dermanvol;
   markets::Volatility volsurface(dermanvol);
 
