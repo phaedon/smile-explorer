@@ -22,6 +22,15 @@ cc_library(
 )
 
 cc_library(
+    name = "global_rates",
+    hdrs = ["global_rates.h"],
+    deps = [
+        "//markets/rates:rates_curve",
+        "@magic_enum",
+    ],
+)
+
+cc_library(
     name = "propagator_factories",
     hdrs = ["propagator_factories.h"],
     deps = [

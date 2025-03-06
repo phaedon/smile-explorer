@@ -26,7 +26,7 @@ template <>
 inline LocalVolatilityPropagator
 createDefaultPropagator<LocalVolatilityPropagator>(
     const ExplorerParams& params) {
-  return LocalVolatilityPropagator(*params.curve, params.spot_price);
+  return LocalVolatilityPropagator(*params.curve(), params.spot_price);
 }
 
 }  // namespace markets

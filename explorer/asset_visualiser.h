@@ -35,7 +35,7 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
   FlatVol flat_vol(prop_params.flat_vol);
   asset.forwardPropagate(Volatility(flat_vol));
 
-  Derivative deriv(&asset, prop_params.curve.get());
+  Derivative deriv(&asset, prop_params.curve());
 
   ImGui::SetNextItemOpen(true, ImGuiCond_Once);
   if (ImGui::TreeNode("Asset")) {

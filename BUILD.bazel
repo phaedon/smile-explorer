@@ -88,6 +88,7 @@ cc_binary(
         ":volatility",
         ":yield_curve",
         "//markets/explorer:asset_visualiser",
+        "//markets/explorer:global_rates",
         "//markets/explorer:rate_curve_visualiser",
         "//markets/rates:rates_curve",
         "@eigen",

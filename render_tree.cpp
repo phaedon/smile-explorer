@@ -10,6 +10,7 @@
 #include "derivative.h"
 #include "explorer/asset_visualiser.h"
 #include "explorer/explorer_params.h"
+#include "explorer/global_rates.h"
 #include "explorer/rate_curve_visualiser.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_glfw.h"
@@ -178,9 +179,10 @@ int main(int, char**) {
 
   float deriv_expiry = 1.0;
   float strike = 100;
-  markets::ExplorerParams crr_prop_params;
-  markets::ExplorerParams jr_prop_params;
-  markets::ExplorerParams localvol_prop_params;
+  markets::GlobalRates global_rates;
+  markets::ExplorerParams crr_prop_params(&global_rates);
+  markets::ExplorerParams jr_prop_params(&global_rates);
+  markets::ExplorerParams localvol_prop_params(&global_rates);
 
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();

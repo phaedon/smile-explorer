@@ -1,14 +1,13 @@
 #ifndef MARKETS_EXPLORER_EXPLORER_PARAMS_
 #define MARKETS_EXPLORER_EXPLORER_PARAMS_
 
+#include "global_rates.h"
 #include "markets/rates/rates_curve.h"
 
 namespace markets {
 
 struct ExplorerParams {
-  ExplorerParams()
-      : curve(std::make_unique<NoDiscountingCurve>(NoDiscountingCurve())
-                  .release()) {}
+  ExplorerParams(GlobalRates* rates) : global_rates(rates) {}
 
   float asset_tree_duration = 10.0;
   float asset_tree_timestep = 0.25;
@@ -17,7 +16,14 @@ struct ExplorerParams {
   // Parameter for the Jarrow-Rudd convention.
   double jarrowrudd_expected_drift = 0.1;
 
-  std::unique_ptr<RatesCurve> curve;
+  const RatesCurve* curve() const {
+    return global_rates->curves[currency].get();
+  }
+
+  // Not owned.
+  GlobalRates* global_rates;
+
+  Currency currency = Currency::USD;
 
   // See for example
   // https://sebgroup.com/our-offering/reports-and-publications/rates-and-iban/swap-rates
