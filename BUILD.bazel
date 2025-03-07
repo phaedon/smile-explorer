@@ -1,0 +1,138 @@
+package(default_visibility = ["//markets:__subpackages__"])
+
+cc_library(
+    name = "binomial_tree",
+    srcs = ["binomial_tree.cpp"],
+    hdrs = ["binomial_tree.h"],
+    deps = [
+        ":time",
+        ":volatility",
+        "//markets/rates:rates_curve",
+        "@abseil-cpp//absl/log",
+        "@eigen",
+    ],
+)
+
+cc_test(
+    name = "binomial_tree_test",
+    srcs = ["binomial_tree_test.cpp"],
+    deps = [
+        ":binomial_tree",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "bsm",
+    hdrs = ["bsm.h"],
+)
+
+cc_test(
+    name = "bsm_test",
+    srcs = ["bsm_test.cpp"],
+    deps = [
+        ":bsm",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "derivative",
+    hdrs = ["derivative.h"],
+    deps = [
+        ":binomial_tree",
+        "//markets/rates:rates_curve",
+        "@abseil-cpp//absl/log",
+    ],
+)
+
+cc_test(
+    name = "derivative_test",
+    srcs = ["derivative_test.cpp"],
+    deps = [
+        ":bsm",
+        ":derivative",
+        ":propagators",
+        ":stochastic_tree_model",
+        ":volatility",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "monte_carlo",
+    srcs = ["monte_carlo.cpp"],
+    hdrs = ["monte_carlo.h"],
+    deps = [
+        "@abseil-cpp//absl/random",
+    ],
+)
+
+cc_library(
+    name = "propagators",
+    hdrs = ["propagators.h"],
+    deps = [
+        ":binomial_tree",
+        "//markets/rates:rates_curve",
+    ],
+)
+
+cc_library(
+    name = "stochastic_tree_model",
+    hdrs = ["stochastic_tree_model.h"],
+    deps = [
+        ":binomial_tree",
+        ":derivative",
+    ],
+)
+
+cc_test(
+    name = "stochastic_tree_model_test",
+    srcs = ["stochastic_tree_model_test.cpp"],
+    deps = [
+        ":propagators",
+        ":stochastic_tree_model",
+        "//markets/test:tree_matchers",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "time",
+    hdrs = ["time.h"],
+)
+
+cc_test(
+    name = "time_test",
+    srcs = ["time_test.cpp"],
+    deps = [
+        ":time",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "volatility",
+    hdrs = ["volatility.h"],
+    deps = [
+        ":time",
+        "@eigen",
+    ],
+)
+
+cc_test(
+    name = "volatility_test",
+    srcs = ["volatility_test.cpp"],
+    deps = [
+        ":volatility",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "yield_curve",
+    hdrs = ["yield_curve.h"],
+    deps = [
+        "@boost.math",
+    ],
+)

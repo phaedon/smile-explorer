@@ -1,0 +1,10 @@
+package(default_visibility = ["//markets:__subpackages__"])
+
+cc_library(
+    name = "tree_matchers",
+    testonly = True,
+    hdrs = ["tree_matchers.h"],
+    deps = [
+        "@googletest//:gtest",
+    ],
+)
