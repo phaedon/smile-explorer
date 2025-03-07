@@ -22,6 +22,7 @@
 #include "markets/yield_curve.h"
 #include "rate_curve_visualiser.h"
 #include "time.h"
+#include "vol_surface_factories.h"
 #define GL_SILENCE_DEPRECATION
 #include <GLFW/glfw3.h>
 
@@ -39,22 +40,6 @@ struct DermanExampleVol {
     // return forwardVol(0, 2, 3, 0.255, 0.311);
     return forwardVol(0, 2, 3, 0.255, 0.22);
   }
-};
-
-struct SigmoidSmile {
-  static constexpr VolSurfaceFnType type =
-      VolSurfaceFnType::kTimeInvariantSkewSmile;
-  SigmoidSmile(double spot_price) : spot_price_(spot_price) {}
-
-  double operator()(double s) const {
-    double vol_range = 0.4;
-    double vol_floor = 0.12;
-    double stretchy = 0.1;
-    return vol_floor + vol_range / (1 + std::exp(stretchy * (s - spot_price_)));
-  }
-
- private:
-  double spot_price_;
 };
 
 void PlotVolSurface() {
@@ -180,13 +165,16 @@ int main(int, char**) {
     markets::PlotVolSurface();
     markets::PlotForwardRateCurves(crr_prop_params);
 
-    markets::displayPairedAssetDerivativePanel<markets::CRRPropagator>(
-        "Example with CRR Prop", crr_prop_params);
-    markets::displayPairedAssetDerivativePanel<markets::JarrowRuddPropagator>(
-        "Another Example with JR Prop", jr_prop_params);
+    markets::displayPairedAssetDerivativePanel<markets::CRRPropagator,
+                                               markets::ConstantVolSurface>(
+        "Cox-Ross-Rubinstein convention", crr_prop_params);
+    markets::displayPairedAssetDerivativePanel<markets::JarrowRuddPropagator,
+                                               markets::ConstantVolSurface>(
+        "Jarrow-Rudd convention", jr_prop_params);
     markets::displayPairedAssetDerivativePanel<
-        markets::LocalVolatilityPropagator>("Check out this local vol",
-                                            localvol_prop_params);
+        markets::LocalVolatilityPropagator,
+        markets::SigmoidSmile>("Smile with a negative sigmoid function",
+                               localvol_prop_params);
 
     ImGui::Render();
     int display_w, display_h;

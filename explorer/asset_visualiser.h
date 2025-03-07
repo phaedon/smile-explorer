@@ -9,6 +9,7 @@
 #include "markets/stochastic_tree_model.h"
 #include "markets/volatility.h"
 #include "propagator_factories.h"
+#include "vol_surface_factories.h"
 
 namespace markets {
 
@@ -20,7 +21,28 @@ inline double put_payoff(double strike, double val) {
   return std::max(0.0, strike - val);
 }
 
-template <typename FwdPropT>
+template <typename VolFunctorT>
+inline void displayAdditionalVolControls(ExplorerParams& prop_params) {}
+
+template <>
+inline void displayAdditionalVolControls<SigmoidSmile>(
+    ExplorerParams& prop_params) {
+  ImGui::SliderFloat("Vol range (local vol only)",
+                     &prop_params.sigmoid_vol_range,
+                     0.0f,
+                     0.5f,
+                     "%.3f",
+                     ImGuiSliderFlags_Logarithmic);
+
+  ImGui::SliderFloat("Vol stretch factor (local vol only)",
+                     &prop_params.sigmoid_vol_stretch,
+                     0.0f,
+                     1.0f,
+                     "%.3f",
+                     ImGuiSliderFlags_Logarithmic);
+}
+
+template <typename FwdPropT, typename VolFunctorT>
 void displayPairedAssetDerivativePanel(std::string_view window_name,
                                        ExplorerParams& prop_params) {
   ImGui::Begin(window_name.data());
@@ -30,10 +52,8 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
   StochasticTreeModel<FwdPropT> asset(
       std::move(binomial_tree), createDefaultPropagator<FwdPropT>(prop_params));
 
-  // TODO remove this hard-coding so that different panels can use different
-  // volatility types.
-  FlatVol flat_vol(prop_params.flat_vol);
-  asset.forwardPropagate(Volatility(flat_vol));
+  Volatility<VolFunctorT> vol_surface(prop_params);
+  asset.forwardPropagate(vol_surface);
 
   Derivative deriv(&asset, prop_params.curve());
 
@@ -69,7 +89,9 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
                        0.80f,
                        "%.3f",
                        ImGuiSliderFlags_Logarithmic);
-    asset.forwardPropagate(Volatility(flat_vol));
+
+    displayAdditionalVolControls<VolFunctorT>(prop_params);
+    asset.forwardPropagate(vol_surface);
 
     if (ImPlot::BeginPlot("Asset Tree Plot", ImVec2(-1, 0))) {
       const auto r = getTreeRenderData(asset.binomialTree());
@@ -181,6 +203,13 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
 
   ImGui::End();
 }
+
+/*
+template <>
+void displayPairedAssetDerivativePanel<
+    StochasticTreeModel<LocalVolatilityPropagator>>(
+    std::string_view window_name, ExplorerParams& prop_params) {}
+*/
 
 }  // namespace markets
 

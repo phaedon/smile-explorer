@@ -28,6 +28,7 @@ cc_binary(
         ":asset_visualiser",
         ":global_rates",
         ":rate_curve_visualiser",
+        ":vol_surface_factories",
         "//markets:binomial_tree",
         "//markets:propagators",
         "//markets:stochastic_tree_model",
@@ -70,5 +71,14 @@ cc_library(
         "//markets/rates:rates_curve",
         "@imgui",
         "@implot",
+    ],
+)
+
+cc_library(
+    name = "vol_surface_factories",
+    hdrs = ["vol_surface_factories.h"],
+    deps = [
+        ":explorer_params",
+        "//markets:volatility",
     ],
 )

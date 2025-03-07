@@ -31,6 +31,9 @@ struct ExplorerParams {
   // sqrt(252) is chosen as a reasonable initial value, in the absence of any
   // other info.
   float flat_vol = 0.158745;
+
+  float sigmoid_vol_range = 0.3;
+  float sigmoid_vol_stretch = 0.1;
 };
 }  // namespace markets
 
