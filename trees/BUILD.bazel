@@ -1,0 +1,52 @@
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "binomial_tree",
+    srcs = ["binomial_tree.cpp"],
+    hdrs = ["binomial_tree.h"],
+    deps = [
+        "//rates:rates_curve",
+        "//time",
+        "//volatility",
+        "@abseil-cpp//absl/log",
+        "@eigen",
+    ],
+)
+
+cc_test(
+    name = "binomial_tree_test",
+    srcs = ["binomial_tree_test.cpp"],
+    deps = [
+        ":binomial_tree",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "propagators",
+    hdrs = ["propagators.h"],
+    deps = [
+        ":binomial_tree",
+        "//rates:rates_curve",
+    ],
+)
+
+cc_library(
+    name = "stochastic_tree_model",
+    hdrs = ["stochastic_tree_model.h"],
+    deps = [
+        ":binomial_tree",
+        "//derivatives:derivative",
+    ],
+)
+
+cc_test(
+    name = "stochastic_tree_model_test",
+    srcs = ["stochastic_tree_model_test.cpp"],
+    deps = [
+        ":propagators",
+        ":stochastic_tree_model",
+        "//test:tree_matchers",
+        "@googletest//:gtest_main",
+    ],
+)

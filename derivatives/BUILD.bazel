@@ -1,0 +1,38 @@
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "bsm",
+    hdrs = ["bsm.h"],
+)
+
+cc_test(
+    name = "bsm_test",
+    srcs = ["bsm_test.cpp"],
+    deps = [
+        ":bsm",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "derivative",
+    hdrs = ["derivative.h"],
+    deps = [
+        "//rates:rates_curve",
+        "//trees:binomial_tree",
+        "@abseil-cpp//absl/log",
+    ],
+)
+
+cc_test(
+    name = "derivative_test",
+    srcs = ["derivative_test.cpp"],
+    deps = [
+        ":bsm",
+        ":derivative",
+        "//trees:propagators",
+        "//trees:stochastic_tree_model",
+        "//volatility",
+        "@googletest//:gtest_main",
+    ],
+)

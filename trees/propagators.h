@@ -3,8 +3,8 @@
 
 #include <cmath>
 
-#include "markets/binomial_tree.h"
 #include "rates/rates_curve.h"
+#include "trees/binomial_tree.h"
 
 namespace markets {
 

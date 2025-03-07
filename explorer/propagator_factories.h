@@ -2,7 +2,7 @@
 #define MARKETS_EXPLORER_PROPAGATOR_FACTORIES_
 
 #include "explorer_params.h"
-#include "markets/propagators.h"
+#include "trees/propagators.h"
 
 namespace markets {
 

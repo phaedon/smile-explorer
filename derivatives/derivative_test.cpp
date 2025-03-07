@@ -1,13 +1,13 @@
-#include "derivative.h"
+#include "derivatives/derivative.h"
 
 #include <gtest/gtest.h>
 
-#include "binomial_tree.h"
 #include "bsm.h"
-#include "propagators.h"
 #include "rates/rates_curve.h"
-#include "stochastic_tree_model.h"
-#include "volatility.h"
+#include "trees/binomial_tree.h"
+#include "trees/propagators.h"
+#include "trees/stochastic_tree_model.h"
+#include "volatility/volatility.h"
 
 namespace markets {
 namespace {

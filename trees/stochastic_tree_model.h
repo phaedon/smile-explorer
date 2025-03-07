@@ -3,8 +3,8 @@
 #define MARKETS_STOCHASTIC_TREE_MODEL_H_
 
 #include "absl/log/log.h"
-#include "binomial_tree.h"
-#include "derivative.h"
+#include "derivatives/derivative.h"
+#include "trees/binomial_tree.h"
 
 namespace markets {
 

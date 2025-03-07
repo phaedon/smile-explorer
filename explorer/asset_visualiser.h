@@ -2,14 +2,14 @@
 #ifndef MARKETS_EXPLORER_ASSET_VISUALISER_
 #define MARKETS_EXPLORER_ASSET_VISUALISER_
 
+#include "derivatives/derivative.h"
 #include "explorer_params.h"
 #include "imgui/imgui.h"
 #include "implot.h"
-#include "markets/derivative.h"
-#include "markets/stochastic_tree_model.h"
-#include "markets/volatility.h"
 #include "propagator_factories.h"
+#include "trees/stochastic_tree_model.h"
 #include "vol_surface_factories.h"
+#include "volatility/volatility.h"
 
 namespace markets {
 

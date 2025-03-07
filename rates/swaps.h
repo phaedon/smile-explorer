@@ -1,8 +1,8 @@
 #ifndef MARKETS_RATES_SWAPS_H_
 #define MARKETS_RATES_SWAPS_H_
 
-#include "markets/binomial_tree.h"
-#include "markets/time.h"
+#include "time.h"
+#include "trees/binomial_tree.h"
 
 namespace markets {
 

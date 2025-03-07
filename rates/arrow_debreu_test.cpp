@@ -2,8 +2,8 @@
 
 #include <gtest/gtest.h>
 
-#include "markets/propagators.h"
-#include "markets/stochastic_tree_model.h"
+#include "trees/propagators.h"
+#include "trees/stochastic_tree_model.h"
 
 namespace markets {
 namespace {

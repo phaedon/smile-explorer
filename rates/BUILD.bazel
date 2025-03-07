@@ -1,9 +1,9 @@
-package(default_visibility = ["//markets:__subpackages__"])
+package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "arrow_debreu",
     hdrs = ["arrow_debreu.h"],
-    deps = ["//markets:binomial_tree"],
+    deps = ["//trees:binomial_tree"],
 )
 
 cc_test(
@@ -11,22 +11,10 @@ cc_test(
     srcs = ["arrow_debreu_test.cpp"],
     deps = [
         ":arrow_debreu",
-        "//markets:binomial_tree",
-        "//markets:propagators",
-        "//markets:stochastic_tree_model",
+        "//trees:binomial_tree",
+        "//trees:propagators",
+        "//trees:stochastic_tree_model",
         "@googletest//:gtest_main",
-    ],
-)
-
-cc_library(
-    name = "bdt",
-    hdrs = ["bdt.h"],
-    deps = [
-        ":arrow_debreu",
-        ":swaps",
-        "//markets:binomial_tree",
-        "//markets:time",
-        "@ceres-solver//:ceres",
     ],
 )
 
@@ -34,7 +22,7 @@ cc_library(
     name = "curve_calculators",
     hdrs = ["curve_calculators.h"],
     deps = [
-        "//markets:time",
+        "//time",
     ],
 )
 
@@ -43,7 +31,7 @@ cc_library(
     hdrs = ["rates_curve.h"],
     deps = [
         ":curve_calculators",
-        "//markets:time",
+        "//time",
     ],
 )
 
@@ -61,8 +49,8 @@ cc_library(
     name = "swaps",
     hdrs = ["swaps.h"],
     deps = [
-        "//markets:binomial_tree",
-        "//markets:time",
+        "//time",
+        "//trees:binomial_tree",
     ],
 )
 
@@ -71,8 +59,16 @@ cc_library(
     hdrs = ["tree_curves.h"],
     deps = [
         ":arrow_debreu",
-        "//markets:binomial_tree",
-        "//markets:propagators",
-        "//markets:stochastic_tree_model",
+        "//trees:binomial_tree",
+        "//trees:propagators",
+        "//trees:stochastic_tree_model",
+    ],
+)
+
+cc_library(
+    name = "yield_curve",
+    hdrs = ["yield_curve.h"],
+    deps = [
+        "@boost.math",
     ],
 )

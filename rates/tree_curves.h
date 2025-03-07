@@ -4,11 +4,11 @@
 
 #include "arrow_debreu.h"
 #include "curve_calculators.h"
-#include "markets/binomial_tree.h"
-#include "markets/propagators.h"
-#include "markets/stochastic_tree_model.h"
-#include "markets/time.h"
 #include "rates_curve.h"
+#include "time.h"
+#include "trees/binomial_tree.h"
+#include "trees/propagators.h"
+#include "trees/stochastic_tree_model.h"
 
 namespace markets {
 

@@ -4,7 +4,7 @@
 #include <unordered_map>
 
 #include "magic_enum.hpp"
-#include "markets/rates/rates_curve.h"
+#include "rates/rates_curve.h"
 
 namespace markets {
 

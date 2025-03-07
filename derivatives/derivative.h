@@ -2,8 +2,8 @@
 #define MARKETS_DERIVATIVE_H_
 
 #include "absl/log/log.h"
-#include "binomial_tree.h"
-#include "markets/rates/rates_curve.h"
+#include "rates/rates_curve.h"
+#include "trees/binomial_tree.h"
 
 namespace markets {
 

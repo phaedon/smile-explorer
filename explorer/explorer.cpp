@@ -1,10 +1,7 @@
 #include <stdio.h>
 
 #include <Eigen/Dense>
-#include <algorithm>
 #include <chrono>
-#include <memory>
-#include <string_view>
 
 #include "asset_visualiser.h"
 #include "explorer_params.h"
@@ -14,15 +11,13 @@
 #include "imgui/imgui_impl_opengl3.h"
 #include "implot.h"
 #include "implot3d.h"
-#include "markets/binomial_tree.h"
-#include "markets/propagators.h"
-#include "markets/rates/rates_curve.h"
-#include "markets/stochastic_tree_model.h"
-#include "markets/volatility.h"
-#include "markets/yield_curve.h"
 #include "rate_curve_visualiser.h"
+#include "rates/rates_curve.h"
 #include "time.h"
-#include "vol_surface_factories.h"
+#include "trees/binomial_tree.h"
+#include "trees/propagators.h"
+#include "trees/stochastic_tree_model.h"
+#include "volatility/volatility.h"
 #define GL_SILENCE_DEPRECATION
 #include <GLFW/glfw3.h>
 

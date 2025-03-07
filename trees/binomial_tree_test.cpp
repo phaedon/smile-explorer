@@ -1,4 +1,4 @@
-#include "markets/binomial_tree.h"
+#include "trees/binomial_tree.h"
 
 #include <gtest/gtest.h>
 

@@ -1,4 +1,4 @@
-package(default_visibility = ["//markets:__subpackages__"])
+package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "asset_visualiser",
@@ -6,8 +6,8 @@ cc_library(
     deps = [
         ":explorer_params",
         ":propagator_factories",
-        "//markets:derivative",
-        "//markets:stochastic_tree_model",
+        "//derivatives:derivative",
+        "//trees:stochastic_tree_model",
         "@imgui",
         "@implot",
     ],
@@ -17,7 +17,7 @@ cc_library(
     name = "explorer_params",
     hdrs = ["explorer_params.h"],
     deps = [
-        "//markets/rates:rates_curve",
+        "//rates:rates_curve",
     ],
 )
 
@@ -29,12 +29,11 @@ cc_binary(
         ":global_rates",
         ":rate_curve_visualiser",
         ":vol_surface_factories",
-        "//markets:binomial_tree",
-        "//markets:propagators",
-        "//markets:stochastic_tree_model",
-        "//markets:volatility",
-        "//markets:yield_curve",
-        "//markets/rates:rates_curve",
+        "//rates:rates_curve",
+        "//trees:binomial_tree",
+        "//trees:propagators",
+        "//trees:stochastic_tree_model",
+        "//volatility",
         "@eigen",
         "@glfw",
         "@imgui",
@@ -49,7 +48,7 @@ cc_library(
     name = "global_rates",
     hdrs = ["global_rates.h"],
     deps = [
-        "//markets/rates:rates_curve",
+        "//rates:rates_curve",
         "@magic_enum",
     ],
 )
@@ -59,7 +58,7 @@ cc_library(
     hdrs = ["propagator_factories.h"],
     deps = [
         ":explorer_params",
-        "//markets:propagators",
+        "//trees:propagators",
     ],
 )
 
@@ -68,7 +67,7 @@ cc_library(
     hdrs = ["rate_curve_visualiser.h"],
     deps = [
         ":explorer_params",
-        "//markets/rates:rates_curve",
+        "//rates:rates_curve",
         "@imgui",
         "@implot",
     ],
@@ -79,6 +78,6 @@ cc_library(
     hdrs = ["vol_surface_factories.h"],
     deps = [
         ":explorer_params",
-        "//markets:volatility",
+        "//volatility",
     ],
 )

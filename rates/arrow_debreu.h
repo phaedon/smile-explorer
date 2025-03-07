@@ -1,7 +1,7 @@
 #ifndef MARKETS_RATES_ARROW_DEBREU_H_
 #define MARKETS_RATES_ARROW_DEBREU_H_
 
-#include "markets/binomial_tree.h"
+#include "trees/binomial_tree.h"
 
 namespace markets {
 

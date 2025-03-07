@@ -1,4 +1,4 @@
-#include "binomial_tree.h"
+#include "trees/binomial_tree.h"
 
 #include "absl/log/log.h"
 #include "rates/rates_curve.h"

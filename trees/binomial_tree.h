@@ -9,7 +9,7 @@
 
 #include "rates/rates_curve.h"
 #include "time.h"
-#include "volatility.h"
+#include "volatility/volatility.h"
 
 namespace markets {
 

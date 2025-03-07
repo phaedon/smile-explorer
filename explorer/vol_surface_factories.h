@@ -2,7 +2,7 @@
 #define MARKETS_EXPLORER_VOL_SURFACE_FACTORIES_
 
 #include "explorer_params.h"
-#include "markets/volatility.h"
+#include "volatility/volatility.h"
 
 namespace markets {
 

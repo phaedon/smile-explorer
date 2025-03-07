@@ -2,7 +2,7 @@
 #define MARKETS_EXPLORER_EXPLORER_PARAMS_
 
 #include "global_rates.h"
-#include "markets/rates/rates_curve.h"
+#include "rates/rates_curve.h"
 
 namespace markets {
 

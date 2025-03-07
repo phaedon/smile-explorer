@@ -1,10 +1,10 @@
 
 #include <ceres/ceres.h>
 
-#include "markets/binomial_tree.h"
-#include "markets/rates/arrow_debreu.h"
-#include "markets/rates/swaps.h"
-#include "markets/time.h"
+#include "rates/arrow_debreu.h"
+#include "rates/swaps.h"
+#include "time.h"
+#include "trees/binomial_tree.h"
 
 namespace markets {
 
