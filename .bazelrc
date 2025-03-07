@@ -1,0 +1,5 @@
+# Example for referencing a custom BCR branch:
+#query --registry=https://raw.githubusercontent.com/phaedon/bazel-central-registry/implot3d
+#build --registry=https://raw.githubusercontent.com/phaedon/bazel-central-registry/implot3d
+build --cxxopt=-std=c++20
+test --test_output=errors

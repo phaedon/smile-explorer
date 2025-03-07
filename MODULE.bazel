@@ -1,0 +1,29 @@
+bazel_dep(name = "abseil-cpp", version = "20250127.0")
+
+# Required for GLFW support on MacOS.
+bazel_dep(name = "apple_support", version = "1.18.0")
+
+bazel_dep(name = "boost.math", version = "1.83.0.bcr.1")
+bazel_dep(name = "ceres-solver", version = "2.2.0")
+bazel_dep(name = "eigen", version = "3.4.0.bcr.2")
+bazel_dep(name = "glfw", version = "3.3.9")
+bazel_dep(name = "google_benchmark", version = "1.9.1")
+bazel_dep(name = "googletest", version = "1.16.0")
+bazel_dep(name = "imgui", version = "1.91.8")
+bazel_dep(name = "implot", version = "0.16")
+bazel_dep(name = "implot3d", version = "0.2")
+bazel_dep(name = "libuuid", version = "2.39.3.bcr.1")
+bazel_dep(name = "magic_enum", version = "0.9.6")
+
+# Hedron's Compile Commands Extractor for Bazel
+# https://github.com/hedronvision/bazel-compile-commands-extractor
+# bazel run @hedron_compile_commands//:refresh_all
+bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
+
+# Even with this fix, it is apparently broken. But leaving this here for when the library is fixed.
+# https://github.com/hedronvision/bazel-compile-commands-extractor/pull/219#issuecomment-2607795958
+git_override(
+    module_name = "hedron_compile_commands",
+    remote = "https://github.com/mikael-s-persson/bazel-compile-commands-extractor",
+    commit = "f5fbd4cee671d8d908f37c83abaf70fba5928fc7",
+)
