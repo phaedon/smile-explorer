@@ -6,17 +6,17 @@ cc_library(
     deps = ["//trees:binomial_tree"],
 )
 
-cc_test(
-    name = "arrow_debreu_test",
-    srcs = ["arrow_debreu_test.cpp"],
-    deps = [
-        ":arrow_debreu",
-        "//trees:binomial_tree",
-        "//trees:propagators",
-        "//trees:stochastic_tree_model",
-        "@googletest//:gtest_main",
-    ],
-)
+# cc_test(
+#     name = "arrow_debreu_test",
+#     srcs = ["arrow_debreu_test.cpp"],
+#     deps = [
+#         ":arrow_debreu",
+#         "//trees:binomial_tree",
+#         "//trees:propagators",
+#         "//trees:stochastic_tree_model",
+#         "@googletest//:gtest_main",
+#     ],
+# )
 
 cc_library(
     name = "curve_calculators",

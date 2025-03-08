@@ -39,6 +39,9 @@ class Derivative {
 
   const BinomialTree& binomialTree() const { return deriv_tree_; }
 
+  // Exposed for testing.
+  const BinomialTree& arrowDebreuTree() const { return arrow_debreu_tree_; }
+
  private:
   BinomialTree deriv_tree_;
   BinomialTree arrow_debreu_tree_;
@@ -66,9 +69,14 @@ class Derivative {
         double prev_down =
             i == 0 ? 0 : arrow_debreu_tree_.nodeValue(ti - 1, i - 1);
         double prev_up = i == ti ? 0 : arrow_debreu_tree_.nodeValue(ti - 1, i);
-        double q = getUpProbAt(ti, i);
-        double ad_price =
-            forwardDF(ti - 1) * (q * prev_down + (1 - q) * prev_up);
+
+        // It's necessary to retrieve transition probabilities from different
+        // nodes in case of local vol.
+        double q_prev_down = i == 0 ? 0 : getUpProbAt(ti - 1, i - 1);
+        double q_prev_up = i == ti ? 0 : getUpProbAt(ti - 1, i);
+
+        double ad_price = forwardDF(ti - 1) *
+                          (q_prev_down * prev_down + (1 - q_prev_up) * prev_up);
         arrow_debreu_tree_.setValue(ti, i, ad_price);
       }
     }

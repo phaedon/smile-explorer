@@ -118,6 +118,17 @@ TEST(StochasticTreeModelTest, DermanChapter14_2) {
   Derivative deriv(&asset, &curve);
   double price = deriv.price(std::bind_front(&call_payoff, 102.0), 0.04);
   EXPECT_NEAR(0.0966, price, 0.0001);
+
+  // Risk-neutral cumulative probabilities from pg 469.
+  std::vector<std::vector<double>> expected = {
+      {1.},
+      {.5027, .4973},  //
+      {.2076, .4902, .3022},
+      {.1017, .3523, .4022, .1437},
+      {.0436, .2036, .3646, .2966, .0916}};
+
+  EXPECT_THAT(deriv.arrowDebreuTree(),
+              BinomialTreeMatchesUpToTimeIndex(expected, 0.0001));
 }
 
 TEST(StochasticTreeModelTest, DermanChapter14_3) {

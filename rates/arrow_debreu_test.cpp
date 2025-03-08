@@ -55,8 +55,6 @@ TEST(ArrowDebreauTest, Basic) {
     double spotrate = std::log(1 / df_i) / (t);
     std::cout << "time:" << i << "   spotrate:" << spotrate << std::endl;
   }
-
-  EXPECT_TRUE(false);
 }
 
 }  // namespace
