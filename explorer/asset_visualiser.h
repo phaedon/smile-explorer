@@ -2,6 +2,7 @@
 #ifndef MARKETS_EXPLORER_ASSET_VISUALISER_
 #define MARKETS_EXPLORER_ASSET_VISUALISER_
 
+#include "derivatives/bsm.h"
 #include "derivatives/derivative.h"
 #include "explorer_params.h"
 #include "imgui/imgui.h"
@@ -160,6 +161,28 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
     ImGui::InputText("European call",
                      buffer,
                      IM_ARRAYSIZE(buffer),
+                     ImGuiInputTextFlags_ReadOnly);
+
+    double df_end = prop_params.curve()->df(prop_params.option_expiry);
+    double cont_comp_spot_rate = fwdRateByPeriod(
+        1.0, df_end, prop_params.option_expiry, CompoundingPeriod::kContinuous);
+    double bsm_delta = call_delta(prop_params.spot_price,
+                                  prop_params.option_strike,
+                                  prop_params.flat_vol,
+                                  prop_params.option_expiry,
+                                  cont_comp_spot_rate,
+                                  0.0);
+    std::string bsm_delta_str = std::to_string(bsm_delta);
+    char delta_buffer[64];  // A buffer to hold the string (adjust
+                            // size as needed)
+    strncpy(delta_buffer,
+            bsm_delta_str.c_str(),
+            sizeof(delta_buffer) - 1);              // Copy to buffer
+    delta_buffer[sizeof(delta_buffer) - 1] = '\0';  // Ensure null termination
+
+    ImGui::InputText("BSM call delta",
+                     delta_buffer,
+                     IM_ARRAYSIZE(delta_buffer),
                      ImGuiInputTextFlags_ReadOnly);
 
     if (ImPlot::BeginPlot("Option Tree Plot", ImVec2(-1, 0))) {
