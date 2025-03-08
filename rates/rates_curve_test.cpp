@@ -13,10 +13,10 @@ TEST(RatesCurveTest, SimpleUncalibrated_Basic) {
   // TODO these are all approximations / sanity-checks during development and
   // are expected to fail, for now.
   SimpleUncalibratedShortRatesCurve curve(10.0, 0.1);
-  EXPECT_NEAR(0.05, curve.getForwardRate(0, 1), 0.0005);
-  EXPECT_NEAR(0.05, curve.getForwardRate(1, 2), 0.0005);
-  EXPECT_NEAR(0.05, curve.getForwardRate(0, 2), 0.0005);
-  EXPECT_NEAR(0.05, curve.getForwardRate(5, 7), 0.0010);
+  EXPECT_NEAR(0.05, curve.forwardRate(0, 1), 0.0005);
+  EXPECT_NEAR(0.05, curve.forwardRate(1, 2), 0.0005);
+  EXPECT_NEAR(0.05, curve.forwardRate(0, 2), 0.0005);
+  EXPECT_NEAR(0.05, curve.forwardRate(5, 7), 0.0010);
 
   EXPECT_NEAR(0.95, curve.df(1.0), 0.01);
   EXPECT_NEAR(0.9, curve.df(2.0), 0.01);
@@ -31,18 +31,18 @@ TEST(RatesCurveTest, ZeroSpotCurve) {
       {1, 2, 3}, {0.05, 0.0747, 0.0992}, CompoundingPeriod::kAnnual);
 
   // Textbook numbers are rounded slightly; that's ok.
-  EXPECT_NEAR(0.1, zeros.getForwardRate(1, 2), 0.0001);
-  EXPECT_NEAR(0.15, zeros.getForwardRate(2, 3), 0.0002);
+  EXPECT_NEAR(0.1, zeros.forwardRate(1, 2), 0.0001);
+  EXPECT_NEAR(0.15, zeros.forwardRate(2, 3), 0.0002);
 
   // Ensure constant forwards past the end of the provided curve.
-  EXPECT_NEAR(0.15, zeros.getForwardRate(100, 200), 0.0002);
+  EXPECT_NEAR(0.15, zeros.forwardRate(100, 200), 0.0002);
 
   EXPECT_DOUBLE_EQ(1.0, zeros.df(0.0));
   EXPECT_EQ(0, zeros.findClosestMaturityIndex(0.1));
   EXPECT_NEAR(std::exp(-0.05 * 0.1), zeros.df(0.1), 0.0005);
 
   for (double i = 0.0; i < 0.9; i += 0.1) {
-    EXPECT_NEAR(0.05, zeros.getForwardRate(i, i + 0.1), 0.0005);
+    EXPECT_NEAR(0.05, zeros.forwardRate(i, i + 0.1), 0.0005);
   }
 }
 

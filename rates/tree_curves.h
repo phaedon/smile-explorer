@@ -37,7 +37,7 @@ class SimpleUncalibratedShortRatesCurve : public RatesCurve {
     timegrid_ = short_rate_model_.binomialTree().getTimegrid();
   }
 
-  double getForwardRate(double start_time, double end_time) const override {
+  double forwardRate(double start_time, double end_time) const override {
     // TODO Add some error handling for cases like end_time <= start_time, etc.
     double df_start = df(start_time);
     double df_end = df(end_time);

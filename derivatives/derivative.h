@@ -57,11 +57,10 @@ class Derivative {
         double down_prob = 1 - up_prob;
 
         const auto& timegrid = asset_tree.getTimegrid();
-        double inv_fwd_df =
-            curve_->forwardDF(timegrid.time(t + 1), timegrid.time(t));
+        double fwd_df =
+            curve_->forwardDF(timegrid.time(t), timegrid.time(t + 1));
 
-        deriv_tree_.setValue(
-            t, i, inv_fwd_df * (up * up_prob + down * down_prob));
+        deriv_tree_.setValue(t, i, fwd_df * (up * up_prob + down * down_prob));
       }
     }
   }

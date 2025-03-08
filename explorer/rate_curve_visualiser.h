@@ -62,8 +62,8 @@ inline void PlotForwardRateCurves(ExplorerParams& prop_params) {
 
   for (double t = 1.0; t <= 10.0; t += 0.1) {
     timestamps.push_back(t);
-    spot_rates.push_back(prop_params.curve()->getForwardRate(0.0, t));
-    fwd_rates.push_back(prop_params.curve()->getForwardRate(t, t + 1.0));
+    spot_rates.push_back(prop_params.curve()->forwardRate(0.0, t));
+    fwd_rates.push_back(prop_params.curve()->forwardRate(t, t + 1.0));
   }
 
   if (ImPlot::BeginPlot("Rates", ImVec2(-1, -1))) {
