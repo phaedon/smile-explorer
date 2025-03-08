@@ -12,11 +12,27 @@ class Derivative {
  public:
   Derivative(const AssetT* asset, const RatesCurve* curve)
       : deriv_tree_(BinomialTree::createFrom(asset->binomialTree())),
+        arrow_debreu_tree_(BinomialTree::createFrom(asset->binomialTree())),
         asset_(asset),
         curve_(curve) {}
 
   double price(const std::function<double(double)>& payoff_fn,
                double expiry_years) {
+    // one possible method.
+    const auto& asset_tree = asset_->binomialTree();
+    updateArrowDebreuPrices();
+    double price = 0.;
+    auto t_final_or =
+        deriv_tree_.getTimegrid().getTimeIndexForExpiry(expiry_years);
+    int t_final = t_final_or.value();
+    // Set the payoff at each scenario on the maturity date.
+    for (int i = 0; i <= t_final; ++i) {
+      price += payoff_fn(asset_tree.nodeValue(t_final, i)) *
+               arrow_debreu_tree_.nodeValue(t_final, i);
+    }
+    return price;
+
+    // another possible method.
     runBackwardInduction(payoff_fn, expiry_years);
     return deriv_tree_.nodeValue(0, 0);
   }
@@ -25,8 +41,10 @@ class Derivative {
 
  private:
   BinomialTree deriv_tree_;
+  BinomialTree arrow_debreu_tree_;
 
  protected:
+  // Not owned. These are underlying securities and general market conditions.
   const AssetT* asset_;
   const RatesCurve* curve_;
 
@@ -38,6 +56,22 @@ class Derivative {
   double forwardDF(int t) const {
     const auto& timegrid = asset_->binomialTree().getTimegrid();
     return curve_->forwardDF(timegrid.time(t), timegrid.time(t + 1));
+  }
+
+  void updateArrowDebreuPrices() {
+    arrow_debreu_tree_.setValue(0, 0, 1.0);
+
+    for (int ti = 1; ti < arrow_debreu_tree_.numTimesteps(); ++ti) {
+      for (int i = 0; i <= ti; ++i) {
+        double prev_down =
+            i == 0 ? 0 : arrow_debreu_tree_.nodeValue(ti - 1, i - 1);
+        double prev_up = i == ti ? 0 : arrow_debreu_tree_.nodeValue(ti - 1, i);
+        double q = getUpProbAt(ti, i);
+        double ad_price =
+            forwardDF(ti - 1) * (q * prev_down + (1 - q) * prev_up);
+        arrow_debreu_tree_.setValue(ti, i, ad_price);
+      }
+    }
   }
 
   void runBackwardInduction(const std::function<double(double)>& payoff_fn,
