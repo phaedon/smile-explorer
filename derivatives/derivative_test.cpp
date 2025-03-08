@@ -109,22 +109,26 @@ TEST(DerivativeTest, VerifySubscriptionMechanism) {
   EXPECT_LT(price2, price1);
 }
 
-// TEST(DerivativeTest, CurrencyOption) {
-//   ZeroSpotCurve domestic_curve(
-//       {1, 3}, {0.05, 0.05}, CompoundingPeriod::kContinuous);
-//   ZeroSpotCurve foreign_curve(
-//       {1, 3}, {0.07, 0.07}, CompoundingPeriod::kContinuous);
+TEST(DerivativeTest, CurrencyOption) {
+  // Example based on Figure 13.12 on pg. 306 of John Hull, "Options,
+  // Futures..."
+  ZeroSpotCurve domestic_curve(
+      {1, 3}, {0.05, 0.05}, CompoundingPeriod::kContinuous);
+  ZeroSpotCurve foreign_curve(
+      {1, 3}, {0.07, 0.07}, CompoundingPeriod::kContinuous);
 
-//   StochasticTreeModel<CRRPropagator> asset(BinomialTree(.5, 1 / 12.),
-//                                            CRRPropagator(0.61));
-//   Volatility flat_vol(FlatVol(0.12));
-//   asset.forwardPropagate(flat_vol);
+  StochasticTreeModel<CRRPropagator> asset(BinomialTree(.5, 1 / 12.),
+                                           CRRPropagator(0.61));
+  Volatility flat_vol(FlatVol(0.12));
+  asset.forwardPropagate(flat_vol);
 
-//   CurrencyDerivative fxderiv(&asset, &domestic_curve, &foreign_curve);
-//   double option_price =
-//       fxderiv.price(std::bind_front(&call_payoff, 0.60), 0.25);
-//   EXPECT_NEAR(0.019, option_price, 0.0001);
-// }
+  CurrencyDerivative fxderiv(&asset, &domestic_curve, &foreign_curve);
+  double option_price =
+      fxderiv.price(std::bind_front(&call_payoff, 0.60), 0.25);
+  // The American option in Hull's example is closer to 0.01881. This is the
+  // same data but for the European option.
+  EXPECT_NEAR(0.01860, option_price, 0.00001);
+}
 
 }  // namespace
 }  // namespace markets

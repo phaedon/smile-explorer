@@ -117,10 +117,10 @@ class BinomialTree {
   }
 
   double getUpProbAt(const RatesCurve& curve, int time_index, int i) const;
-  // double getUpProbAt(const RatesCurve& domestic_curve,
-  //                    const RatesCurve& foreign_curve,
-  //                    int time_index,
-  //                    int i) const;
+  double getUpProbAt(const RatesCurve& domestic_curve,
+                     const RatesCurve& foreign_curve,
+                     int time_index,
+                     int i) const;
 
   void printProbTreeUpTo(const RatesCurve& curve, int ti) const {
     for (int t = 0; t <= ti; ++t) {

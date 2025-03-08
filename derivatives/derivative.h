@@ -23,15 +23,21 @@ class Derivative {
 
   const BinomialTree& binomialTree() const { return deriv_tree_; }
 
+ private:
+  BinomialTree deriv_tree_;
+
  protected:
   const AssetT* asset_;
   const RatesCurve* curve_;
 
  private:
-  BinomialTree deriv_tree_;
+  virtual double getUpProbAt(int time_index, int i) const {
+    return asset_->binomialTree().getUpProbAt(*curve_, time_index, i);
+  }
 
-  double getUpProbAt(int time_index, int i) const {
-    asset_->binomialTree().getUpProbAt(*curve_, time_index, i);
+  double forwardDF(int t) const {
+    const auto& timegrid = asset_->binomialTree().getTimegrid();
+    return curve_->forwardDF(timegrid.time(t), timegrid.time(t + 1));
   }
 
   void runBackwardInduction(const std::function<double(double)>& payoff_fn,
@@ -58,36 +64,32 @@ class Derivative {
       for (int i = 0; i <= t; ++i) {
         double up = deriv_tree_.nodeValue(t + 1, i + 1);
         double down = deriv_tree_.nodeValue(t + 1, i);
-        double up_prob = this->getUpProbAt(t, i);
-        double down_prob = 1 - up_prob;
-
-        const auto& timegrid = asset_tree.getTimegrid();
-        double fwd_df =
-            curve_->forwardDF(timegrid.time(t), timegrid.time(t + 1));
-
-        deriv_tree_.setValue(t, i, fwd_df * (up * up_prob + down * down_prob));
+        const double up_prob = getUpProbAt(t, i);
+        const double down_prob = 1 - up_prob;
+        deriv_tree_.setValue(
+            t, i, forwardDF(t) * (up * up_prob + down * down_prob));
       }
     }
   }
 };
 
-// template <typename AssetT>
-// class CurrencyDerivative : public Derivative<AssetT> {
-//  public:
-//   CurrencyDerivative(const AssetT* asset,
-//                      const RatesCurve* domestic_curve,
-//                      const RatesCurve* foreign_curve)
-//       : Derivative<AssetT>(asset, domestic_curve),
-//         foreign_curve_(foreign_curve) {}
+template <typename AssetT>
+class CurrencyDerivative : public Derivative<AssetT> {
+ public:
+  CurrencyDerivative(const AssetT* asset,
+                     const RatesCurve* domestic_curve,
+                     const RatesCurve* foreign_curve)
+      : Derivative<AssetT>(asset, domestic_curve),
+        foreign_curve_(foreign_curve) {}
 
-//   double getUpProbAt(int time_index, int i) const override {
-//     this->asset_->binomialTree().getUpProbAt(
-//         *this->curve_, *foreign_curve_, time_index, i);
-//   }
+  double getUpProbAt(int time_index, int i) const override {
+    return this->asset_->binomialTree().getUpProbAt(
+        *this->curve_, *foreign_curve_, time_index, i);
+  }
 
-//  private:
-//   const RatesCurve* foreign_curve_;
-// };
+ private:
+  const RatesCurve* foreign_curve_;
+};
 
 }  // namespace markets
 
