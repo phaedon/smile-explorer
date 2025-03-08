@@ -2,6 +2,7 @@
 #ifndef MARKETS_EXPLORER_RATE_CURVE_VISUALISER_
 #define MARKETS_EXPLORER_RATE_CURVE_VISUALISER_
 
+#include "absl/log/log.h"
 #include "explorer_params.h"
 #include "imgui/imgui.h"
 #include "implot.h"
