@@ -163,9 +163,11 @@ int main(int, char**) {
     markets::displayPairedAssetDerivativePanel<markets::CRRPropagator,
                                                markets::ConstantVolSurface>(
         "Cox-Ross-Rubinstein convention", crr_prop_params);
+
     markets::displayPairedAssetDerivativePanel<markets::JarrowRuddPropagator,
                                                markets::ConstantVolSurface>(
         "Jarrow-Rudd convention", jr_prop_params);
+
     markets::displayPairedAssetDerivativePanel<
         markets::LocalVolatilityPropagator,
         markets::SigmoidSmile>("Smile with a negative sigmoid function",

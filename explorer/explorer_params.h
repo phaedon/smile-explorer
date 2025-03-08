@@ -34,6 +34,8 @@ struct ExplorerParams {
 
   float sigmoid_vol_range = 0.3;
   float sigmoid_vol_stretch = 0.1;
+
+  float time_for_displaying_probability = 1.0;
 };
 }  // namespace markets
 

@@ -131,6 +131,14 @@ class BinomialTree {
     }
   }
 
+  std::vector<double> statesAtTimeIndex(int ti) const {
+    if (ti >= tree_.rows()) {
+      ti = tree_.rows() - 1;
+    }
+    const auto row = tree_.row(ti);
+    return std::vector<double>(row.begin(), row.begin() + ti + 1);
+  }
+
  private:
   Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> tree_;
   double tree_duration_years_;

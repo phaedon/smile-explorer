@@ -2,6 +2,8 @@
 #ifndef MARKETS_EXPLORER_ASSET_VISUALISER_
 #define MARKETS_EXPLORER_ASSET_VISUALISER_
 
+#include <algorithm>
+
 #include "derivatives/bsm.h"
 #include "derivatives/derivative.h"
 #include "explorer_params.h"
@@ -224,15 +226,56 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
     ImGui::Spacing();
   }
 
+  ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+  if (ImGui::TreeNode("Probabilities")) {
+    ImPlot::SetNextAxesToFit();
+
+    ImGui::SliderFloat("Time (years)",
+                       &prop_params.time_for_displaying_probability,
+                       0.1f,
+                       20.f,
+                       "%.3f",
+                       ImGuiSliderFlags_Logarithmic);
+    int time_index =
+        asset.binomialTree()
+            .getTimegrid()
+            .getTimeIndexForExpiry(prop_params.time_for_displaying_probability)
+            .value_or(asset.binomialTree().numTimesteps());
+
+    if (ImPlot::BeginPlot("Arrow-Debreu prices", ImVec2(-1, 0))) {
+      const auto prices = asset.binomialTree().statesAtTimeIndex(time_index);
+      const auto probabilities =
+          deriv.arrowDebreuTree().statesAtTimeIndex(time_index);
+
+      float bar_size = 1.;
+      if (prices.size() > 2) {
+        double min_spacing = std::numeric_limits<float>::infinity();
+        for (size_t i = 1; i < prices.size(); ++i) {
+          double distance = std::abs(prices[i] - prices[i - 1]);
+          min_spacing = std::min(min_spacing, distance);
+        }
+        bar_size = min_spacing * 0.9;
+      }
+
+      ImPlot::SetupAxisLimits(
+          ImAxis_Y1,
+          0,
+          *std::max_element(probabilities.begin(), probabilities.end()) * 1.1,
+          ImPlotCond_Always);
+      ImPlot::PlotBars("##Probabilities",
+                       prices.data(),
+                       probabilities.data(),
+                       prices.size(),
+                       bar_size);
+
+      ImPlot::EndPlot();
+    }
+    ImGui::TreePop();
+    ImGui::Spacing();
+  }
+
   ImGui::End();
 }
-
-/*
-template <>
-void displayPairedAssetDerivativePanel<
-    StochasticTreeModel<LocalVolatilityPropagator>>(
-    std::string_view window_name, ExplorerParams& prop_params) {}
-*/
 
 }  // namespace markets
 

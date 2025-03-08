@@ -30,17 +30,21 @@ class Derivative {
       price += payoff_fn(asset_tree.nodeValue(t_final, i)) *
                arrow_debreu_tree_.nodeValue(t_final, i);
     }
-    return price;
 
     // another possible method.
     runBackwardInduction(payoff_fn, expiry_years);
+
+    return price;
     return deriv_tree_.nodeValue(0, 0);
   }
 
   const BinomialTree& binomialTree() const { return deriv_tree_; }
 
   // Exposed for testing.
-  const BinomialTree& arrowDebreuTree() const { return arrow_debreu_tree_; }
+  const BinomialTree& arrowDebreuTree() {
+    updateArrowDebreuPrices();
+    return arrow_debreu_tree_;
+  }
 
  private:
   BinomialTree deriv_tree_;
