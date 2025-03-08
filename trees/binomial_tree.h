@@ -137,6 +137,15 @@ class BinomialTree {
   double timestep_years_;
 
   Timegrid timegrid_;
+
+  // Internal method to facilitate factoring out of common functionality,
+  // whether there is only one discount curve or two (in the case of currency
+  // derivs).
+  double getUpProbAt(
+      const RatesCurve& curve,
+      int t,
+      int i,
+      const std::optional<const RatesCurve*> foreign_curve) const;
 };
 
 struct TreeRenderData {
