@@ -9,8 +9,8 @@ namespace markets {
 struct ExplorerParams {
   ExplorerParams(GlobalRates* rates) : global_rates(rates) {}
 
-  float asset_tree_duration = 10.0;
-  float asset_tree_timestep = 0.25;
+  float asset_tree_duration = 3.0;
+  float asset_tree_timestep = 0.05;
   float spot_price = 100.;
 
   // Parameter for the Jarrow-Rudd convention.
@@ -26,7 +26,7 @@ struct ExplorerParams {
   Currency currency = Currency::USD;
 
   float option_expiry = 1.0;
-  float option_strike = 100.;
+  float option_strike = 105.;
 
   // sqrt(252) is chosen as a reasonable initial value, in the absence of any
   // other info.
