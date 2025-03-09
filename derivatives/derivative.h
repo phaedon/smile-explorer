@@ -7,19 +7,17 @@
 
 namespace markets {
 
-template <typename AssetT>
 class Derivative {
  public:
-  Derivative(const AssetT* asset, const RatesCurve* curve)
-      : deriv_tree_(BinomialTree::createFrom(asset->binomialTree())),
-        arrow_debreu_tree_(BinomialTree::createFrom(asset->binomialTree())),
-        asset_(asset),
+  Derivative(const BinomialTree* asset_tree, const RatesCurve* curve)
+      : deriv_tree_(BinomialTree::createFrom(*asset_tree)),
+        arrow_debreu_tree_(BinomialTree::createFrom(*asset_tree)),
+        asset_tree_(asset_tree),
         curve_(curve) {}
 
   double price(const std::function<double(double)>& payoff_fn,
                double expiry_years) {
     // one possible method.
-    const auto& asset_tree = asset_->binomialTree();
     updateArrowDebreuPrices();
     double price = 0.;
     auto t_final_or =
@@ -27,7 +25,7 @@ class Derivative {
     int t_final = t_final_or.value();
     // Set the payoff at each scenario on the maturity date.
     for (int i = 0; i <= t_final; ++i) {
-      price += payoff_fn(asset_tree.nodeValue(t_final, i)) *
+      price += payoff_fn(asset_tree_->nodeValue(t_final, i)) *
                arrow_debreu_tree_.nodeValue(t_final, i);
     }
 
@@ -52,16 +50,16 @@ class Derivative {
 
  protected:
   // Not owned. These are underlying securities and general market conditions.
-  const AssetT* asset_;
+  const BinomialTree* asset_tree_;
   const RatesCurve* curve_;
 
  private:
   virtual double getUpProbAt(int time_index, int i) const {
-    return asset_->binomialTree().getUpProbAt(*curve_, time_index, i);
+    return asset_tree_->getUpProbAt(*curve_, time_index, i);
   }
 
   double forwardDF(int t) const {
-    const auto& timegrid = asset_->binomialTree().getTimegrid();
+    const auto& timegrid = asset_tree_->getTimegrid();
     return curve_->forwardDF(timegrid.time(t), timegrid.time(t + 1));
   }
 
@@ -88,7 +86,6 @@ class Derivative {
 
   void runBackwardInduction(const std::function<double(double)>& payoff_fn,
                             double expiry_years) {
-    const auto& asset_tree = asset_->binomialTree();
     auto t_final_or =
         deriv_tree_.getTimegrid().getTimeIndexForExpiry(expiry_years);
     if (t_final_or == std::nullopt) {
@@ -102,7 +99,7 @@ class Derivative {
     // Set the payoff at each scenario on the maturity date.
     for (int i = 0; i <= t_final; ++i) {
       deriv_tree_.setValue(
-          t_final, i, payoff_fn(asset_tree.nodeValue(t_final, i)));
+          t_final, i, payoff_fn(asset_tree_->nodeValue(t_final, i)));
     }
 
     // Backward induction.
@@ -119,17 +116,15 @@ class Derivative {
   }
 };
 
-template <typename AssetT>
-class CurrencyDerivative : public Derivative<AssetT> {
+class CurrencyDerivative : public Derivative {
  public:
-  CurrencyDerivative(const AssetT* asset,
+  CurrencyDerivative(const BinomialTree* asset_tree,
                      const RatesCurve* domestic_curve,
                      const RatesCurve* foreign_curve)
-      : Derivative<AssetT>(asset, domestic_curve),
-        foreign_curve_(foreign_curve) {}
+      : Derivative(asset_tree, domestic_curve), foreign_curve_(foreign_curve) {}
 
   double getUpProbAt(int time_index, int i) const override {
-    return this->asset_->binomialTree().getUpProbAt(
+    return this->asset_tree_->getUpProbAt(
         *this->curve_, *foreign_curve_, time_index, i);
   }
 
