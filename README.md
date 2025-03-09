@@ -120,6 +120,27 @@ Here's the (backward-induction) tree for the 25-delta call, using a flat discoun
 
 ### A full example: Currency options and risk-neutral probabilities
 
+We can model an option on USD-ISK (the Icelandic króna) and look at the implied probability distribution of possible outcomes:
+
+```c++
+// Just be sure to pass the curves in the correct sequence!
+// See "A Guide to FX Options Quoting Conventions" (Reiswich & Wystup, 2010)
+CurrencyDerivative deriv(&usd_isk_tree, &isk_curve, &usd_curve);
+double option = deriv.price(
+        VanillaOption(/* strike= */ 160, OptionPayoff::Call),
+        0.5); // Expiry (in years)
+
+// To grab the probabilities:
+const auto states = asset.binomialTree().statesAtTimeIndex(time_index);
+const auto probabilities = 
+    deriv.arrowDebreuTree().statesAtTimeIndex(time_index);
+```
+
+Below is the distribution of (discounted) risk-neutral probabilities (Arrow-Debreu prices) using a constant annualised vol of 8% over 2 years. 
+
+With spot at 140 and an interest-rate differential of around 4%, you can see that the forward is around 150. This is a good visual sanity-check that the two yield curves are correctly handled when pricing derivatives on the exchange rate:
+
+![USDISK](documentation/assets/probabilities_usd_isk.png)
 
 
 
