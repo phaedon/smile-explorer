@@ -4,7 +4,7 @@
 #include <Eigen/Dense>
 #include <utility>
 
-#include "time/time.h"
+#include "time/timegrid.h"
 
 namespace markets {
 

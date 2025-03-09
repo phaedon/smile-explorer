@@ -1,6 +1,8 @@
 #ifndef MARKETS_RATES_RATES_CURVE_H_
 #define MARKETS_RATES_RATES_CURVE_H_
 
+#include <vector>
+
 #include "curve_calculators.h"
 #include "time.h"
 
