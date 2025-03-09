@@ -46,58 +46,45 @@ inline void displayAdditionalVolControls<SigmoidSmile>(
 }
 
 template <typename DerivativeT>
-inline void displayAdditionalDerivativeControls(ExplorerParams& prop_params) {}
+inline void displayAdditionalCurrencyControls(ExplorerParams& prop_params) {}
 
 // TODO: Refactor this (from the PlotForwardRateCurves impl) into a common
 // utility.
 template <>
-inline void displayAdditionalDerivativeControls<CurrencyDerivative>(
+inline void displayAdditionalCurrencyControls<CurrencyDerivative>(
     ExplorerParams& prop_params) {
   constexpr auto currency_names = magic_enum::enum_names<Currency>();
-  static int current_item = 0;  // Index of the currently selected item
-  // const char* items[] = currency_names.data();  // The options in the
-  // dropdown
-  if (ImGui::BeginCombo("Domestic", currency_names[current_item].data())) {
-    for (int n = 0; n < currency_names.size(); n++) {
-      bool is_selected = (current_item == n);  // Is this item selected?
-      if (ImGui::Selectable(currency_names[n].data(),
-                            is_selected))  // If the item is clicked
-      {
-        current_item = n;  // Update the selection
-      }
-      if (is_selected)
-        ImGui::SetItemDefaultFocus();  // Set the initial
-                                       // focus when
-                                       // opening the
-                                       // combo
-    }
-    ImGui::EndCombo();
-  }
-  prop_params.currency =
-      magic_enum::enum_cast<Currency>(currency_names[current_item]).value();
 
-  static int current_foreign_item = 0;  // Index of the currently selected item
-  // const char* items[] = currency_names.data();  // The options in the
-  // dropdown
-  if (ImGui::BeginCombo("Foreign",
-                        currency_names[current_foreign_item].data())) {
+  static int foreign_currency_index = 0;
+  if (ImGui::BeginCombo("Foreign (base)",
+                        currency_names[foreign_currency_index].data())) {
     for (int n = 0; n < currency_names.size(); n++) {
-      bool is_selected = (current_foreign_item == n);  // Is this item selected?
-      if (ImGui::Selectable(currency_names[n].data(),
-                            is_selected))  // If the item is clicked
-      {
-        current_foreign_item = n;  // Update the selection
+      bool is_selected = (foreign_currency_index == n);
+      if (ImGui::Selectable(currency_names[n].data(), is_selected)) {
+        foreign_currency_index = n;  // Update the selection
       }
-      if (is_selected)
-        ImGui::SetItemDefaultFocus();  // Set the initial
-                                       // focus when
-                                       // opening the
-                                       // combo
+      if (is_selected) ImGui::SetItemDefaultFocus();
     }
     ImGui::EndCombo();
   }
   prop_params.foreign_currency =
-      magic_enum::enum_cast<Currency>(currency_names[current_foreign_item])
+      magic_enum::enum_cast<Currency>(currency_names[foreign_currency_index])
+          .value();
+
+  static int domestic_currency_index = 0;
+  if (ImGui::BeginCombo("Domestic (numeraire)",
+                        currency_names[domestic_currency_index].data())) {
+    for (int n = 0; n < currency_names.size(); n++) {
+      bool is_selected = (domestic_currency_index == n);
+      if (ImGui::Selectable(currency_names[n].data(), is_selected)) {
+        domestic_currency_index = n;  // Update the selection
+      }
+      if (is_selected) ImGui::SetItemDefaultFocus();
+    }
+    ImGui::EndCombo();
+  }
+  prop_params.currency =
+      magic_enum::enum_cast<Currency>(currency_names[domestic_currency_index])
           .value();
 }
 
@@ -135,6 +122,8 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
 
   ImGui::SetNextItemOpen(true, ImGuiCond_Once);
   if (ImGui::TreeNode("Asset")) {
+    displayAdditionalCurrencyControls<DerivativeT>(prop_params);
+
     ImGui::SliderFloat("Tree duration",
                        &prop_params.asset_tree_duration,
                        0.1f,
@@ -210,7 +199,6 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
 
   ImGui::SetNextItemOpen(true, ImGuiCond_Once);
   if (ImGui::TreeNode("Option")) {
-    displayAdditionalDerivativeControls<DerivativeT>(prop_params);
     ImGui::SliderFloat("Expiry",
                        &prop_params.option_expiry,
                        0.0f,
@@ -240,6 +228,8 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
                      ImGuiInputTextFlags_ReadOnly);
 
     double df_end = prop_params.curve()->df(prop_params.option_expiry);
+    // TODO: there is a bug here in the closed-form delta, because we need the
+    // int-rate differential.
     double cont_comp_spot_rate = fwdRateByPeriod(
         1.0, df_end, prop_params.option_expiry, CompoundingPeriod::kContinuous);
     double bsm_delta = call_delta(prop_params.spot_price,

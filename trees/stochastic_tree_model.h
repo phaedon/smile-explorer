@@ -21,6 +21,8 @@ class StochasticTreeModel {
   void forwardPropagate(const VolatilityT& volatility) {
     binomial_tree_.resizeWithTimeDependentVol(volatility);
 
+    bool at_least_one_negative_node = false;
+
     for (int t = 0; t < binomial_tree_.numTimesteps(); ++t) {
       // Begin by setting the spine. For vol surfaces with no smile, the
       // iteration order doesn't matter, apart from possible performance, but
@@ -47,11 +49,13 @@ class StochasticTreeModel {
       // And then below the spine.
       for (int i = std::floor((t - 2) / 2); i >= 0; --i) {
         double node_value = propagator_(binomial_tree_, volatility, t, i);
-        if (node_value < 0) {
-          LOG(WARNING) << "Node is negative!";
-        }
+        at_least_one_negative_node |= node_value < 0;
         binomial_tree_.setValue(t, i, node_value);
       }
+    }
+
+    if (at_least_one_negative_node) {
+      LOG(WARNING) << "At least one negative node was found!";
     }
   }
 
