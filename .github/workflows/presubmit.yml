@@ -12,10 +12,10 @@ jobs:
 
     steps:
       - name: Checkout code
-      - uses: actions/checkout@v4
+        uses: actions/checkout@v4
 
       - name: Install Bazel
-      - uses: bazel-contrib/setup-bazel@0.14.0
+        uses: bazel-contrib/setup-bazel@0.14.0
         with:
           # Avoid downloading Bazel every time.
           bazelisk-cache: true
