@@ -291,7 +291,7 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
   }
 
   ImGui::SetNextItemOpen(true, ImGuiCond_Once);
-  if (ImGui::TreeNode("Probabilities")) {
+  if (ImGui::TreeNode("Risk-neutral probabilities")) {
     ImPlot::SetNextAxesToFit();
 
     ImGui::SliderFloat("Time (years)",
