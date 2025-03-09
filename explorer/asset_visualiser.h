@@ -204,9 +204,9 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
                        "%.2f",
                        ImGuiSliderFlags_Logarithmic);
 
-    double computed_value =
-        deriv.price(European(prop_params.option_strike, OptionPayoff::Call),
-                    prop_params.option_expiry);
+    double computed_value = deriv.price(
+        VanillaOption(prop_params.option_strike, OptionPayoff::Call),
+        prop_params.option_expiry);
     std::string value_str = std::to_string(computed_value);
     char buffer[64];  // A buffer to hold the string (adjust
                       // size as needed)

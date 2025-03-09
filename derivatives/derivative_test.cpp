@@ -25,11 +25,11 @@ TEST(DerivativeTest, TreePricingApproxEqualsBSM) {
   // Verify that tree pricing is close to the BSM closed-form price.
   double bsmcall = call(100, 100, 0.158745, 1.0);
   EXPECT_NEAR(
-      bsmcall, deriv.price(European(100, OptionPayoff::Call), 1.0), 0.005);
+      bsmcall, deriv.price(VanillaOption(100, OptionPayoff::Call), 1.0), 0.005);
 
   // Verify put-call parity since this is an ATM European option.
   EXPECT_NEAR(
-      bsmcall, deriv.price(European(100, OptionPayoff::Put), 1.0), 0.005);
+      bsmcall, deriv.price(VanillaOption(100, OptionPayoff::Put), 1.0), 0.005);
 
   // Verify that tree pricing matches BSM for an OTM option with discounting.
   const double disc_rate = 0.12;
@@ -37,7 +37,7 @@ TEST(DerivativeTest, TreePricingApproxEqualsBSM) {
   double bsm_otm_discounting = call(100, 105, 0.158745, 1.0, disc_rate);
   deriv = Derivative(&asset.binomialTree(), &curve);
   EXPECT_NEAR(bsm_otm_discounting,
-              deriv.price(European(105, OptionPayoff::Call), 1.0),
+              deriv.price(VanillaOption(105, OptionPayoff::Call), 1.0),
               0.005);
 
   // Verify that forward-propagation method doesn't affect the deriv price at
@@ -46,8 +46,8 @@ TEST(DerivativeTest, TreePricingApproxEqualsBSM) {
       BinomialTree(1.1, 1 / 360.), JarrowRuddPropagator(0.1, 100));
   jrasset.forwardPropagate(flat_vol);
   Derivative jrderiv(&jrasset.binomialTree(), &curve);
-  EXPECT_NEAR(jrderiv.price(European(105, OptionPayoff::Call), 1.0),
-              deriv.price(European(105, OptionPayoff::Call), 1.0),
+  EXPECT_NEAR(jrderiv.price(VanillaOption(105, OptionPayoff::Call), 1.0),
+              deriv.price(VanillaOption(105, OptionPayoff::Call), 1.0),
               0.005);
 }
 
@@ -86,9 +86,9 @@ TEST(DerivativeTest, VerifySubscriptionMechanism) {
 
   Derivative deriv(&asset.binomialTree(), &no_curve);
 
-  double price0 = deriv.price(European(100, OptionPayoff::Call), 1.0);
+  double price0 = deriv.price(VanillaOption(100, OptionPayoff::Call), 1.0);
   asset.forwardPropagate(Volatility(FlatVol{0.25}));
-  double price1 = deriv.price(European(100, OptionPayoff::Call), 1.0);
+  double price1 = deriv.price(VanillaOption(100, OptionPayoff::Call), 1.0);
   EXPECT_LT(price0, price1);
 
   // It's a bit annoying that you have to call forwardPropagate manually here,
@@ -97,7 +97,7 @@ TEST(DerivativeTest, VerifySubscriptionMechanism) {
   // could also treat spot the same way and not bake it into the propagator.
   asset.updateSpot(90);
   asset.forwardPropagate(Volatility(FlatVol{0.25}));
-  double price2 = deriv.price(European(100, OptionPayoff::Call), 1.0);
+  double price2 = deriv.price(VanillaOption(100, OptionPayoff::Call), 1.0);
   EXPECT_LT(price2, price1);
 }
 
@@ -116,10 +116,16 @@ TEST(DerivativeTest, CurrencyOption) {
 
   CurrencyDerivative fxderiv(
       &asset.binomialTree(), &domestic_curve, &foreign_curve);
-  double option_price = fxderiv.price(European(0.6, OptionPayoff::Call), 0.25);
-  // The American option in Hull's example is closer to 0.01881. This is the
-  // same data but for the European option.
+
+  // This is the European equivalent.
+  double option_price =
+      fxderiv.price(VanillaOption(0.6, OptionPayoff::Call), 0.25);
   EXPECT_NEAR(0.01860, option_price, 0.00001);
+
+  // This is the version in Hull.
+  double amer_option_price = fxderiv.price(
+      VanillaOption(0.6, OptionPayoff::Call, ExerciseStyle::American), 0.25);
+  EXPECT_NEAR(0.01888, amer_option_price, 0.00001);
 }
 
 }  // namespace
