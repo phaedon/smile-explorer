@@ -8,13 +8,26 @@
 
 namespace markets {
 
-enum class Currency {
-  USD,
-  EUR,
-  GBP,
-  JPY,
-  CHF,
-};
+enum class Currency { USD, EUR, JPY, CHF, NOK, ISK };
+
+// This is very hacked 0th-order approximation just to get something going,
+// in the absence of API access for market closes or live feeds.
+inline double getApproxRate(Currency currency) {
+  switch (currency) {
+    case Currency::USD:
+      return 0.042;
+    case Currency::EUR:
+      return 0.025;
+    case Currency::JPY:
+      return 0.01;
+    case Currency::NOK:
+      return 0.04;
+    case Currency::CHF:
+      return 0.0030;
+    case Currency::ISK:
+      return 0.082;
+  }
+}
 
 struct GlobalRates {
   GlobalRates() {
@@ -27,8 +40,11 @@ struct GlobalRates {
     // demo, not to match exact market rates.
     constexpr auto currencies = magic_enum::enum_values<Currency>();
     for (const auto currency : currencies) {
-      curves[currency] = std::make_unique<ZeroSpotCurve>(ZeroSpotCurve(
-          {1, 2, 5, 10}, {0.05, 0.05, 0.05, 0.05}, CompoundingPeriod::kAnnual));
+      double flat_rate = getApproxRate(currency);
+      curves[currency] = std::make_unique<ZeroSpotCurve>(
+          ZeroSpotCurve({1, 2, 5, 10},
+                        {flat_rate, flat_rate, flat_rate, flat_rate},
+                        CompoundingPeriod::kAnnual));
     }
   }
 

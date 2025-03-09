@@ -128,23 +128,6 @@ int main(int, char**) {
 
   ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-  markets::DermanExampleVol dermanvol;
-  markets::Volatility volsurface(dermanvol);
-
-  auto asset_tree = markets::BinomialTree::create(
-      std::chrono::months(38), std::chrono::days(10), markets::YearStyle::k360);
-
-  markets::DermanChapter14Vol volsmile_example(100);
-  markets::Volatility volsmilesurface(volsmile_example);
-  auto localvol_asset_tree = markets::BinomialTree::create(
-      std::chrono::months(36), std::chrono::days(10), markets::YearStyle::k360);
-  markets::ZeroSpotCurve curve(
-      {0.01, 1.0}, {0.04, 0.04}, markets::CompoundingPeriod::kContinuous);
-  markets::LocalVolatilityPropagator lv_prop_with_rates(curve, 100.0);
-  markets::StochasticTreeModel localvol_asset(std::move(localvol_asset_tree),
-                                              lv_prop_with_rates);
-  localvol_asset.forwardPropagate(volsmilesurface);
-
   markets::GlobalRates global_rates;
   markets::ExplorerParams crr_prop_params(&global_rates);
   markets::ExplorerParams jr_prop_params(&global_rates);

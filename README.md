@@ -79,13 +79,49 @@ There are more examples in the unit tests and the `explorer` code, and you can g
 
 One thing we had to add for local vol is a discount curve. The reason is that the method of tree construction requires computing the forward at each time step. As documented in the code, the technique follows the explanation in [*The Volatility Smile and Its Implied Tree*](https://emanuelderman.com/the-volatility-smile-and-its-implied-tree/) (Derman & Kani, 1994).
 
+### Rates
+
+We take a slight detour into discounting. 
+
+Because this library doesn't yet have short-rate / term-structure models, an initial approximation is provided in the class `ZeroSpotCurve`. You specify a vector of maturities (in years), a matching vector of zero-coupon bond yields, and a
+compounding convention, and a yield curve assuming constant forwards is provided. 
+
+You can then look up a discount factor or forward rate spanning any time period on this curve:
+
+```c++
+ZeroSpotCurve zeros(
+    {1, 2, 3, 5, 7, 10}, // maturities (in years)
+    {0.02, 0.025, 0.03, 0.04, 0.045, 0.048}, // zero rates
+    CompoundingPeriod::kAnnual);
+
+// In 1 year for 2 years:
+double rate_1x3 = zeros.forwardRate(1.0, 3.0);
+
+// Discount factor at year 4.5:
+double df = zeros.df(4.5); 
+```
+
+### Options
+
+The natural next step is to use these trees to price some options on the underlying asset. There are several examples of this throughout the explorer code and the unit tests (see in particular `derivative_test.cpp`).
+
+```c++
+auto option = Derivative(&asset.binomialTree(), &curve);
+double option_price = deriv.price(
+    VanillaOption(/* strike= */ 105, OptionPayoff::Call, ExerciseStyle::European), 
+    1.0); // Expiry (in years)
+```
+
+
+
+### Risk-neutral probabilities
 
 
 ## Why?
 
-While reviewing techniques for building binomial trees to price options and other derivatives, with extensions for time-dependent vol and skew/smile surfaces, I came across Andrej Karpathy's [Yes you should understand backprop](https://karpathy.medium.com/yes-you-should-understand-backprop-e2f06eab496b) and was inspired to do something similar for tree-based pricing methods.
+While reviewing techniques for building binomial trees to price options and other derivatives, with extensions for time-dependent vol and skew/smile surfaces, I came across Andrej Karpathy's [Yes you should understand backprop](https://karpathy.medium.com/yes-you-should-understand-backprop-e2f06eab496b) (for neural networks) and was inspired to do something similar for tree-based pricing methods.
 
-Or, according to the quote attributed to Richard Feynman: "What I cannot create, I do not understand."
+Or, according to the quote commonly attributed to Richard Feynman: "What I cannot create, I do not understand."
 
 
 ### Sources & attributions
