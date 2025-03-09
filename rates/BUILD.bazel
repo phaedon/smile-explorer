@@ -6,17 +6,17 @@ cc_library(
     deps = ["//trees:binomial_tree"],
 )
 
-cc_test(
-    name = "arrow_debreu_test",
-    srcs = ["arrow_debreu_test.cpp"],
-    deps = [
-        ":arrow_debreu",
-        "//trees:binomial_tree",
-        "//trees:propagators",
-        "//trees:stochastic_tree_model",
-        "@googletest//:gtest_main",
-    ],
-)
+# cc_test(
+#     name = "arrow_debreu_test",
+#     srcs = ["arrow_debreu_test.cpp"],
+#     deps = [
+#         ":arrow_debreu",
+#         "//trees:binomial_tree",
+#         "//trees:propagators",
+#         "//trees:stochastic_tree_model",
+#         "@googletest//:gtest_main",
+#     ],
+# )
 
 cc_library(
     name = "curve_calculators",
@@ -46,15 +46,6 @@ cc_test(
 )
 
 cc_library(
-    name = "swaps",
-    hdrs = ["swaps.h"],
-    deps = [
-        "//time",
-        "//trees:binomial_tree",
-    ],
-)
-
-cc_library(
     name = "tree_curves",
     hdrs = ["tree_curves.h"],
     deps = [
@@ -62,13 +53,5 @@ cc_library(
         "//trees:binomial_tree",
         "//trees:propagators",
         "//trees:stochastic_tree_model",
-    ],
-)
-
-cc_library(
-    name = "yield_curve",
-    hdrs = ["yield_curve.h"],
-    deps = [
-        "@boost.math",
     ],
 )

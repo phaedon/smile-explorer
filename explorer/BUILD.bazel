@@ -6,6 +6,7 @@ cc_library(
     deps = [
         ":explorer_params",
         ":propagator_factories",
+        "//derivatives:bsm",
         "//derivatives:derivative",
         "//trees:stochastic_tree_model",
         "@imgui",

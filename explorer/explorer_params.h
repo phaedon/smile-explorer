@@ -1,10 +1,10 @@
-#ifndef MARKETS_EXPLORER_EXPLORER_PARAMS_
-#define MARKETS_EXPLORER_EXPLORER_PARAMS_
+#ifndef SMILEEXPLORER_EXPLORER_EXPLORER_PARAMS_
+#define SMILEEXPLORER_EXPLORER_EXPLORER_PARAMS_
 
 #include "global_rates.h"
 #include "rates/rates_curve.h"
 
-namespace markets {
+namespace smileexplorer {
 
 struct ExplorerParams {
   ExplorerParams(GlobalRates* rates) : global_rates(rates) {}
@@ -20,10 +20,15 @@ struct ExplorerParams {
     return global_rates->curves[currency].get();
   }
 
+  const RatesCurve* foreign_curve() const {
+    return global_rates->curves[foreign_currency].get();
+  }
+
   // Not owned.
   GlobalRates* global_rates;
 
   Currency currency = Currency::USD;
+  Currency foreign_currency = Currency::EUR;
 
   float option_expiry = 1.0;
   float option_strike = 105.;
@@ -34,7 +39,9 @@ struct ExplorerParams {
 
   float sigmoid_vol_range = 0.3;
   float sigmoid_vol_stretch = 0.1;
-};
-}  // namespace markets
 
-#endif  // MARKETS_EXPLORER_EXPLORER_PARAMS_
+  float time_for_displaying_probability = 1.0;
+};
+}  // namespace smileexplorer
+
+#endif  // SMILEEXPLORER_EXPLORER_EXPLORER_PARAMS_

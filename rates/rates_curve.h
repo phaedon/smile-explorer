@@ -1,10 +1,12 @@
-#ifndef MARKETS_RATES_RATES_CURVE_H_
-#define MARKETS_RATES_RATES_CURVE_H_
+#ifndef SMILEEXPLORER_RATES_RATES_CURVE_H_
+#define SMILEEXPLORER_RATES_RATES_CURVE_H_
+
+#include <vector>
 
 #include "curve_calculators.h"
 #include "time.h"
 
-namespace markets {
+namespace smileexplorer {
 
 class RatesCurve {
  public:
@@ -13,9 +15,13 @@ class RatesCurve {
   // Return discount factor at any time in the future.
   virtual double df(double time) const = 0;
 
-  virtual double getForwardRate(double start_time, double end_time) const = 0;
+  virtual double forwardRate(double start_time, double end_time) const = 0;
 
   double forwardDF(double start_time, double end_time) const {
+    return df(end_time) / df(start_time);
+  }
+
+  double inverseForwardDF(double start_time, double end_time) const {
     return df(start_time) / df(end_time);
   }
 };
@@ -26,7 +32,7 @@ class NoDiscountingCurve : public RatesCurve {
  public:
   ~NoDiscountingCurve() override = default;
   double df(double time) const override { return 1.0; }
-  double getForwardRate(double start_time, double end_time) const override {
+  double forwardRate(double start_time, double end_time) const override {
     return 0.0;
   }
 };
@@ -67,7 +73,7 @@ class ZeroSpotCurve : public RatesCurve {
     return discrete_dfs_[ti_left] * dfByPeriod(fwdrate, dt, period_);
   }
 
-  double getForwardRate(double start_time, double end_time) const override {
+  double forwardRate(double start_time, double end_time) const override {
     double df_start = df(start_time);
     double df_end = df(end_time);
     double dt = end_time - start_time;
@@ -132,6 +138,6 @@ class ZeroSpotCurve : public RatesCurve {
   }
 };
 
-}  // namespace markets
+}  // namespace smileexplorer
 
-#endif  // MARKETS_RATES_RATES_CURVE_H_
+#endif  // SMILEEXPLORER_RATES_RATES_CURVE_H_

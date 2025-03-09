@@ -10,7 +10,7 @@
 #include "trees/propagators.h"
 #include "volatility/volatility.h"
 
-namespace markets {
+namespace smileexplorer {
 namespace {
 
 TEST(StochasticTreeModelTest, Derman_VolSmile_13_1) {
@@ -102,10 +102,6 @@ struct DermanChapter14Vol {
   double spot_price_;
 };
 
-double call_payoff(double strike, double val) {
-  return std::max(0.0, val - strike);
-}
-
 TEST(StochasticTreeModelTest, DermanChapter14_2) {
   // No discounting.
   ZeroSpotCurve curve({1.0, 10.0}, {0.0, 0.0}, CompoundingPeriod::kContinuous);
@@ -115,9 +111,20 @@ TEST(StochasticTreeModelTest, DermanChapter14_2) {
   StochasticTreeModel asset(std::move(tree), lv_prop);
   asset.forwardPropagate(Volatility(DermanChapter14Vol(100)));
 
-  Derivative deriv(&asset, &curve);
-  double price = deriv.price(std::bind_front(&call_payoff, 102.0), 0.04);
+  Derivative deriv(&asset.binomialTree(), &curve);
+  double price = deriv.price(VanillaOption(102, OptionPayoff::Call), 0.04);
   EXPECT_NEAR(0.0966, price, 0.0001);
+
+  // Risk-neutral cumulative probabilities from pg 469.
+  std::vector<std::vector<double>> expected = {
+      {1.},
+      {.5027, .4973},  //
+      {.2076, .4902, .3022},
+      {.1017, .3523, .4022, .1437},
+      {.0436, .2036, .3646, .2966, .0916}};
+
+  EXPECT_THAT(deriv.arrowDebreuTree(),
+              BinomialTreeMatchesUpToTimeIndex(expected, 0.0001));
 }
 
 TEST(StochasticTreeModelTest, DermanChapter14_3) {
@@ -128,8 +135,8 @@ TEST(StochasticTreeModelTest, DermanChapter14_3) {
 
   StochasticTreeModel asset(std::move(tree), lv_prop_with_rates);
   asset.forwardPropagate(Volatility(DermanChapter14Vol(100)));
-  Derivative deriv(&asset, &curve);
-  double price = deriv.price(std::bind_front(&call_payoff, 102.0), 0.04);
+  Derivative deriv(&asset.binomialTree(), &curve);
+  double price = deriv.price(VanillaOption(102, OptionPayoff::Call), 0.04);
 
   // These expected numbers are from page 470.
   std::vector<std::vector<double>> expected = {
@@ -147,4 +154,4 @@ TEST(StochasticTreeModelTest, DermanChapter14_3) {
 }
 
 }  // namespace
-}  // namespace markets
+}  // namespace smileexplorer

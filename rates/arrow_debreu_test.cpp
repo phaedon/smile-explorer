@@ -5,7 +5,7 @@
 #include "trees/propagators.h"
 #include "trees/stochastic_tree_model.h"
 
-namespace markets {
+namespace smileexplorer {
 namespace {
 
 TEST(ArrowDebreauTest, Basic) {
@@ -55,9 +55,7 @@ TEST(ArrowDebreauTest, Basic) {
     double spotrate = std::log(1 / df_i) / (t);
     std::cout << "time:" << i << "   spotrate:" << spotrate << std::endl;
   }
-
-  EXPECT_TRUE(false);
 }
 
 }  // namespace
-}  // namespace markets
+}  // namespace smileexplorer

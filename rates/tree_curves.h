@@ -1,6 +1,6 @@
 
-#ifndef MARKETS_RATES_TREE_CURVES_H_
-#define MARKETS_RATES_TREE_CURVES_H_
+#ifndef SMILEEXPLORER_RATES_TREE_CURVES_H_
+#define SMILEEXPLORER_RATES_TREE_CURVES_H_
 
 #include "arrow_debreu.h"
 #include "curve_calculators.h"
@@ -10,7 +10,7 @@
 #include "trees/propagators.h"
 #include "trees/stochastic_tree_model.h"
 
-namespace markets {
+namespace smileexplorer {
 
 class SimpleUncalibratedShortRatesCurve : public RatesCurve {
  public:
@@ -37,7 +37,7 @@ class SimpleUncalibratedShortRatesCurve : public RatesCurve {
     timegrid_ = short_rate_model_.binomialTree().getTimegrid();
   }
 
-  double getForwardRate(double start_time, double end_time) const override {
+  double forwardRate(double start_time, double end_time) const override {
     // TODO Add some error handling for cases like end_time <= start_time, etc.
     double df_start = df(start_time);
     double df_end = df(end_time);
@@ -82,6 +82,6 @@ class SimpleUncalibratedShortRatesCurve : public RatesCurve {
   }
 };
 
-}  // namespace markets
+}  // namespace smileexplorer
 
-#endif  // MARKETS_RATES_TREE_CURVES_H_
+#endif  // SMILEEXPLORER_RATES_TREE_CURVES_H_

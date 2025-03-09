@@ -4,7 +4,7 @@ cc_library(
     name = "volatility",
     hdrs = ["volatility.h"],
     deps = [
-        "//time",
+        "//time:timegrid",
         "@eigen",
     ],
 )

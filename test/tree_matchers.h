@@ -1,8 +1,8 @@
-#ifndef MARKETS_TEST_TREE_MATCHERS_H_
-#define MARKETS_TEST_TREE_MATCHERS_H_
+#ifndef SMILEEXPLORER_TEST_TREE_MATCHERS_H_
+#define SMILEEXPLORER_TEST_TREE_MATCHERS_H_
 
 #include "gmock/gmock.h"
-namespace markets {
+namespace smileexplorer {
 
 MATCHER_P2(BinomialTreeMatchesUpToTimeIndex, tree_excerpt, tolerance, "") {
   const BinomialTree& binomial_tree = arg;
@@ -20,16 +20,16 @@ MATCHER_P2(BinomialTreeMatchesUpToTimeIndex, tree_excerpt, tolerance, "") {
     }
 
     for (size_t j = 0; j < expected_row.size(); ++j) {
-      if (std::abs(binomial_tree.nodeValue(i, j) - expected_row[j]) >
-          tolerance) {
-        *result_listener << "Value at (" << i << ", " << j
-                         << ") does not match.";
+      const auto actual = binomial_tree.nodeValue(i, j);
+      if (std::abs(actual - expected_row[j]) > tolerance) {
+        *result_listener << "Value at (" << i << ", " << j << "):" << actual
+                         << " does not match:" << expected_row[j];
         return false;
       }
     }
   }
   return true;
 }
-}  // namespace markets
+}  // namespace smileexplorer
 
-#endif  // MARKETS_TEST_TREE_MATCHERS_H_
+#endif  // SMILEEXPLORER_TEST_TREE_MATCHERS_H_

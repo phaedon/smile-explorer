@@ -1,5 +1,5 @@
-#ifndef MARKETS_BINOMIAL_TREE_H_
-#define MARKETS_BINOMIAL_TREE_H_
+#ifndef SMILEEXPLORER_TREES_BINOMIAL_TREE_H_
+#define SMILEEXPLORER_TREES_BINOMIAL_TREE_H_
 
 #include <Eigen/Dense>
 #include <chrono>
@@ -11,7 +11,7 @@
 #include "time.h"
 #include "volatility/volatility.h"
 
-namespace markets {
+namespace smileexplorer {
 
 class BinomialTree {
  public:
@@ -117,6 +117,10 @@ class BinomialTree {
   }
 
   double getUpProbAt(const RatesCurve& curve, int time_index, int i) const;
+  double getUpProbAt(const RatesCurve& domestic_curve,
+                     const RatesCurve& foreign_curve,
+                     int time_index,
+                     int i) const;
 
   void printProbTreeUpTo(const RatesCurve& curve, int ti) const {
     for (int t = 0; t <= ti; ++t) {
@@ -127,12 +131,29 @@ class BinomialTree {
     }
   }
 
+  std::vector<double> statesAtTimeIndex(int ti) const {
+    if (ti >= tree_.rows()) {
+      ti = tree_.rows() - 1;
+    }
+    const auto row = tree_.row(ti);
+    return std::vector<double>(row.begin(), row.begin() + ti + 1);
+  }
+
  private:
   Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> tree_;
   double tree_duration_years_;
   double timestep_years_;
 
   Timegrid timegrid_;
+
+  // Internal method to facilitate factoring out of common functionality,
+  // whether there is only one discount curve or two (in the case of currency
+  // derivs).
+  double getUpProbAt(
+      const RatesCurve& curve,
+      int t,
+      int i,
+      const std::optional<const RatesCurve*> foreign_curve) const;
 };
 
 struct TreeRenderData {
@@ -186,6 +207,6 @@ inline TreeRenderData getTreeRenderData(const BinomialTree& tree) {
   return r;
 }
 
-}  // namespace markets
+}  // namespace smileexplorer
 
-#endif  // MARKETS_BINOMIAL_TREE_H_
+#endif  // SMILEEXPLORER_TREES_BINOMIAL_TREE_H_

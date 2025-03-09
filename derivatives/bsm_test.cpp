@@ -1,7 +1,7 @@
 #include "bsm.h"
 
 #include <gtest/gtest.h>
-namespace markets {
+namespace smileexplorer {
 namespace {
 
 TEST(BinomialTree, Derman_Page_239) {
@@ -21,4 +21,4 @@ TEST(BinomialTree, Derman_VolSmile_13_5) {
 }
 
 }  // namespace
-}  // namespace markets
+}  // namespace smileexplorer

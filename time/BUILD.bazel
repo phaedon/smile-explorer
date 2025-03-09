@@ -5,11 +5,16 @@ cc_library(
     hdrs = ["time.h"],
 )
 
+cc_library(
+    name = "timegrid",
+    hdrs = ["timegrid.h"],
+)
+
 cc_test(
-    name = "time_test",
-    srcs = ["time_test.cpp"],
+    name = "timegrid_test",
+    srcs = ["timegrid_test.cpp"],
     deps = [
-        ":time",
+        ":timegrid",
         "@googletest//:gtest_main",
     ],
 )

@@ -1,12 +1,12 @@
-#ifndef MARKETS_PROPAGATORS_H_
-#define MARKETS_PROPAGATORS_H_
+#ifndef SMILEEXPLORER_TREES_PROPAGATORS_H_
+#define SMILEEXPLORER_TREES_PROPAGATORS_H_
 
 #include <cmath>
 
 #include "rates/rates_curve.h"
 #include "trees/binomial_tree.h"
 
-namespace markets {
+namespace smileexplorer {
 
 struct CRRPropagator {
   CRRPropagator(double spot_price) : spot_price_(spot_price) {}
@@ -138,6 +138,6 @@ struct LocalVolatilityPropagator {
   double spot_price_;
 };
 
-}  // namespace markets
+}  // namespace smileexplorer
 
-#endif  // MARKETS_PROPAGATORS_H_
+#endif  // SMILEEXPLORER_TREES_PROPAGATORS_H_

@@ -1,12 +1,12 @@
-#ifndef MARKETS_VOLATILITY_H_
-#define MARKETS_VOLATILITY_H_
+#ifndef SMILEEXPLORER_VOLATILITY_H_
+#define SMILEEXPLORER_VOLATILITY_H_
 
 #include <Eigen/Dense>
 #include <utility>
 
-#include "time/time.h"
+#include "time/timegrid.h"
 
-namespace markets {
+namespace smileexplorer {
 
 // Returns sig_t_T
 inline double forwardVol(
@@ -88,6 +88,6 @@ Timegrid Volatility<VolSurfaceT>::generateTimegrid(
   }
 }
 
-}  // namespace markets
+}  // namespace smileexplorer
 
-#endif  // MARKETS_VOLATILITY_H_
+#endif  // SMILEEXPLORER_VOLATILITY_H_

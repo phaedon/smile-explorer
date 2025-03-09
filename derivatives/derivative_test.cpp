@@ -9,16 +9,8 @@
 #include "trees/stochastic_tree_model.h"
 #include "volatility/volatility.h"
 
-namespace markets {
+namespace smileexplorer {
 namespace {
-
-double call_payoff(double strike, double val) {
-  return std::max(0.0, val - strike);
-}
-
-double put_payoff(double strike, double val) {
-  return std::max(0.0, strike - val);
-}
 
 TEST(DerivativeTest, TreePricingApproxEqualsBSM) {
   // TODO: For now, this must be slightly longer because we have problems when
@@ -28,24 +20,24 @@ TEST(DerivativeTest, TreePricingApproxEqualsBSM) {
   Volatility flat_vol(FlatVol(0.158745));
   asset.forwardPropagate(flat_vol);
   NoDiscountingCurve no_curve;
-  Derivative deriv(&asset, &no_curve);
+  Derivative deriv(&asset.binomialTree(), &no_curve);
 
   // Verify that tree pricing is close to the BSM closed-form price.
   double bsmcall = call(100, 100, 0.158745, 1.0);
   EXPECT_NEAR(
-      bsmcall, deriv.price(std::bind_front(&call_payoff, 100.0), 1.0), 0.005);
+      bsmcall, deriv.price(VanillaOption(100, OptionPayoff::Call), 1.0), 0.005);
 
   // Verify put-call parity since this is an ATM European option.
   EXPECT_NEAR(
-      bsmcall, deriv.price(std::bind_front(&put_payoff, 100.0), 1.0), 0.005);
+      bsmcall, deriv.price(VanillaOption(100, OptionPayoff::Put), 1.0), 0.005);
 
   // Verify that tree pricing matches BSM for an OTM option with discounting.
   const double disc_rate = 0.12;
   ZeroSpotCurve curve({1.0, 10.0}, {disc_rate, disc_rate});
   double bsm_otm_discounting = call(100, 105, 0.158745, 1.0, disc_rate);
-  deriv = Derivative(&asset, &curve);
+  deriv = Derivative(&asset.binomialTree(), &curve);
   EXPECT_NEAR(bsm_otm_discounting,
-              deriv.price(std::bind_front(&call_payoff, 105.0), 1.0),
+              deriv.price(VanillaOption(105, OptionPayoff::Call), 1.0),
               0.005);
 
   // Verify that forward-propagation method doesn't affect the deriv price at
@@ -53,9 +45,9 @@ TEST(DerivativeTest, TreePricingApproxEqualsBSM) {
   StochasticTreeModel<JarrowRuddPropagator> jrasset(
       BinomialTree(1.1, 1 / 360.), JarrowRuddPropagator(0.1, 100));
   jrasset.forwardPropagate(flat_vol);
-  Derivative jrderiv(&jrasset, &curve);
-  EXPECT_NEAR(jrderiv.price(std::bind_front(&call_payoff, 105.0), 1.0),
-              deriv.price(std::bind_front(&call_payoff, 105.0), 1.0),
+  Derivative jrderiv(&jrasset.binomialTree(), &curve);
+  EXPECT_NEAR(jrderiv.price(VanillaOption(105, OptionPayoff::Call), 1.0),
+              deriv.price(VanillaOption(105, OptionPayoff::Call), 1.0),
               0.005);
 }
 
@@ -92,11 +84,11 @@ TEST(DerivativeTest, VerifySubscriptionMechanism) {
   asset.forwardPropagate(flat_vol);
   NoDiscountingCurve no_curve;
 
-  Derivative deriv(&asset, &no_curve);
+  Derivative deriv(&asset.binomialTree(), &no_curve);
 
-  double price0 = deriv.price(std::bind_front(&call_payoff, 100.0), 1.0);
+  double price0 = deriv.price(VanillaOption(100, OptionPayoff::Call), 1.0);
   asset.forwardPropagate(Volatility(FlatVol{0.25}));
-  double price1 = deriv.price(std::bind_front(&call_payoff, 100.0), 1.0);
+  double price1 = deriv.price(VanillaOption(100, OptionPayoff::Call), 1.0);
   EXPECT_LT(price0, price1);
 
   // It's a bit annoying that you have to call forwardPropagate manually here,
@@ -105,9 +97,36 @@ TEST(DerivativeTest, VerifySubscriptionMechanism) {
   // could also treat spot the same way and not bake it into the propagator.
   asset.updateSpot(90);
   asset.forwardPropagate(Volatility(FlatVol{0.25}));
-  double price2 = deriv.price(std::bind_front(&call_payoff, 100.0), 1.0);
+  double price2 = deriv.price(VanillaOption(100, OptionPayoff::Call), 1.0);
   EXPECT_LT(price2, price1);
 }
 
+TEST(DerivativeTest, CurrencyOption) {
+  // Example based on Figure 13.12 on pg. 306 of John Hull, "Options,
+  // Futures..."
+  ZeroSpotCurve domestic_curve(
+      {1, 3}, {0.05, 0.05}, CompoundingPeriod::kContinuous);
+  ZeroSpotCurve foreign_curve(
+      {1, 3}, {0.07, 0.07}, CompoundingPeriod::kContinuous);
+
+  StochasticTreeModel<CRRPropagator> asset(BinomialTree(.5, 1 / 12.),
+                                           CRRPropagator(0.61));
+  Volatility flat_vol(FlatVol(0.12));
+  asset.forwardPropagate(flat_vol);
+
+  CurrencyDerivative fxderiv(
+      &asset.binomialTree(), &domestic_curve, &foreign_curve);
+
+  // This is the European equivalent.
+  double option_price =
+      fxderiv.price(VanillaOption(0.6, OptionPayoff::Call), 0.25);
+  EXPECT_NEAR(0.01860, option_price, 0.00001);
+
+  // This is the version in Hull.
+  double amer_option_price = fxderiv.price(
+      VanillaOption(0.6, OptionPayoff::Call, ExerciseStyle::American), 0.25);
+  EXPECT_NEAR(0.01888, amer_option_price, 0.00001);
+}
+
 }  // namespace
-}  // namespace markets
+}  // namespace smileexplorer

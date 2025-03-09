@@ -1,12 +1,13 @@
 
-#ifndef MARKETS_EXPLORER_RATE_CURVE_VISUALISER_
-#define MARKETS_EXPLORER_RATE_CURVE_VISUALISER_
+#ifndef SMILEEXPLORER_EXPLORER_RATE_CURVE_VISUALISER_
+#define SMILEEXPLORER_EXPLORER_RATE_CURVE_VISUALISER_
 
+#include "absl/log/log.h"
 #include "explorer_params.h"
 #include "imgui/imgui.h"
 #include "implot.h"
 
-namespace markets {
+namespace smileexplorer {
 
 inline void PlotForwardRateCurves(ExplorerParams& prop_params) {
   ImGui::Begin("Spot/Forward Rates");
@@ -62,8 +63,8 @@ inline void PlotForwardRateCurves(ExplorerParams& prop_params) {
 
   for (double t = 1.0; t <= 10.0; t += 0.1) {
     timestamps.push_back(t);
-    spot_rates.push_back(prop_params.curve()->getForwardRate(0.0, t));
-    fwd_rates.push_back(prop_params.curve()->getForwardRate(t, t + 1.0));
+    spot_rates.push_back(prop_params.curve()->forwardRate(0.0, t));
+    fwd_rates.push_back(prop_params.curve()->forwardRate(t, t + 1.0));
   }
 
   if (ImPlot::BeginPlot("Rates", ImVec2(-1, -1))) {
@@ -94,6 +95,6 @@ inline void PlotForwardRateCurves(ExplorerParams& prop_params) {
   ImGui::End();
 }
 
-}  // namespace markets
+}  // namespace smileexplorer
 
-#endif  // MARKETS_EXPLORER_RATE_CURVE_VISUALISER_
+#endif  // SMILEEXPLORER_EXPLORER_RATE_CURVE_VISUALISER_

@@ -18,6 +18,7 @@ cc_library(
     name = "derivative",
     hdrs = ["derivative.h"],
     deps = [
+        ":vanilla_option",
         "//rates:rates_curve",
         "//trees:binomial_tree",
         "@abseil-cpp//absl/log",
@@ -34,5 +35,13 @@ cc_test(
         "//trees:stochastic_tree_model",
         "//volatility",
         "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "vanilla_option",
+    hdrs = ["vanilla_option.h"],
+    deps = [
+        "//trees:binomial_tree",
     ],
 )

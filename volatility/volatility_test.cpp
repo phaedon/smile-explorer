@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-namespace markets {
+namespace smileexplorer {
 
 namespace {
 
@@ -114,4 +114,4 @@ TEST(VolatilityTest, Derman_VolSmile_13_6) {
 }
 
 }  // namespace
-}  // namespace markets
+}  // namespace smileexplorer
