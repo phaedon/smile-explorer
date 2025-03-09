@@ -7,6 +7,16 @@
 
 namespace markets {
 
+struct European {
+  static double call(double strike, double val) {
+    return std::max(0.0, val - strike);
+  }
+
+  static double put(double strike, double val) {
+    return std::max(0.0, strike - val);
+  }
+};
+
 class Derivative {
  public:
   Derivative(const BinomialTree* asset_tree, const RatesCurve* curve)
@@ -31,8 +41,8 @@ class Derivative {
 
     // another possible method.
     runBackwardInduction(payoff_fn, expiry_years);
+    // return price;
 
-    return price;
     return deriv_tree_.nodeValue(0, 0);
   }
 

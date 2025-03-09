@@ -16,14 +16,6 @@
 
 namespace markets {
 
-inline double call_payoff(double strike, double val) {
-  return std::max(0.0, val - strike);
-}
-
-inline double put_payoff(double strike, double val) {
-  return std::max(0.0, strike - val);
-}
-
 template <typename VolFunctorT>
 inline void displayAdditionalVolControls(ExplorerParams& prop_params) {}
 
@@ -213,7 +205,7 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
                        ImGuiSliderFlags_Logarithmic);
 
     double computed_value = deriv.price(
-        std::bind_front(&markets::call_payoff, prop_params.option_strike),
+        std::bind_front(&markets::European::call, prop_params.option_strike),
         prop_params.option_expiry);
     std::string value_str = std::to_string(computed_value);
     char buffer[64];  // A buffer to hold the string (adjust

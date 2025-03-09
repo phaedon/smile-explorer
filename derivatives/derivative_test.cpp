@@ -12,14 +12,6 @@
 namespace markets {
 namespace {
 
-double call_payoff(double strike, double val) {
-  return std::max(0.0, val - strike);
-}
-
-double put_payoff(double strike, double val) {
-  return std::max(0.0, strike - val);
-}
-
 TEST(DerivativeTest, TreePricingApproxEqualsBSM) {
   // TODO: For now, this must be slightly longer because we have problems when
   // the underlying tree is exactly the length of the derivative.
@@ -32,12 +24,13 @@ TEST(DerivativeTest, TreePricingApproxEqualsBSM) {
 
   // Verify that tree pricing is close to the BSM closed-form price.
   double bsmcall = call(100, 100, 0.158745, 1.0);
-  EXPECT_NEAR(
-      bsmcall, deriv.price(std::bind_front(&call_payoff, 100.0), 1.0), 0.005);
+  EXPECT_NEAR(bsmcall,
+              deriv.price(std::bind_front(&European::call, 100.0), 1.0),
+              0.005);
 
   // Verify put-call parity since this is an ATM European option.
   EXPECT_NEAR(
-      bsmcall, deriv.price(std::bind_front(&put_payoff, 100.0), 1.0), 0.005);
+      bsmcall, deriv.price(std::bind_front(&European::put, 100.0), 1.0), 0.005);
 
   // Verify that tree pricing matches BSM for an OTM option with discounting.
   const double disc_rate = 0.12;
@@ -45,7 +38,7 @@ TEST(DerivativeTest, TreePricingApproxEqualsBSM) {
   double bsm_otm_discounting = call(100, 105, 0.158745, 1.0, disc_rate);
   deriv = Derivative(&asset.binomialTree(), &curve);
   EXPECT_NEAR(bsm_otm_discounting,
-              deriv.price(std::bind_front(&call_payoff, 105.0), 1.0),
+              deriv.price(std::bind_front(&European::call, 105.0), 1.0),
               0.005);
 
   // Verify that forward-propagation method doesn't affect the deriv price at
@@ -54,8 +47,8 @@ TEST(DerivativeTest, TreePricingApproxEqualsBSM) {
       BinomialTree(1.1, 1 / 360.), JarrowRuddPropagator(0.1, 100));
   jrasset.forwardPropagate(flat_vol);
   Derivative jrderiv(&jrasset.binomialTree(), &curve);
-  EXPECT_NEAR(jrderiv.price(std::bind_front(&call_payoff, 105.0), 1.0),
-              deriv.price(std::bind_front(&call_payoff, 105.0), 1.0),
+  EXPECT_NEAR(jrderiv.price(std::bind_front(&European::call, 105.0), 1.0),
+              deriv.price(std::bind_front(&European::call, 105.0), 1.0),
               0.005);
 }
 
@@ -94,9 +87,9 @@ TEST(DerivativeTest, VerifySubscriptionMechanism) {
 
   Derivative deriv(&asset.binomialTree(), &no_curve);
 
-  double price0 = deriv.price(std::bind_front(&call_payoff, 100.0), 1.0);
+  double price0 = deriv.price(std::bind_front(&European::call, 100.0), 1.0);
   asset.forwardPropagate(Volatility(FlatVol{0.25}));
-  double price1 = deriv.price(std::bind_front(&call_payoff, 100.0), 1.0);
+  double price1 = deriv.price(std::bind_front(&European::call, 100.0), 1.0);
   EXPECT_LT(price0, price1);
 
   // It's a bit annoying that you have to call forwardPropagate manually here,
@@ -105,7 +98,7 @@ TEST(DerivativeTest, VerifySubscriptionMechanism) {
   // could also treat spot the same way and not bake it into the propagator.
   asset.updateSpot(90);
   asset.forwardPropagate(Volatility(FlatVol{0.25}));
-  double price2 = deriv.price(std::bind_front(&call_payoff, 100.0), 1.0);
+  double price2 = deriv.price(std::bind_front(&European::call, 100.0), 1.0);
   EXPECT_LT(price2, price1);
 }
 
@@ -125,7 +118,7 @@ TEST(DerivativeTest, CurrencyOption) {
   CurrencyDerivative fxderiv(
       &asset.binomialTree(), &domestic_curve, &foreign_curve);
   double option_price =
-      fxderiv.price(std::bind_front(&call_payoff, 0.60), 0.25);
+      fxderiv.price(std::bind_front(&European::call, 0.60), 0.25);
   // The American option in Hull's example is closer to 0.01881. This is the
   // same data but for the European option.
   EXPECT_NEAR(0.01860, option_price, 0.00001);
