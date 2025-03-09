@@ -1,6 +1,6 @@
 ### Overview
 
-This library is intended to enable to build effective tools for developing deeper intuition into the details of tree-based construction and pricing of derivative securities, and is suitable for both professionals and students of quantitative finance.
+This library is intended to enable to build effective tools for developing deeper intuition into the details of tree-based construction and pricing of derivative securities, and is suitable for both seasoned professionals and students of quantitative finance.
 
 Because this is not intended for production use, some details are omitted. For example, there is no support for country-specific holiday calendars or details about exchange-traded contract specs.
 
@@ -8,11 +8,28 @@ Because this is not intended for production use, some details are omitted. For e
 ### Getting started
 Install [Bazel](https://bazel.build/install) and then run:
 ```shell
+# Launch the interactive GUI!
 bazel run explorer
+
+# Or just run all the unit tests.
 bazel test ...
 ```
 
 This library works on MacOS and Linux. (Windows is not yet supported because of the use of GLFW, which was recently added to the BCR without Windows support. See the [Bazel build rule here](https://github.com/bazelbuild/bazel-central-registry/blob/main/modules/glfw/3.3.9/patches/add_build_file.patch) for context.)
+
+### Features
+
+* **Tree-based models:** Implements binomial trees for accurate derivative pricing.
+* **Volatility Modeling:** Supports constant, term structure, and local volatility surfaces.
+* **Option Pricing:** Prices European and American options on assets and currencies.
+* **Visualization:** Provides tools for visualizing tree structures and probability distributions.
+
+### Roadmap / wish list
+
+* Implement short-rate models with calibration for interest-rate derivatives.
+* Add support for trinomial trees for easier calibration.
+* Improve visualisation capabilities for vol surfaces and interest rate curves. 
+
 
 ## A guided tour
 
@@ -64,10 +81,11 @@ One thing we had to add for local vol is a discount curve. The reason is that th
 
 
 
-
 ### Why?
 
 While reviewing techniques for building binomial trees to price options and other derivatives, with extensions for time-dependent vol and skew/smile surfaces, I came across Andrej Karpathy's [Yes you should understand backprop](https://karpathy.medium.com/yes-you-should-understand-backprop-e2f06eab496b) and was inspired to do something similar for tree-based pricing methods.
+
+Or, according to the quote attributed to Richard Feynman: "What I cannot create, I do not understand."
 
 
 ### Sources & attributions
