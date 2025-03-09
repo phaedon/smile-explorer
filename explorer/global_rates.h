@@ -26,6 +26,8 @@ inline double getApproxRate(Currency currency) {
       return 0.0030;
     case Currency::ISK:
       return 0.082;
+    default:
+      return 0.05;
   }
 }
 
