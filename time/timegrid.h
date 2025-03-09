@@ -1,6 +1,7 @@
 #ifndef SMILEEXPLORER_TIME_TIMEGRID_H_
 #define SMILEEXPLORER_TIME_TIMEGRID_H_
 
+#include <cmath>
 #include <limits>
 #include <optional>
 #include <vector>
