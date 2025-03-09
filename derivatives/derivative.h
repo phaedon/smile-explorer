@@ -1,5 +1,5 @@
-#ifndef MARKETS_DERIVATIVE_H_
-#define MARKETS_DERIVATIVE_H_
+#ifndef SMILEEXPLORER_DERIVATIVES_DERIVATIVE_H_
+#define SMILEEXPLORER_DERIVATIVES_DERIVATIVE_H_
 
 #include "absl/log/log.h"
 #include "rates/rates_curve.h"
@@ -130,4 +130,4 @@ class CurrencyDerivative : public Derivative {
 
 }  // namespace markets
 
-#endif  // MARKETS_DERIVATIVE_H_
+#endif  // SMILEEXPLORER_DERIVATIVES_DERIVATIVE_H_

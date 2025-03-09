@@ -1,5 +1,5 @@
-#ifndef MARKETS_TIME_H_
-#define MARKETS_TIME_H_
+#ifndef SMILEEXPLORER_TIME_H_
+#define SMILEEXPLORER_TIME_H_
 
 namespace markets {
 
@@ -38,4 +38,4 @@ inline double numDaysInYear(YearStyle style) {
 
 }  // namespace markets
 
-#endif  // MARKETS_TIME_H_
+#endif  // SMILEEXPLORER_TIME_H_

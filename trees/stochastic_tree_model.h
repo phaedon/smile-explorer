@@ -1,6 +1,6 @@
 
-#ifndef MARKETS_STOCHASTIC_TREE_MODEL_H_
-#define MARKETS_STOCHASTIC_TREE_MODEL_H_
+#ifndef SMILEEXPLORER_TREES_STOCHASTIC_TREE_MODEL_H_
+#define SMILEEXPLORER_TREES_STOCHASTIC_TREE_MODEL_H_
 
 #include "absl/log/log.h"
 #include "derivatives/derivative.h"
@@ -78,4 +78,4 @@ class StochasticTreeModel {
 
 }  // namespace markets
 
-#endif  // MARKETS_BINOMIAL_TREE_H_
+#endif  // SMILEEXPLORER_TREES_BINOMIAL_TREE_H_

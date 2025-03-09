@@ -1,6 +1,6 @@
 
-#ifndef MARKETS_EXPLORER_ASSET_VISUALISER_
-#define MARKETS_EXPLORER_ASSET_VISUALISER_
+#ifndef SMILEEXPLORER_EXPLORER_ASSET_VISUALISER_
+#define SMILEEXPLORER_EXPLORER_ASSET_VISUALISER_
 
 #include <algorithm>
 
@@ -335,4 +335,4 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
 
 }  // namespace markets
 
-#endif  // MARKETS_EXPLORER_ASSET_VISUALISER_
+#endif  // SMILEEXPLORER_EXPLORER_ASSET_VISUALISER_

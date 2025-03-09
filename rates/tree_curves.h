@@ -1,6 +1,6 @@
 
-#ifndef MARKETS_RATES_TREE_CURVES_H_
-#define MARKETS_RATES_TREE_CURVES_H_
+#ifndef SMILEEXPLORER_RATES_TREE_CURVES_H_
+#define SMILEEXPLORER_RATES_TREE_CURVES_H_
 
 #include "arrow_debreu.h"
 #include "curve_calculators.h"
@@ -84,4 +84,4 @@ class SimpleUncalibratedShortRatesCurve : public RatesCurve {
 
 }  // namespace markets
 
-#endif  // MARKETS_RATES_TREE_CURVES_H_
+#endif  // SMILEEXPLORER_RATES_TREE_CURVES_H_

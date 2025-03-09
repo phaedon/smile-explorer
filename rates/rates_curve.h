@@ -1,5 +1,5 @@
-#ifndef MARKETS_RATES_RATES_CURVE_H_
-#define MARKETS_RATES_RATES_CURVE_H_
+#ifndef SMILEEXPLORER_RATES_RATES_CURVE_H_
+#define SMILEEXPLORER_RATES_RATES_CURVE_H_
 
 #include <vector>
 
@@ -140,4 +140,4 @@ class ZeroSpotCurve : public RatesCurve {
 
 }  // namespace markets
 
-#endif  // MARKETS_RATES_RATES_CURVE_H_
+#endif  // SMILEEXPLORER_RATES_RATES_CURVE_H_

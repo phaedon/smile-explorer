@@ -1,5 +1,5 @@
-#ifndef MARKETS_EXPLORER_GLOBAL_RATES_
-#define MARKETS_EXPLORER_GLOBAL_RATES_
+#ifndef SMILEEXPLORER_EXPLORER_GLOBAL_RATES_
+#define SMILEEXPLORER_EXPLORER_GLOBAL_RATES_
 
 #include <unordered_map>
 
@@ -53,4 +53,4 @@ struct GlobalRates {
 
 }  // namespace markets
 
-#endif  // MARKETS_EXPLORER_GLOBAL_RATES_
+#endif  // SMILEEXPLORER_EXPLORER_GLOBAL_RATES_

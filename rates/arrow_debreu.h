@@ -1,5 +1,5 @@
-#ifndef MARKETS_RATES_ARROW_DEBREU_H_
-#define MARKETS_RATES_ARROW_DEBREU_H_
+#ifndef SMILEEXPLORER_RATES_ARROW_DEBREU_H_
+#define SMILEEXPLORER_RATES_ARROW_DEBREU_H_
 
 #include "trees/binomial_tree.h"
 
@@ -28,4 +28,4 @@ struct ArrowDebreauPropagator {
 
 }  // namespace markets
 
-#endif  // MARKETS_RATES_ARROW_DEBREU_H_
+#endif  // SMILEEXPLORER_RATES_ARROW_DEBREU_H_

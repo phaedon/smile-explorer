@@ -1,5 +1,5 @@
-#ifndef MARKETS_TEST_TREE_MATCHERS_H_
-#define MARKETS_TEST_TREE_MATCHERS_H_
+#ifndef SMILEEXPLORER_TEST_TREE_MATCHERS_H_
+#define SMILEEXPLORER_TEST_TREE_MATCHERS_H_
 
 #include "gmock/gmock.h"
 namespace markets {
@@ -32,4 +32,4 @@ MATCHER_P2(BinomialTreeMatchesUpToTimeIndex, tree_excerpt, tolerance, "") {
 }
 }  // namespace markets
 
-#endif  // MARKETS_TEST_TREE_MATCHERS_H_
+#endif  // SMILEEXPLORER_TEST_TREE_MATCHERS_H_

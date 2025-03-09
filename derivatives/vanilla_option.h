@@ -1,5 +1,5 @@
-#ifndef MARKETS_VANILLA_OPTION_H_
-#define MARKETS_VANILLA_OPTION_H_
+#ifndef SMILEEXPLORER_DERIVATIVES_VANILLA_OPTION_H_
+#define SMILEEXPLORER_DERIVATIVES_VANILLA_OPTION_H_
 
 #include "trees/binomial_tree.h"
 
@@ -56,4 +56,4 @@ struct VanillaOption {
 
 }  // namespace markets
 
-#endif  // MARKETS_VANILLA_OPTION_H_
+#endif  // SMILEEXPLORER_DERIVATIVES_VANILLA_OPTION_H_

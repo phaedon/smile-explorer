@@ -1,5 +1,5 @@
-#ifndef MARKETS_BINOMIAL_TREE_H_
-#define MARKETS_BINOMIAL_TREE_H_
+#ifndef SMILEEXPLORER_TREES_BINOMIAL_TREE_H_
+#define SMILEEXPLORER_TREES_BINOMIAL_TREE_H_
 
 #include <Eigen/Dense>
 #include <chrono>
@@ -209,4 +209,4 @@ inline TreeRenderData getTreeRenderData(const BinomialTree& tree) {
 
 }  // namespace markets
 
-#endif  // MARKETS_BINOMIAL_TREE_H_
+#endif  // SMILEEXPLORER_TREES_BINOMIAL_TREE_H_

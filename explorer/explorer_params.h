@@ -1,5 +1,5 @@
-#ifndef MARKETS_EXPLORER_EXPLORER_PARAMS_
-#define MARKETS_EXPLORER_EXPLORER_PARAMS_
+#ifndef SMILEEXPLORER_EXPLORER_EXPLORER_PARAMS_
+#define SMILEEXPLORER_EXPLORER_EXPLORER_PARAMS_
 
 #include "global_rates.h"
 #include "rates/rates_curve.h"
@@ -44,4 +44,4 @@ struct ExplorerParams {
 };
 }  // namespace markets
 
-#endif  // MARKETS_EXPLORER_EXPLORER_PARAMS_
+#endif  // SMILEEXPLORER_EXPLORER_EXPLORER_PARAMS_

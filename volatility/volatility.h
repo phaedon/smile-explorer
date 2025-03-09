@@ -1,5 +1,5 @@
-#ifndef MARKETS_VOLATILITY_H_
-#define MARKETS_VOLATILITY_H_
+#ifndef SMILEEXPLORER_VOLATILITY_H_
+#define SMILEEXPLORER_VOLATILITY_H_
 
 #include <Eigen/Dense>
 #include <utility>
@@ -90,4 +90,4 @@ Timegrid Volatility<VolSurfaceT>::generateTimegrid(
 
 }  // namespace markets
 
-#endif  // MARKETS_VOLATILITY_H_
+#endif  // SMILEEXPLORER_VOLATILITY_H_

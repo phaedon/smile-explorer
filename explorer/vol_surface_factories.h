@@ -1,5 +1,5 @@
-#ifndef MARKETS_EXPLORER_VOL_SURFACE_FACTORIES_
-#define MARKETS_EXPLORER_VOL_SURFACE_FACTORIES_
+#ifndef SMILEEXPLORER_EXPLORER_VOL_SURFACE_FACTORIES_
+#define SMILEEXPLORER_EXPLORER_VOL_SURFACE_FACTORIES_
 
 #include "explorer_params.h"
 #include "volatility/volatility.h"
@@ -55,4 +55,4 @@ inline Volatility<SigmoidSmile> createExampleVolSurface<SigmoidSmile>(
 
 }  // namespace markets
 
-#endif  // MARKETS_EXPLORER_VOL_SURFACE_FACTORIES_
+#endif  // SMILEEXPLORER_EXPLORER_VOL_SURFACE_FACTORIES_

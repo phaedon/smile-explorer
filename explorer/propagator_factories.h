@@ -1,5 +1,5 @@
-#ifndef MARKETS_EXPLORER_PROPAGATOR_FACTORIES_
-#define MARKETS_EXPLORER_PROPAGATOR_FACTORIES_
+#ifndef SMILEEXPLORER_EXPLORER_PROPAGATOR_FACTORIES_
+#define SMILEEXPLORER_EXPLORER_PROPAGATOR_FACTORIES_
 
 #include "explorer_params.h"
 #include "trees/propagators.h"
@@ -31,4 +31,4 @@ createDefaultPropagator<LocalVolatilityPropagator>(
 
 }  // namespace markets
 
-#endif  // MARKETS_EXPLORER_PROPAGATOR_FACTORIES_
+#endif  // SMILEEXPLORER_EXPLORER_PROPAGATOR_FACTORIES_

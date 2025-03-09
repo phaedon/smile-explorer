@@ -1,6 +1,6 @@
 
-#ifndef MARKETS_EXPLORER_RATE_CURVE_VISUALISER_
-#define MARKETS_EXPLORER_RATE_CURVE_VISUALISER_
+#ifndef SMILEEXPLORER_EXPLORER_RATE_CURVE_VISUALISER_
+#define SMILEEXPLORER_EXPLORER_RATE_CURVE_VISUALISER_
 
 #include "absl/log/log.h"
 #include "explorer_params.h"
@@ -97,4 +97,4 @@ inline void PlotForwardRateCurves(ExplorerParams& prop_params) {
 
 }  // namespace markets
 
-#endif  // MARKETS_EXPLORER_RATE_CURVE_VISUALISER_
+#endif  // SMILEEXPLORER_EXPLORER_RATE_CURVE_VISUALISER_

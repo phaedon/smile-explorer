@@ -1,5 +1,5 @@
-#ifndef MARKETS_TIME_TIMEGRID_H_
-#define MARKETS_TIME_TIMEGRID_H_
+#ifndef SMILEEXPLORER_TIME_TIMEGRID_H_
+#define SMILEEXPLORER_TIME_TIMEGRID_H_
 
 #include <limits>
 #include <optional>
@@ -80,4 +80,4 @@ inline std::optional<int> Timegrid::getTimeIndexForExpiry(
 
 }  // namespace markets
 
-#endif  // MARKETS_TIME_TIMEGRID_H_
+#endif  // SMILEEXPLORER_TIME_TIMEGRID_H_

@@ -1,5 +1,5 @@
-#ifndef MARKETS_PROPAGATORS_H_
-#define MARKETS_PROPAGATORS_H_
+#ifndef SMILEEXPLORER_TREES_PROPAGATORS_H_
+#define SMILEEXPLORER_TREES_PROPAGATORS_H_
 
 #include <cmath>
 
@@ -140,4 +140,4 @@ struct LocalVolatilityPropagator {
 
 }  // namespace markets
 
-#endif  // MARKETS_PROPAGATORS_H_
+#endif  // SMILEEXPLORER_TREES_PROPAGATORS_H_
