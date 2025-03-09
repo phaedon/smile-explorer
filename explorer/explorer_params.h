@@ -20,10 +20,15 @@ struct ExplorerParams {
     return global_rates->curves[currency].get();
   }
 
+  const RatesCurve* foreign_curve() const {
+    return global_rates->curves[foreign_currency].get();
+  }
+
   // Not owned.
   GlobalRates* global_rates;
 
   Currency currency = Currency::USD;
+  Currency foreign_currency = Currency::EUR;
 
   float option_expiry = 1.0;
   float option_strike = 105.;

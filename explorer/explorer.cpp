@@ -161,17 +161,25 @@ int main(int, char**) {
     markets::PlotForwardRateCurves(crr_prop_params);
 
     markets::displayPairedAssetDerivativePanel<markets::CRRPropagator,
-                                               markets::ConstantVolSurface>(
+                                               markets::ConstantVolSurface,
+                                               markets::Derivative>(
         "Cox-Ross-Rubinstein convention", crr_prop_params);
 
     markets::displayPairedAssetDerivativePanel<markets::JarrowRuddPropagator,
-                                               markets::ConstantVolSurface>(
+                                               markets::ConstantVolSurface,
+                                               markets::Derivative>(
         "Jarrow-Rudd convention", jr_prop_params);
 
     markets::displayPairedAssetDerivativePanel<
         markets::LocalVolatilityPropagator,
-        markets::SigmoidSmile>("Smile with a negative sigmoid function",
-                               localvol_prop_params);
+        markets::SigmoidSmile,
+        markets::Derivative>("Smile with a negative sigmoid function",
+                             localvol_prop_params);
+
+    markets::displayPairedAssetDerivativePanel<markets::JarrowRuddPropagator,
+                                               markets::ConstantVolSurface,
+                                               markets::CurrencyDerivative>(
+        "FX options", jr_prop_params);
 
     ImGui::Render();
     int display_w, display_h;
