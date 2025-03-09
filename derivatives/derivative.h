@@ -7,14 +7,40 @@
 
 namespace markets {
 
+enum class OptionPayoff { Call, Put };
+
 struct European {
-  static double call(double strike, double val) {
-    return std::max(0.0, val - strike);
+  European(double strike, OptionPayoff payoff)
+      : strike_(strike), payoff_(payoff) {}
+
+  double operator()(const BinomialTree& deriv_tree,
+                    const BinomialTree& asset_tree,
+                    int ti,
+                    int i,
+                    int ti_final,
+                    double up_prob,
+                    double fwd_df) const {
+    if (ti == ti_final) {
+      const double state = asset_tree.nodeValue(ti, i);
+      const double dist_from_strike =
+          payoff_ == OptionPayoff::Call ? state - strike_ : strike_ - state;
+      return std::max(0.0, dist_from_strike);
+    }
+
+    const double up = deriv_tree.nodeValue(ti + 1, i + 1);
+    const double down = deriv_tree.nodeValue(ti + 1, i);
+    const double down_prob = 1 - up_prob;
+
+    return fwd_df * (up * up_prob + down * down_prob);
   }
 
-  static double put(double strike, double val) {
-    return std::max(0.0, strike - val);
-  }
+  double strike_;
+  OptionPayoff payoff_;
+};
+
+struct American {
+  // TODO: Add state of deriv tree to evaluate each node as we step backwards.
+  American() {}
 };
 
 class Derivative {
@@ -25,24 +51,26 @@ class Derivative {
         asset_tree_(asset_tree),
         curve_(curve) {}
 
-  double price(const std::function<double(double)>& payoff_fn,
-               double expiry_years) {
-    // one possible method.
-    updateArrowDebreuPrices();
-    double price = 0.;
-    auto t_final_or =
-        deriv_tree_.getTimegrid().getTimeIndexForExpiry(expiry_years);
-    int t_final = t_final_or.value();
-    // Set the payoff at each scenario on the maturity date.
-    for (int i = 0; i <= t_final; ++i) {
-      price += payoff_fn(asset_tree_->nodeValue(t_final, i)) *
-               arrow_debreu_tree_.nodeValue(t_final, i);
-    }
+  // This is the Arrow-Debreu pricing method but it is only relevant for
+  // Europeans. Filing it away for now.
+  //
+  // double price(const std::function<double(double)>& payoff_fn,
+  //              double expiry_years) {
+  //   updateArrowDebreuPrices();
+  //   double price = 0.;
+  //   auto t_final_or =
+  //       deriv_tree_.getTimegrid().getTimeIndexForExpiry(expiry_years);
+  //   int t_final = t_final_or.value();
+  //   // Set the payoff at each scenario on the maturity date.
+  //   for (int i = 0; i <= t_final; ++i) {
+  //     price += payoff_fn(asset_tree_->nodeValue(t_final, i)) *
+  //              arrow_debreu_tree_.nodeValue(t_final, i);
+  //   }
+  //   return price;
+  // }
 
-    // another possible method.
-    runBackwardInduction(payoff_fn, expiry_years);
-    // return price;
-
+  double price(const European& european, double expiry_years) {
+    runBackwardInduction(european, expiry_years);
     return deriv_tree_.nodeValue(0, 0);
   }
 
@@ -94,33 +122,26 @@ class Derivative {
     }
   }
 
-  void runBackwardInduction(const std::function<double(double)>& payoff_fn,
+  template <typename OptionEvaluatorT>
+  void runBackwardInduction(const OptionEvaluatorT& option_evaluator,
                             double expiry_years) {
-    auto t_final_or =
+    auto ti_final_or =
         deriv_tree_.getTimegrid().getTimeIndexForExpiry(expiry_years);
-    if (t_final_or == std::nullopt) {
+    if (ti_final_or == std::nullopt) {
       LOG(ERROR) << "Backward induction is impossible for requested expiry "
                  << expiry_years;
       return;
     }
-    int t_final = t_final_or.value();
-    deriv_tree_.setZeroAfterIndex(t_final);
+    int ti_final = ti_final_or.value();
+    deriv_tree_.setZeroAfterIndex(ti_final);
 
-    // Set the payoff at each scenario on the maturity date.
-    for (int i = 0; i <= t_final; ++i) {
-      deriv_tree_.setValue(
-          t_final, i, payoff_fn(asset_tree_->nodeValue(t_final, i)));
-    }
-
-    // Backward induction.
-    for (int t = t_final - 1; t >= 0; --t) {
-      for (int i = 0; i <= t; ++i) {
-        double up = deriv_tree_.nodeValue(t + 1, i + 1);
-        double down = deriv_tree_.nodeValue(t + 1, i);
-        const double up_prob = getUpProbAt(t, i);
-        const double down_prob = 1 - up_prob;
-        deriv_tree_.setValue(
-            t, i, forwardDF(t) * (up * up_prob + down * down_prob));
+    for (int ti = ti_final; ti >= 0; --ti) {
+      for (int i = 0; i <= ti; ++i) {
+        const double up_prob = getUpProbAt(ti, i);
+        const double fwd_df = forwardDF(ti);
+        const double deriv_value_at_node = option_evaluator(
+            deriv_tree_, *asset_tree_, ti, i, ti_final, up_prob, fwd_df);
+        deriv_tree_.setValue(ti, i, deriv_value_at_node);
       }
     }
   }

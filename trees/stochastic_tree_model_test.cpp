@@ -112,7 +112,7 @@ TEST(StochasticTreeModelTest, DermanChapter14_2) {
   asset.forwardPropagate(Volatility(DermanChapter14Vol(100)));
 
   Derivative deriv(&asset.binomialTree(), &curve);
-  double price = deriv.price(std::bind_front(&European::call, 102.0), 0.04);
+  double price = deriv.price(European(102, OptionPayoff::Call), 0.04);
   EXPECT_NEAR(0.0966, price, 0.0001);
 
   // Risk-neutral cumulative probabilities from pg 469.
@@ -136,7 +136,7 @@ TEST(StochasticTreeModelTest, DermanChapter14_3) {
   StochasticTreeModel asset(std::move(tree), lv_prop_with_rates);
   asset.forwardPropagate(Volatility(DermanChapter14Vol(100)));
   Derivative deriv(&asset.binomialTree(), &curve);
-  double price = deriv.price(std::bind_front(&European::call, 102.0), 0.04);
+  double price = deriv.price(European(102, OptionPayoff::Call), 0.04);
 
   // These expected numbers are from page 470.
   std::vector<std::vector<double>> expected = {
