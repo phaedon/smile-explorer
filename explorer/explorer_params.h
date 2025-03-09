@@ -4,7 +4,7 @@
 #include "global_rates.h"
 #include "rates/rates_curve.h"
 
-namespace markets {
+namespace smileexplorer {
 
 struct ExplorerParams {
   ExplorerParams(GlobalRates* rates) : global_rates(rates) {}
@@ -42,6 +42,6 @@ struct ExplorerParams {
 
   float time_for_displaying_probability = 1.0;
 };
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_EXPLORER_EXPLORER_PARAMS_

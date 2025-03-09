@@ -3,7 +3,7 @@
 
 #include "trees/binomial_tree.h"
 
-namespace markets {
+namespace smileexplorer {
 
 struct ArrowDebreauPropagator {
   ArrowDebreauPropagator(const BinomialTree& rate_tree, int num_timesteps)
@@ -26,6 +26,6 @@ struct ArrowDebreauPropagator {
   const BinomialTree& rate_tree_;
 };
 
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_RATES_ARROW_DEBREU_H_

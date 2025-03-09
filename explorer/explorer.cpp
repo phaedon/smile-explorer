@@ -25,7 +25,7 @@ static void glfw_error_callback(int error, const char* description) {
   fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
-namespace markets {
+namespace smileexplorer {
 
 struct DermanExampleVol {
   static constexpr VolSurfaceFnType type = VolSurfaceFnType::kTermStructure;
@@ -93,7 +93,7 @@ struct DermanChapter14Vol {
   double spot_price_;
 };
 
-}  // namespace markets
+}  // namespace smileexplorer
 
 int main(int, char**) {
   glfwSetErrorCallback(glfw_error_callback);
@@ -128,10 +128,10 @@ int main(int, char**) {
 
   ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-  markets::GlobalRates global_rates;
-  markets::ExplorerParams crr_prop_params(&global_rates);
-  markets::ExplorerParams jr_prop_params(&global_rates);
-  markets::ExplorerParams localvol_prop_params(&global_rates);
+  smileexplorer::GlobalRates global_rates;
+  smileexplorer::ExplorerParams crr_prop_params(&global_rates);
+  smileexplorer::ExplorerParams jr_prop_params(&global_rates);
+  smileexplorer::ExplorerParams localvol_prop_params(&global_rates);
 
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
@@ -140,29 +140,30 @@ int main(int, char**) {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    markets::PlotVolSurface();
-    markets::PlotForwardRateCurves(crr_prop_params);
+    smileexplorer::PlotVolSurface();
+    smileexplorer::PlotForwardRateCurves(crr_prop_params);
 
-    markets::displayPairedAssetDerivativePanel<markets::CRRPropagator,
-                                               markets::ConstantVolSurface,
-                                               markets::Derivative>(
-        "Cox-Ross-Rubinstein convention", crr_prop_params);
+    smileexplorer::displayPairedAssetDerivativePanel<
+        smileexplorer::CRRPropagator,
+        smileexplorer::ConstantVolSurface,
+        smileexplorer::Derivative>("Cox-Ross-Rubinstein convention",
+                                   crr_prop_params);
 
-    markets::displayPairedAssetDerivativePanel<markets::JarrowRuddPropagator,
-                                               markets::ConstantVolSurface,
-                                               markets::Derivative>(
-        "Jarrow-Rudd convention", jr_prop_params);
+    smileexplorer::displayPairedAssetDerivativePanel<
+        smileexplorer::JarrowRuddPropagator,
+        smileexplorer::ConstantVolSurface,
+        smileexplorer::Derivative>("Jarrow-Rudd convention", jr_prop_params);
 
-    markets::displayPairedAssetDerivativePanel<
-        markets::LocalVolatilityPropagator,
-        markets::SigmoidSmile,
-        markets::Derivative>("Smile with a negative sigmoid function",
-                             localvol_prop_params);
+    smileexplorer::displayPairedAssetDerivativePanel<
+        smileexplorer::LocalVolatilityPropagator,
+        smileexplorer::SigmoidSmile,
+        smileexplorer::Derivative>("Smile with a negative sigmoid function",
+                                   localvol_prop_params);
 
-    markets::displayPairedAssetDerivativePanel<markets::JarrowRuddPropagator,
-                                               markets::ConstantVolSurface,
-                                               markets::CurrencyDerivative>(
-        "FX options", jr_prop_params);
+    smileexplorer::displayPairedAssetDerivativePanel<
+        smileexplorer::JarrowRuddPropagator,
+        smileexplorer::ConstantVolSurface,
+        smileexplorer::CurrencyDerivative>("FX options", jr_prop_params);
 
     ImGui::Render();
     int display_w, display_h;

@@ -2,6 +2,6 @@
 
 #include <gtest/gtest.h>
 
-namespace markets {
+namespace smileexplorer {
 namespace {}  // namespace
-}  // namespace markets
+}  // namespace smileexplorer

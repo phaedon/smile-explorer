@@ -5,7 +5,7 @@
 #include <optional>
 #include <vector>
 
-namespace markets {
+namespace smileexplorer {
 
 class Timegrid {
  public:
@@ -78,6 +78,6 @@ inline std::optional<int> Timegrid::getTimeIndexForExpiry(
   return std::nullopt;
 }
 
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_TIME_TIMEGRID_H_

@@ -3,7 +3,7 @@
 
 #include "trees/binomial_tree.h"
 
-namespace markets {
+namespace smileexplorer {
 
 enum class OptionPayoff { Call, Put };
 enum class ExerciseStyle { European, American };
@@ -54,6 +54,6 @@ struct VanillaOption {
   ExerciseStyle style_;
 };
 
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_DERIVATIVES_VANILLA_OPTION_H_

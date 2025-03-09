@@ -10,7 +10,7 @@
 #include "trees/propagators.h"
 #include "volatility/volatility.h"
 
-namespace markets {
+namespace smileexplorer {
 namespace {
 
 TEST(StochasticTreeModelTest, Derman_VolSmile_13_1) {
@@ -154,4 +154,4 @@ TEST(StochasticTreeModelTest, DermanChapter14_3) {
 }
 
 }  // namespace
-}  // namespace markets
+}  // namespace smileexplorer

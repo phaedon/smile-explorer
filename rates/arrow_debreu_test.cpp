@@ -5,7 +5,7 @@
 #include "trees/propagators.h"
 #include "trees/stochastic_tree_model.h"
 
-namespace markets {
+namespace smileexplorer {
 namespace {
 
 TEST(ArrowDebreauTest, Basic) {
@@ -58,4 +58,4 @@ TEST(ArrowDebreauTest, Basic) {
 }
 
 }  // namespace
-}  // namespace markets
+}  // namespace smileexplorer

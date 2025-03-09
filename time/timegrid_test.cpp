@@ -1,7 +1,7 @@
 #include "time/timegrid.h"
 
 #include <gtest/gtest.h>
-namespace markets {
+namespace smileexplorer {
 namespace {
 
 TEST(TimegridTest, RegularGrid) {
@@ -56,4 +56,4 @@ TEST(TimegridTest, IrregularGrid) {
 }
 
 }  // namespace
-}  // namespace markets
+}  // namespace smileexplorer

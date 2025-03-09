@@ -6,7 +6,7 @@
 #include "derivatives/derivative.h"
 #include "trees/binomial_tree.h"
 
-namespace markets {
+namespace smileexplorer {
 
 // A tree-based representation of a stochastic process that models the
 // diffusion of an underlying asset (such as a stock or commodity) or a
@@ -76,6 +76,6 @@ class StochasticTreeModel {
   PropagatorT propagator_;
 };
 
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_TREES_BINOMIAL_TREE_H_

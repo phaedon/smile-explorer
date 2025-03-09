@@ -11,7 +11,7 @@
 #include "time.h"
 #include "volatility/volatility.h"
 
-namespace markets {
+namespace smileexplorer {
 
 class BinomialTree {
  public:
@@ -207,6 +207,6 @@ inline TreeRenderData getTreeRenderData(const BinomialTree& tree) {
   return r;
 }
 
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_TREES_BINOMIAL_TREE_H_

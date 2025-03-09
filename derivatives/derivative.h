@@ -6,7 +6,7 @@
 #include "trees/binomial_tree.h"
 #include "vanilla_option.h"
 
-namespace markets {
+namespace smileexplorer {
 
 class Derivative {
  public:
@@ -128,6 +128,6 @@ class CurrencyDerivative : public Derivative {
   const RatesCurve* foreign_curve_;
 };
 
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_DERIVATIVES_DERIVATIVE_H_

@@ -5,7 +5,7 @@
 
 #include "time/time.h"
 
-namespace markets {
+namespace smileexplorer {
 
 inline double dfByPeriod(double r, double dt, CompoundingPeriod period) {
   const int p = static_cast<int>(period);
@@ -37,6 +37,6 @@ inline double fwdRateByPeriod(double df_start,
   }
 }
 
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_RATES_RATES_CURVE_H_

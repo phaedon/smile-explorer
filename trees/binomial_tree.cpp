@@ -3,7 +3,7 @@
 #include "absl/log/log.h"
 #include "rates/rates_curve.h"
 
-namespace markets {
+namespace smileexplorer {
 
 double BinomialTree::getUpProbAt(
     const RatesCurve& curve,
@@ -47,4 +47,4 @@ double BinomialTree::getUpProbAt(const RatesCurve& domestic_curve,
   return getUpProbAt(domestic_curve, t, i, &foreign_curve);
 }
 
-}  // namespace markets
+}  // namespace smileexplorer

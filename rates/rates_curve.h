@@ -6,7 +6,7 @@
 #include "curve_calculators.h"
 #include "time.h"
 
-namespace markets {
+namespace smileexplorer {
 
 class RatesCurve {
  public:
@@ -138,6 +138,6 @@ class ZeroSpotCurve : public RatesCurve {
   }
 };
 
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_RATES_RATES_CURVE_H_

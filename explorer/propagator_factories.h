@@ -4,7 +4,7 @@
 #include "explorer_params.h"
 #include "trees/propagators.h"
 
-namespace markets {
+namespace smileexplorer {
 
 template <typename FwdPropT>
 FwdPropT createDefaultPropagator(const ExplorerParams& params);
@@ -29,6 +29,6 @@ createDefaultPropagator<LocalVolatilityPropagator>(
   return LocalVolatilityPropagator(*params.curve(), params.spot_price);
 }
 
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_EXPLORER_PROPAGATOR_FACTORIES_

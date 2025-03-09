@@ -2,7 +2,7 @@
 #define SMILEEXPLORER_TEST_TREE_MATCHERS_H_
 
 #include "gmock/gmock.h"
-namespace markets {
+namespace smileexplorer {
 
 MATCHER_P2(BinomialTreeMatchesUpToTimeIndex, tree_excerpt, tolerance, "") {
   const BinomialTree& binomial_tree = arg;
@@ -30,6 +30,6 @@ MATCHER_P2(BinomialTreeMatchesUpToTimeIndex, tree_excerpt, tolerance, "") {
   }
   return true;
 }
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_TEST_TREE_MATCHERS_H_

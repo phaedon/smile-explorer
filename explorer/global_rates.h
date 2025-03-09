@@ -6,7 +6,7 @@
 #include "magic_enum.hpp"
 #include "rates/rates_curve.h"
 
-namespace markets {
+namespace smileexplorer {
 
 enum class Currency { USD, EUR, JPY, CHF, NOK, ISK };
 
@@ -51,6 +51,6 @@ struct GlobalRates {
   std::unordered_map<Currency, std::unique_ptr<RatesCurve>> curves;
 };
 
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_EXPLORER_GLOBAL_RATES_

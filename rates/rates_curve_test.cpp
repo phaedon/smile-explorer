@@ -6,7 +6,7 @@
 
 #include "tree_curves.h"
 
-namespace markets {
+namespace smileexplorer {
 namespace {
 
 TEST(RatesCurveTest, SimpleUncalibrated_Basic) {
@@ -61,4 +61,4 @@ TEST(RatesCurveTest, ForwardRatesAndDiscountFactorsMatch) {
 }
 
 }  // namespace
-}  // namespace markets
+}  // namespace smileexplorer

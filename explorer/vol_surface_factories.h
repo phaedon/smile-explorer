@@ -4,7 +4,7 @@
 #include "explorer_params.h"
 #include "volatility/volatility.h"
 
-namespace markets {
+namespace smileexplorer {
 
 struct ConstantVolSurface {
   static constexpr VolSurfaceFnType type =
@@ -53,6 +53,6 @@ inline Volatility<SigmoidSmile> createExampleVolSurface<SigmoidSmile>(
   return Volatility(SigmoidSmile(params));
 }
 
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_EXPLORER_VOL_SURFACE_FACTORIES_

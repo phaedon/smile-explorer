@@ -10,7 +10,7 @@
 #include "trees/propagators.h"
 #include "trees/stochastic_tree_model.h"
 
-namespace markets {
+namespace smileexplorer {
 
 class SimpleUncalibratedShortRatesCurve : public RatesCurve {
  public:
@@ -82,6 +82,6 @@ class SimpleUncalibratedShortRatesCurve : public RatesCurve {
   }
 };
 
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_RATES_TREE_CURVES_H_

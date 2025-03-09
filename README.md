@@ -66,10 +66,10 @@ Volatility vol(TermStructureExample{});
 There are more examples in the unit tests and the `explorer` code, and you can generate a tree based on a local vol surface, simply by switching out the propagator and providing your custom functor:
 
 ```c++
-  auto asset_tree = markets::BinomialTree::create(
-      std::chrono::months(12), std::chrono::days(10), markets::YearStyle::k360);
+  auto asset_tree = BinomialTree::create(
+      std::chrono::months(12), std::chrono::days(10), YearStyle::k360);
   ZeroSpotCurve curve(
-      {0.01, 1.0}, {0.04, 0.04}, markets::CompoundingPeriod::kContinuous);
+      {0.01, 1.0}, {0.04, 0.04}, CompoundingPeriod::kContinuous);
   LocalVolatilityPropagator propagator(curve, 100.0);
   StochasticTreeModel asset(std::move(asset_tree), propagator);
   asset.forwardPropagate(volsmilesurface);
@@ -142,7 +142,7 @@ With spot at 140 and an interest-rate differential of around 4%, you can see tha
 
 ![USDISK](documentation/assets/probabilities_usd_isk.png)
 
-
+For the full experience, launch the viewer, and change the rates and the other parameters to see the probability histogram update in real time!
 
 ## Why?
 

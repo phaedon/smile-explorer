@@ -7,7 +7,7 @@
 #include "imgui/imgui.h"
 #include "implot.h"
 
-namespace markets {
+namespace smileexplorer {
 
 inline void PlotForwardRateCurves(ExplorerParams& prop_params) {
   ImGui::Begin("Spot/Forward Rates");
@@ -95,6 +95,6 @@ inline void PlotForwardRateCurves(ExplorerParams& prop_params) {
   ImGui::End();
 }
 
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_EXPLORER_RATE_CURVE_VISUALISER_

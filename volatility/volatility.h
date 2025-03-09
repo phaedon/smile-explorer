@@ -6,7 +6,7 @@
 
 #include "time/timegrid.h"
 
-namespace markets {
+namespace smileexplorer {
 
 // Returns sig_t_T
 inline double forwardVol(
@@ -88,6 +88,6 @@ Timegrid Volatility<VolSurfaceT>::generateTimegrid(
   }
 }
 
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_VOLATILITY_H_

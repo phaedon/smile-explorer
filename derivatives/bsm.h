@@ -5,7 +5,7 @@
 #include <cmath>
 #include <complex>
 
-namespace markets {
+namespace smileexplorer {
 
 inline double normsdist(double x) {
   return 0.5 * (1.0 + std::erf(x / std::sqrt(2.0)));
@@ -41,6 +41,6 @@ inline double call_delta(
   return normsdist(d1);
 }
 
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILE_EXPLORER_DERIVATIVES_BSM_

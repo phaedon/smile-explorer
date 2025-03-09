@@ -9,7 +9,7 @@
 #include "trees/stochastic_tree_model.h"
 #include "volatility/volatility.h"
 
-namespace markets {
+namespace smileexplorer {
 namespace {
 
 TEST(DerivativeTest, TreePricingApproxEqualsBSM) {
@@ -129,4 +129,4 @@ TEST(DerivativeTest, CurrencyOption) {
 }
 
 }  // namespace
-}  // namespace markets
+}  // namespace smileexplorer

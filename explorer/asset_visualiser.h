@@ -14,7 +14,7 @@
 #include "vol_surface_factories.h"
 #include "volatility/volatility.h"
 
-namespace markets {
+namespace smileexplorer {
 
 template <typename VolFunctorT>
 inline void displayAdditionalVolControls(ExplorerParams& prop_params) {}
@@ -333,6 +333,6 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
   ImGui::End();
 }
 
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_EXPLORER_ASSET_VISUALISER_

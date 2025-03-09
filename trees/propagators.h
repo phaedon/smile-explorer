@@ -6,7 +6,7 @@
 #include "rates/rates_curve.h"
 #include "trees/binomial_tree.h"
 
-namespace markets {
+namespace smileexplorer {
 
 struct CRRPropagator {
   CRRPropagator(double spot_price) : spot_price_(spot_price) {}
@@ -138,6 +138,6 @@ struct LocalVolatilityPropagator {
   double spot_price_;
 };
 
-}  // namespace markets
+}  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_TREES_PROPAGATORS_H_
