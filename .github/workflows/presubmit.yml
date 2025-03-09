@@ -8,7 +8,10 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
 
     steps:
       - name: Checkout code
@@ -23,14 +26,17 @@ jobs:
           disk-cache: ${{ github.workflow }}
           # Share repository cache between workflows.
           repository-cache: true
-          
-      - name: Configure C++ environment
+
+      - name: Configure C++ environment (Ubuntu only)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential xorg-dev libgl1-mesa-dev
 
       - name: Build with Bazel
-        run: bazel build //...
+        run: |
+          bazel build //... ${{ (runner.os == 'macOS') && '--repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1' || '' }}
 
       - name: Run Tests with Bazel
-        run: bazel test //...
+        run: |
+          bazel test //... ${{ (runner.os == 'macOS') && '--repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1' || '' }}
