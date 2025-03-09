@@ -25,14 +25,16 @@ inline double numDaysInYear(YearStyle style) {
       return 365.25;
     case YearStyle::k365:
       return 365.0;
-    case YearStyle::k360:
-      return 360;
     case YearStyle::kBusinessDays252:
       // TODO: This is an estimated constant, but should really be
       // region-dependent.
       return 252.0;
     case YearStyle::kBusinessDays256:
       return 256.0;
+    case YearStyle::k360:
+    default:
+      // Arbitrary choice of default to satisfy GCC.
+      return 360;
   }
 }
 
