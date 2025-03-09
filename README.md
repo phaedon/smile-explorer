@@ -108,13 +108,19 @@ The natural next step is to use these trees to price some options on the underly
 ```c++
 auto option = Derivative(&asset.binomialTree(), &curve);
 double option_price = deriv.price(
-    VanillaOption(/* strike= */ 105, OptionPayoff::Call, ExerciseStyle::European), 
+    VanillaOption(/* strike= */ 118.3, OptionPayoff::Call, ExerciseStyle::European), 
     1.0); // Expiry (in years)
 ```
 
+Here's the (backward-induction) tree for the 25-delta call, using a flat discount rate of 5% and a volatility of `sqrt(252)`:
+
+![Option](documentation/assets/option_basic.png)
 
 
-### Risk-neutral probabilities
+
+### A full example: Currency options and risk-neutral probabilities
+
+
 
 
 ## Why?
