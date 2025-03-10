@@ -12,7 +12,7 @@ Because this is not intended for production use, some details are omitted. For e
 * **Volatility Modeling:** Supports constant, term structure, and local volatility surfaces.
 * **Option Pricing:** Prices European and American options on assets and currencies.
 * **Visualisation:** Provides tools for visualising tree structures and probability distributions.
-* **Robustness:** Unit tests are based on many examples from reference texts and are run as presubmits on [GitHub Actions](https://github.com/phaedon/smile-explorer/actions)
+* **Robustness:** Unit tests are based on many examples from reference texts and are automatically run as presubmits.
 
 ### Roadmap / wish list
 

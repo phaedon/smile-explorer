@@ -106,32 +106,43 @@ int main(int, char**) {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    smileexplorer::PlotVolSurface(crr_prop_params);
+    ImVec2 display_size = io.DisplaySize;
+
+    const double window_spacing = 20;
+
+    ImGui::SetNextWindowPos(ImVec2(display_size.x * 0.5, window_spacing));
+    ImGui::SetNextWindowSize(
+        ImVec2(display_size.x * 0.45, display_size.y * 0.45));
     smileexplorer::plotForwardRateCurves(crr_prop_params);
 
+    ImGui::SetNextWindowPos(ImVec2(10, window_spacing));
     smileexplorer::displayPairedAssetDerivativePanel<
         smileexplorer::CRRPropagator,
         smileexplorer::ConstantVolSurface,
         smileexplorer::Derivative>("Cox-Ross-Rubinstein convention",
                                    crr_prop_params);
 
+    ImGui::SetNextWindowPos(ImVec2(10, window_spacing * 2));
     smileexplorer::displayPairedAssetDerivativePanel<
         smileexplorer::JarrowRuddPropagator,
         smileexplorer::ConstantVolSurface,
         smileexplorer::Derivative>("Jarrow-Rudd convention", jr_prop_params);
 
+    ImGui::SetNextWindowPos(ImVec2(10, window_spacing * 3));
     smileexplorer::displayPairedAssetDerivativePanel<
         smileexplorer::CRRPropagator,
         smileexplorer::TermStructureVolSurface,
         smileexplorer::Derivative>("Deterministic term-structure vol",
                                    term_structure_params);
 
+    ImGui::SetNextWindowPos(ImVec2(10, window_spacing * 4));
     smileexplorer::displayPairedAssetDerivativePanel<
         smileexplorer::LocalVolatilityPropagator,
         smileexplorer::SigmoidSmile,
         smileexplorer::Derivative>("Smile with a negative sigmoid function",
                                    localvol_prop_params);
 
+    ImGui::SetNextWindowPos(ImVec2(10, window_spacing * 5));
     smileexplorer::displayPairedAssetDerivativePanel<
         smileexplorer::JarrowRuddPropagator,
         smileexplorer::ConstantVolSurface,
