@@ -41,6 +41,7 @@ cc_test(
 
 cc_library(
     name = "vanilla_option",
+    srcs = ["vanilla_option.cpp"],
     hdrs = ["vanilla_option.h"],
     deps = [
         ":bsm",

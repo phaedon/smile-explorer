@@ -138,6 +138,22 @@ class ZeroSpotCurve : public RatesCurve {
   }
 };
 
+// Utility for convenient extraction of two spot rates (continuously compounded)
+// for two different rate curves. These are the values passed to Black-Scholes.
+// We use "foreign" and "domestic" as per the FOR-DOM convention in FX.
+inline std::pair<double, double> dualCurrencyRates(
+    double t,
+    const RatesCurve& foreign_rates,
+    const RatesCurve& domestic_rates) {
+  double df_dom = domestic_rates.df(t);
+  double df_for = foreign_rates.df(t);
+  double r_dom =
+      fwdRateByPeriod(1.0, df_dom, t, CompoundingPeriod::kContinuous);
+  double r_for =
+      fwdRateByPeriod(1.0, df_for, t, CompoundingPeriod::kContinuous);
+  return {r_for, r_dom};
+}
+
 }  // namespace smileexplorer
 
 #endif  // SMILEEXPLORER_RATES_RATES_CURVE_H_
