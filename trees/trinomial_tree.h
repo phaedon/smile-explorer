@@ -1,6 +1,7 @@
 #ifndef SMILEEXPLORER_TREES_TRINOMIAL_TREE_H_
 #define SMILEEXPLORER_TREES_TRINOMIAL_TREE_H_
 
+#include <cmath>
 #include <numbers>
 #include <vector>
 
