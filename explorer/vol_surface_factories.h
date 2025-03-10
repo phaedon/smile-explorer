@@ -22,6 +22,24 @@ struct ConstantVolSurface {
   const ExplorerParams params_;
 };
 
+struct TermStructureVolSurface {
+  static constexpr VolSurfaceFnType type = VolSurfaceFnType::kTermStructure;
+  TermStructureVolSurface(const ExplorerParams& params) : params_(params) {}
+
+  double operator()(double t) const {
+    if (t <= 1) return params_.flat_vol;
+    // The parameters 1.2 and 1.1 are hard-coded to generate a simple tree which
+    // first becomes more dense (because of rising forward vol in year 2) and
+    // then less dense (falling forward vol in year 3). The discrete jumps serve
+    // to make it more visually obvious.
+    if (t <= 2)
+      return forwardVol(0, 1, 2, params_.flat_vol, params_.flat_vol * 1.2);
+    return forwardVol(0, 2, 3, params_.flat_vol * 1.2, params_.flat_vol * 1.1);
+  }
+
+  const ExplorerParams params_;
+};
+
 struct SigmoidSmile {
   static constexpr VolSurfaceFnType type =
       VolSurfaceFnType::kTimeInvariantSkewSmile;
