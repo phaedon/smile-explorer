@@ -9,7 +9,7 @@ Because this is not intended for production use, some details are omitted. For e
 * **Tree-based models:** Implements binomial trees for accurate derivative pricing.
 * **Volatility Modeling:** Supports constant, term structure, and local volatility surfaces.
 * **Option Pricing:** Prices European and American options on assets and currencies.
-* **Visualization:** Provides tools for visualizing tree structures and probability distributions.
+* **Visualisation:** Provides tools for visualising tree structures and probability distributions.
 
 ### Roadmap / wish list
 
@@ -28,7 +28,9 @@ bazel run explorer
 bazel test ...
 ```
 
-This library works on MacOS and Linux. (Windows is not yet supported because of the use of GLFW, which was recently added to the BCR without Windows support. See the [Bazel build rule here](https://github.com/bazelbuild/bazel-central-registry/blob/main/modules/glfw/3.3.9/patches/add_build_file.patch) for context.)
+This library, and the `explorer` binary, works on MacOS and Linux. 
+
+(The explorer is not yet supported on Windows, because it uses GLFW, which was recently added to the BCR without Windows support. See the [Bazel build rule here](https://github.com/bazelbuild/bazel-central-registry/blob/main/modules/glfw/3.3.9/patches/add_build_file.patch) for context.)
 
 
 ## A guided tour
