@@ -2,7 +2,6 @@
 
 #include <gtest/gtest.h>
 
-#include "bsm.h"
 #include "rates/rates_curve.h"
 #include "trees/binomial_tree.h"
 #include "trees/propagators.h"
@@ -24,20 +23,23 @@ TEST(DerivativeTest, TreePricingApproxEqualsBSM) {
   Derivative deriv(&asset.binomialTree(), &no_curve);
 
   // Verify that tree pricing is close to the BSM closed-form price.
-  double bsmcall = call(100, 100, 0.158745, 1.0);
-  EXPECT_NEAR(
-      bsmcall, deriv.price(VanillaOption(100, OptionPayoff::Call), 1.0), 0.005);
+  // double bsmcall = call(100, 100, 0.158745, 1.0);
+  VanillaOption vanilla_call(100, OptionPayoff::Call);
+  EXPECT_NEAR(vanilla_call.blackScholes(100, 0.158745, 1.0, 0.0, 0.0),
+              deriv.price(vanilla_call, 1.0),
+              0.005);
 
   // Verify put-call parity since this is an ATM European option.
-  EXPECT_NEAR(
-      bsmcall, deriv.price(VanillaOption(100, OptionPayoff::Put), 1.0), 0.005);
+  EXPECT_NEAR(vanilla_call.blackScholes(100, 0.158745, 1.0, 0.0, 0.0),
+              deriv.price(VanillaOption(100, OptionPayoff::Put), 1.0),
+              0.005);
 
   // Verify that tree pricing matches BSM for an OTM option with discounting.
   const double disc_rate = 0.12;
   ZeroSpotCurve curve({1.0, 10.0}, {disc_rate, disc_rate});
-  VanillaOption option(105, OptionPayoff::Call);
+  vanilla_call = VanillaOption(105, OptionPayoff::Call);
   double bsm_otm_discounting =
-      option.blackScholes(100, 0.158745, 1.0, disc_rate, 0.0);
+      vanilla_call.blackScholes(100, 0.158745, 1.0, disc_rate, 0.0);
   deriv = Derivative(&asset.binomialTree(), &curve);
   EXPECT_NEAR(bsm_otm_discounting,
               deriv.price(VanillaOption(105, OptionPayoff::Call), 1.0),

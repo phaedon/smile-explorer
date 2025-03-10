@@ -30,7 +30,6 @@ cc_test(
     name = "derivative_test",
     srcs = ["derivative_test.cpp"],
     deps = [
-        ":bsm",
         ":derivative",
         "//trees:propagators",
         "//trees:stochastic_tree_model",

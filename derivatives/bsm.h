@@ -46,16 +46,6 @@ inline double put(
          S * normsdist(-bsm_vals.d1) / bsm_vals.ebt;
 }
 
-// BSM with a risk-free rate.
-inline double call(double S, double K, double vol, double t, double r) {
-  return call(S, K, vol, t, r, 0.0);
-}
-
-// Simplest version: zero rates, no dividends.
-inline double call(double S, double K, double vol, double t) {
-  return call(S, K, vol, t, 0.0);
-}
-
 inline double call_delta(
     double S, double K, double vol, double t, double r, double div) {
   const auto bsm_vals = calculateBSMIntermediates(S, K, vol, t, r, div);
