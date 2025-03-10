@@ -35,6 +35,8 @@ double VanillaOption::blackScholesGreek(double spot,
                  : put_delta(spot, strike_, vol, t, r, div);
     case Greeks::Vega:
       return vega(spot, strike_, vol, t, r, div);
+    case Greeks::Gamma:
+      return gamma(spot, strike_, vol, t, r, div);
     default:
       return 0.0;
   }

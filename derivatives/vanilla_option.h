@@ -9,7 +9,7 @@ enum class OptionPayoff { Call, Put };
 enum class ExerciseStyle { European, American };
 
 // TODO expand this out.
-enum class Greeks { Delta, Vega };
+enum class Greeks { Delta, Vega, Gamma };
 
 struct VanillaOption {
   VanillaOption(double strike,

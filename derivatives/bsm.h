@@ -71,6 +71,12 @@ inline double vega(
   return S * std::exp(-div * t) * normpdf(bsm_vals.d1) * std::sqrt(t) * 0.01;
 }
 
+inline double gamma(
+    double S, double K, double vol, double t, double r, double div) {
+  const auto bsm_vals = calculateBSMIntermediates(S, K, vol, t, r, div);
+  return std::exp(-div * t) * normpdf(bsm_vals.d1) / (S * vol * std::sqrt(t));
+}
+
 }  // namespace smileexplorer
 
 #endif  // SMILE_EXPLORER_DERIVATIVES_BSM_

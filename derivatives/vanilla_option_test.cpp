@@ -32,6 +32,11 @@ TEST(VanillaOptionTest, CurrencyOptions) {
       vanilla.blackScholesGreek(
           spot, vol, expiry, foreign_curve, domestic_curve, Greeks::Vega),
       0.000005);
+  EXPECT_NEAR(
+      0.01368,
+      vanilla.blackScholesGreek(
+          spot, vol, expiry, foreign_curve, domestic_curve, Greeks::Gamma),
+      0.000005);
 }
 
 }  // namespace
