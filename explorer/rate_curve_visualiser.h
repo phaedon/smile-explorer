@@ -7,8 +7,32 @@
 #include "gui_widgets.h"
 #include "imgui/imgui.h"
 #include "implot.h"
+#include "magic_enum.hpp"
 
 namespace smileexplorer {
+
+inline void yieldCurveShiftButton(ExplorerParams& params) {
+  static int curve_shift_bps = 0;     // The integer variable
+  static bool buttonPressed = false;  // To check if the button was pressed.
+
+  ImGui::InputInt("Parallel curve shift (bps)", &curve_shift_bps);
+
+  if (ImGui::Button("Update curve")) {  // Button
+    buttonPressed = true;
+  }
+
+  if (buttonPressed) {
+    ZeroSpotCurve* zero_curve = dynamic_cast<ZeroSpotCurve*>(
+        params.global_rates->curves[params.currency].get());
+    const auto& input_rates = zero_curve->getInputRates();
+    for (int i = 0; i < input_rates.size(); ++i) {
+      zero_curve->updateRateAtMaturityIndex(
+          i, input_rates[i] + curve_shift_bps * 0.0001);
+    }
+
+    buttonPressed = false;  // Reset the button press flag
+  }
+}
 
 inline void plotForwardRateCurves(ExplorerParams& prop_params) {
   ImGui::Begin("Spot/Forward Rates");
@@ -28,6 +52,8 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
     LOG(ERROR) << "Rates curve for currency:" << currency_names[current_item]
                << " not convertible to a ZeroSpotCurve.";
   } else {
+    // Copy the values, because we have to provide these as floats (rather than
+    // doubles).
     std::vector<float> float_rates(zero_curve->getInputRates().begin(),
                                    zero_curve->getInputRates().end());
     ImGui::DragFloat4("{1,2,5,10}",
@@ -41,6 +67,8 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
       zero_curve->updateRateAtMaturityIndex(i, float_rates[i]);
     }
   }
+
+  yieldCurveShiftButton(prop_params);
 
   std::vector<float> timestamps;
   std::vector<float> spot_rates;
