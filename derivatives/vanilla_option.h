@@ -7,9 +7,7 @@ namespace smileexplorer {
 
 enum class OptionPayoff { Call, Put };
 enum class ExerciseStyle { European, American };
-
-// TODO expand this out.
-enum class Greeks { Delta, Vega, Gamma };
+enum class Greeks { Delta, Vega, Gamma, Theta };
 
 struct VanillaOption {
   VanillaOption(double strike,

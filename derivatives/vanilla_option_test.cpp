@@ -37,6 +37,23 @@ TEST(VanillaOptionTest, CurrencyOptions) {
       vanilla.blackScholesGreek(
           spot, vol, expiry, foreign_curve, domestic_curve, Greeks::Gamma),
       0.000005);
+  EXPECT_NEAR(
+      -0.01982,
+      vanilla.blackScholesGreek(
+          spot, vol, expiry, foreign_curve, domestic_curve, Greeks::Theta),
+      0.000005);
+
+  VanillaOption vanilla_put(strike, OptionPayoff::Put);
+  EXPECT_NEAR(
+      -0.49762,
+      vanilla_put.blackScholesGreek(
+          spot, vol, expiry, foreign_curve, domestic_curve, Greeks::Delta),
+      0.000005);
+  EXPECT_NEAR(
+      -0.00421,
+      vanilla_put.blackScholesGreek(
+          spot, vol, expiry, foreign_curve, domestic_curve, Greeks::Theta),
+      0.000005);
 }
 
 }  // namespace

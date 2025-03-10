@@ -77,6 +77,26 @@ inline double gamma(
   return std::exp(-div * t) * normpdf(bsm_vals.d1) / (S * vol * std::sqrt(t));
 }
 
+inline double call_theta(
+    double S, double K, double vol, double t, double r, double div) {
+  const auto bsm_vals = calculateBSMIntermediates(S, K, vol, t, r, div);
+  const double edivt = std::exp(-div * t);
+  const double ert_neg = std::exp(-r * t);
+  return -(S * edivt * normpdf(bsm_vals.d1) * vol / (2.0 * std::sqrt(t))) -
+         (r * K * ert_neg * normsdist(bsm_vals.d2)) +
+         (div * S * edivt * normsdist(bsm_vals.d1));
+}
+
+inline double put_theta(
+    double S, double K, double vol, double t, double r, double div) {
+  const double edivt = std::exp(-div * t);
+  const double ert_neg = std::exp(-r * t);
+  const auto bsm_vals = calculateBSMIntermediates(S, K, vol, t, r, div);
+  return -(S * edivt * normpdf(bsm_vals.d1) * vol / (2.0 * std::sqrt(t))) +
+         (r * K * ert_neg * normsdist(-bsm_vals.d2)) -
+         (div * S * edivt * normsdist(-bsm_vals.d1));
+}
+
 }  // namespace smileexplorer
 
 #endif  // SMILE_EXPLORER_DERIVATIVES_BSM_
