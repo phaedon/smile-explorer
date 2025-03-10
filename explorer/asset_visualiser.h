@@ -150,6 +150,20 @@ inline void displayBSMGreeks(const VanillaOption& vanilla,
                                                        rate,
                                                        0.0,
                                                        Greeks::Delta));
+  displayValueAsReadOnlyText("BSM gamma",
+                             vanilla.blackScholesGreek(params.spot_price,
+                                                       params.flat_vol,
+                                                       params.option_expiry,
+                                                       rate,
+                                                       0.0,
+                                                       Greeks::Gamma));
+  displayValueAsReadOnlyText("BSM vega",
+                             vanilla.blackScholesGreek(params.spot_price,
+                                                       params.flat_vol,
+                                                       params.option_expiry,
+                                                       rate,
+                                                       0.0,
+                                                       Greeks::Vega));
 }
 
 template <>
@@ -162,6 +176,20 @@ inline void displayBSMGreeks<CurrencyDerivative>(const VanillaOption& vanilla,
                                                        *params.foreign_curve(),
                                                        *params.curve(),
                                                        Greeks::Delta));
+  displayValueAsReadOnlyText("BSM call gamma",
+                             vanilla.blackScholesGreek(params.spot_price,
+                                                       params.flat_vol,
+                                                       params.option_expiry,
+                                                       *params.foreign_curve(),
+                                                       *params.curve(),
+                                                       Greeks::Gamma));
+  displayValueAsReadOnlyText("BSM call vega",
+                             vanilla.blackScholesGreek(params.spot_price,
+                                                       params.flat_vol,
+                                                       params.option_expiry,
+                                                       *params.foreign_curve(),
+                                                       *params.curve(),
+                                                       Greeks::Vega));
 }
 
 template <typename FwdPropT, typename VolFunctorT, typename DerivativeT>
