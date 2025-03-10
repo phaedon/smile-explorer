@@ -198,7 +198,7 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
   ImGuiIO& io = ImGui::GetIO();
   ImVec2 display_size = io.DisplaySize;
 
-  ImGui::SetNextWindowSize(ImVec2(display_size.x * 0.48, -1));
+  ImGui::SetNextWindowSize(ImVec2(display_size.x * 0.48, 0));
   ImGui::Begin(window_name.data());
 
   BinomialTree binomial_tree(prop_params.asset_tree_duration,
