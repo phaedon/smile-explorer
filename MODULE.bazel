@@ -13,3 +13,8 @@ bazel_dep(name = "imgui", version = "1.91.8")
 bazel_dep(name = "implot", version = "0.16")
 bazel_dep(name = "implot3d", version = "0.2")
 bazel_dep(name = "magic_enum", version = "0.9.6")
+
+# Consider adding integration with
+# https://github.com/aspect-build/rules_lint?tab=readme-ov-file
+# https://github.com/aspect-build/rules_lint/blob/v1.2.2/docs/linting.md
+# bazel_dep(name = "aspect_rules_lint", version = "1.2.2")
