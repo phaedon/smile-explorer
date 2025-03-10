@@ -167,6 +167,32 @@ inline CurrencyDerivative createDerivative<CurrencyDerivative>(
   return CurrencyDerivative(asset_tree, params.curve(), params.foreign_curve());
 }
 
+template <typename DerivativeT>
+inline void displayBSMGreeks(const VanillaOption& vanilla,
+                             const ExplorerParams& params) {
+  const auto [rate, _] = dualCurrencyRates(
+      params.option_expiry, *params.curve(), NoDiscountingCurve());
+  displayValueAsReadOnlyText("BSM call delta",
+                             vanilla.blackScholesGreek(params.spot_price,
+                                                       params.flat_vol,
+                                                       params.option_expiry,
+                                                       rate,
+                                                       0.0,
+                                                       Greeks::Delta));
+}
+
+template <>
+inline void displayBSMGreeks<CurrencyDerivative>(const VanillaOption& vanilla,
+                                                 const ExplorerParams& params) {
+  displayValueAsReadOnlyText("BSM call delta",
+                             vanilla.blackScholesGreek(params.spot_price,
+                                                       params.flat_vol,
+                                                       params.option_expiry,
+                                                       *params.foreign_curve(),
+                                                       *params.curve(),
+                                                       Greeks::Delta));
+}
+
 template <typename FwdPropT, typename VolFunctorT, typename DerivativeT>
 void displayPairedAssetDerivativePanel(std::string_view window_name,
                                        ExplorerParams& prop_params) {
@@ -246,20 +272,7 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
     displayValueAsReadOnlyText("European call",
                                deriv.price(vanilla, prop_params.option_expiry));
 
-    double df_end = prop_params.curve()->df(prop_params.option_expiry);
-    // TODO: there is a bug here in the closed-form delta, because we need the
-    // int-rate differential.
-    double cont_comp_spot_rate = fwdRateByPeriod(
-        1.0, df_end, prop_params.option_expiry, CompoundingPeriod::kContinuous);
-
-    displayValueAsReadOnlyText(
-        "BSM call delta",
-        vanilla.blackScholesGreek(prop_params.spot_price,
-                                  prop_params.flat_vol,
-                                  prop_params.option_expiry,
-                                  cont_comp_spot_rate,
-                                  0.0,
-                                  Greeks::Delta));
+    displayBSMGreeks<DerivativeT>(vanilla, prop_params);
 
     plotBinomialTree("Option tree", deriv.binomialTree());
 
