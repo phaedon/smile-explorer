@@ -8,6 +8,9 @@
 
 namespace smileexplorer {
 
+// CRR = Cox-Ross-Rubinstein convention for forward-propagation of a stochastic
+// variable in a binomial tree.
+// The main characteristic is that up_move == -down_move.
 struct CRRPropagator {
   CRRPropagator(double spot_price) : spot_price_(spot_price) {}
 
@@ -36,6 +39,11 @@ struct CRRPropagator {
   double spot_price_;
 };
 
+// Jarrow-Rudd convention for forward-propagation of a stochastic variable in a
+// binomial tree.
+//
+// It sets the branching probability (not risk-neutral) to 0.5 at each node, so
+// the evolution of the asset follows some mean return/drift.
 struct JarrowRuddPropagator {
   JarrowRuddPropagator(double expected_drift, double spot_price)
       : expected_drift_(expected_drift), spot_price_(spot_price) {}
@@ -78,14 +86,15 @@ struct LocalVolatilityPropagator {
                     int i) const {
     if (t == 0) return spot_price_;
 
+    // ===========================
+    // Set the spine of the tree:
+    // ===========================
+
     // Simplest case for the spine:
     if (i == t / 2 && t % 2 == 0) {
       // Odd number of nodes (even time-index)
       return spot_price_;
     }
-
-    double curr_time = tree.totalTimeAtIndex(t);
-    double prev_time = tree.totalTimeAtIndex(t - 1);
 
     double dt = tree.timestepAt(t - 1);
 
@@ -106,6 +115,13 @@ struct LocalVolatilityPropagator {
       double sigma = vol_fn.get(S);
       return S * std::exp(-sigma * std::sqrt(dt));
     }
+
+    // ======================================================
+    // Set the nodes of the tree above or below the spine.
+    // ======================================================
+
+    double curr_time = tree.totalTimeAtIndex(t);
+    double prev_time = tree.totalTimeAtIndex(t - 1);
 
     // Helper function to calculate the forward price
     auto calculateForward = [&](double S) {
