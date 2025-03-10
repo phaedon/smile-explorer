@@ -28,7 +28,9 @@ bazel run explorer
 bazel test ...
 ```
 
-This library, and the `explorer` binary, works on MacOS and Linux. 
+This library, and the `explorer` binary, works on MacOS and Linux. On Ubuntu, you may need to install these graphics libraries because of the dependency on GLFW and OpenGL3:
+
+`sudo apt-get install xorg-dev libgl1-mesa-dev`
 
 (The explorer is not yet supported on Windows, because it uses GLFW, which was recently added to the BCR without Windows support. See the [Bazel build rule here](https://github.com/bazelbuild/bazel-central-registry/blob/main/modules/glfw/3.3.9/patches/add_build_file.patch) for context.)
 
