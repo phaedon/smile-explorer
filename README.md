@@ -1,3 +1,5 @@
+[![Bazel CI](https://github.com/phaedon/smile-explorer/actions/workflows/presubmit.yml/badge.svg)](https://github.com/phaedon/smile-explorer/actions/workflows/presubmit.yml)
+
 ## Overview
 
 This library is intended to enable to build effective tools for developing deeper intuition into the details of tree-based construction and pricing of derivative securities, and is suitable for both seasoned professionals and students of quantitative finance.
@@ -10,6 +12,7 @@ Because this is not intended for production use, some details are omitted. For e
 * **Volatility Modeling:** Supports constant, term structure, and local volatility surfaces.
 * **Option Pricing:** Prices European and American options on assets and currencies.
 * **Visualisation:** Provides tools for visualising tree structures and probability distributions.
+* **Robustness:** Unit tests are based on many examples from reference texts and are run as presubmits on [GitHub Actions](https://github.com/phaedon/smile-explorer/actions)
 
 ### Roadmap / wish list
 
