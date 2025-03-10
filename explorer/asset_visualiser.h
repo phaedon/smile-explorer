@@ -16,6 +16,78 @@
 
 namespace smileexplorer {
 
+inline void displayValueAsReadOnlyText(const char* label, double value) {
+  std::string value_str = std::to_string(value);
+  char buffer[64];
+  strncpy(buffer, value_str.c_str(), sizeof(buffer) - 1);
+  buffer[sizeof(buffer) - 1] = '\0';
+  ImGui::InputText(
+      label, buffer, IM_ARRAYSIZE(buffer), ImGuiInputTextFlags_ReadOnly);
+}
+
+inline void plotBinomialTree(const char* label, const BinomialTree& tree) {
+  if (ImPlot::BeginPlot(label, ImVec2(-1, 0))) {
+    const auto r = getTreeRenderData(tree);
+    ImPlotStyle& style = ImPlot::GetStyle();
+    style.MarkerSize = 1;
+
+    if (!r.x_coords.empty()) {
+      ImPlot::SetupAxisLimits(ImAxis_X1,
+                              0,
+                              tree.totalTimeAtIndex(tree.numTimesteps() - 1),
+                              ImPlotCond_Always);
+    }
+
+    if (!r.y_coords.empty()) {
+      auto [min_it, max_it] =
+          std::minmax_element(r.y_coords.begin(), r.y_coords.end());
+      ImPlot::SetupAxisLimits(ImAxis_Y1, *min_it, *max_it, ImPlotCond_Always);
+    }
+
+    ImPlot::PlotLine("##Edges",
+                     r.edge_x_coords.data(),
+                     r.edge_y_coords.data(),
+                     r.edge_x_coords.size(),
+                     ImPlotLineFlags_Segments);
+    ImPlot::PlotScatter(
+        "Nodes", r.x_coords.data(), r.y_coords.data(), r.x_coords.size());
+    ImPlot::EndPlot();
+  }
+}
+
+inline void plotProbabilityDistribution(const char* label,
+                                        const BinomialTree& state_tree,
+                                        const BinomialTree& probability_tree,
+                                        int time_index) {
+  if (ImPlot::BeginPlot(label, ImVec2(-1, 0))) {
+    const auto prices = state_tree.statesAtTimeIndex(time_index);
+    const auto probabilities = probability_tree.statesAtTimeIndex(time_index);
+
+    float bar_size = 1.;
+    if (prices.size() > 2) {
+      double min_spacing = std::numeric_limits<float>::infinity();
+      for (size_t i = 1; i < prices.size(); ++i) {
+        double distance = std::abs(prices[i] - prices[i - 1]);
+        min_spacing = std::min(min_spacing, distance);
+      }
+      bar_size = min_spacing * 0.9;
+    }
+
+    ImPlot::SetupAxisLimits(
+        ImAxis_Y1,
+        0,
+        *std::max_element(probabilities.begin(), probabilities.end()) * 1.1,
+        ImPlotCond_Always);
+    ImPlot::PlotBars("##Probabilities",
+                     prices.data(),
+                     probabilities.data(),
+                     prices.size(),
+                     bar_size);
+
+    ImPlot::EndPlot();
+  }
+}
+
 template <typename VolFunctorT>
 inline void displayAdditionalVolControls(ExplorerParams& prop_params) {}
 
@@ -150,40 +222,7 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
     displayAdditionalVolControls<VolFunctorT>(prop_params);
     asset.forwardPropagate(vol_surface);
 
-    if (ImPlot::BeginPlot("Asset Tree Plot", ImVec2(-1, 0))) {
-      const auto r = getTreeRenderData(asset.binomialTree());
-
-      ImPlotStyle& style = ImPlot::GetStyle();
-      style.MarkerSize = 1;
-
-      if (!r.x_coords.empty()) {
-        ImPlot::SetupAxisLimits(ImAxis_X1,
-                                0,
-                                asset.binomialTree().totalTimeAtIndex(
-                                    asset.binomialTree().numTimesteps() - 1),
-                                ImPlotCond_Always);
-      }
-
-      if (!r.y_coords.empty()) {
-        auto [min_it, max_it] =
-            std::minmax_element(r.y_coords.begin(), r.y_coords.end());
-        double min_y = *min_it;
-        double max_y = *max_it;
-        ImPlot::SetupAxisLimits(ImAxis_Y1, min_y, max_y, ImPlotCond_Always);
-      }
-
-      // Plot the edges as line segments
-      ImPlot::PlotLine("##Edges",
-                       r.edge_x_coords.data(),
-                       r.edge_y_coords.data(),
-                       r.edge_x_coords.size(),
-                       ImPlotLineFlags_Segments);
-
-      ImPlot::PlotScatter(
-          "Nodes", r.x_coords.data(), r.y_coords.data(), r.x_coords.size());
-
-      ImPlot::EndPlot();
-    }
+    plotBinomialTree("Asset tree", asset.binomialTree());
 
     ImGui::TreePop();
     ImGui::Spacing();
@@ -204,79 +243,27 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
                        "%.2f",
                        ImGuiSliderFlags_Logarithmic);
 
-    double computed_value = deriv.price(
-        VanillaOption(prop_params.option_strike, OptionPayoff::Call),
-        prop_params.option_expiry);
-    std::string value_str = std::to_string(computed_value);
-    char buffer[64];  // A buffer to hold the string (adjust
-                      // size as needed)
-    strncpy(buffer, value_str.c_str(),
-            sizeof(buffer) - 1);        // Copy to buffer
-    buffer[sizeof(buffer) - 1] = '\0';  // Ensure null termination
-
-    ImGui::InputText("European call",
-                     buffer,
-                     IM_ARRAYSIZE(buffer),
-                     ImGuiInputTextFlags_ReadOnly);
+    displayValueAsReadOnlyText(
+        "European call",
+        deriv.price(
+            VanillaOption(prop_params.option_strike, OptionPayoff::Call),
+            prop_params.option_expiry));
 
     double df_end = prop_params.curve()->df(prop_params.option_expiry);
     // TODO: there is a bug here in the closed-form delta, because we need the
     // int-rate differential.
     double cont_comp_spot_rate = fwdRateByPeriod(
         1.0, df_end, prop_params.option_expiry, CompoundingPeriod::kContinuous);
-    double bsm_delta = call_delta(prop_params.spot_price,
-                                  prop_params.option_strike,
-                                  prop_params.flat_vol,
-                                  prop_params.option_expiry,
-                                  cont_comp_spot_rate,
-                                  0.0);
-    std::string bsm_delta_str = std::to_string(bsm_delta);
-    char delta_buffer[64];  // A buffer to hold the string (adjust
-                            // size as needed)
-    strncpy(delta_buffer,
-            bsm_delta_str.c_str(),
-            sizeof(delta_buffer) - 1);              // Copy to buffer
-    delta_buffer[sizeof(delta_buffer) - 1] = '\0';  // Ensure null termination
 
-    ImGui::InputText("BSM call delta",
-                     delta_buffer,
-                     IM_ARRAYSIZE(delta_buffer),
-                     ImGuiInputTextFlags_ReadOnly);
+    displayValueAsReadOnlyText("BSM call delta",
+                               call_delta(prop_params.spot_price,
+                                          prop_params.option_strike,
+                                          prop_params.flat_vol,
+                                          prop_params.option_expiry,
+                                          cont_comp_spot_rate,
+                                          0.0));
 
-    if (ImPlot::BeginPlot("Option Tree Plot", ImVec2(-1, 0))) {
-      const auto r = getTreeRenderData(deriv.binomialTree());
-
-      ImPlotStyle& style = ImPlot::GetStyle();
-      style.MarkerSize = 1;
-
-      if (!r.x_coords.empty()) {
-        ImPlot::SetupAxisLimits(ImAxis_X1,
-                                0,
-                                deriv.binomialTree().totalTimeAtIndex(
-                                    deriv.binomialTree().numTimesteps() - 1),
-                                ImPlotCond_Always);
-      }
-
-      if (!r.y_coords.empty()) {
-        auto [min_it, max_it] =
-            std::minmax_element(r.y_coords.begin(), r.y_coords.end());
-        double min_y = *min_it;
-        double max_y = *max_it;
-        ImPlot::SetupAxisLimits(ImAxis_Y1, min_y, max_y, ImPlotCond_Always);
-      }
-
-      // Plot the edges as line segments
-      ImPlot::PlotLine("##Edges",
-                       r.edge_x_coords.data(),
-                       r.edge_y_coords.data(),
-                       r.edge_x_coords.size(),
-                       ImPlotLineFlags_Segments);
-
-      ImPlot::PlotScatter(
-          "Nodes", r.x_coords.data(), r.y_coords.data(), r.x_coords.size());
-
-      ImPlot::EndPlot();
-    }
+    plotBinomialTree("Option tree", deriv.binomialTree());
 
     ImGui::TreePop();
     ImGui::Spacing();
@@ -298,34 +285,11 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
             .getTimeIndexForExpiry(prop_params.time_for_displaying_probability)
             .value_or(asset.binomialTree().numTimesteps());
 
-    if (ImPlot::BeginPlot("Arrow-Debreu prices", ImVec2(-1, 0))) {
-      const auto prices = asset.binomialTree().statesAtTimeIndex(time_index);
-      const auto probabilities =
-          deriv.arrowDebreuTree().statesAtTimeIndex(time_index);
+    plotProbabilityDistribution("Arrow-Debreu prices",
+                                asset.binomialTree(),
+                                deriv.arrowDebreuTree(),
+                                time_index);
 
-      float bar_size = 1.;
-      if (prices.size() > 2) {
-        double min_spacing = std::numeric_limits<float>::infinity();
-        for (size_t i = 1; i < prices.size(); ++i) {
-          double distance = std::abs(prices[i] - prices[i - 1]);
-          min_spacing = std::min(min_spacing, distance);
-        }
-        bar_size = min_spacing * 0.9;
-      }
-
-      ImPlot::SetupAxisLimits(
-          ImAxis_Y1,
-          0,
-          *std::max_element(probabilities.begin(), probabilities.end()) * 1.1,
-          ImPlotCond_Always);
-      ImPlot::PlotBars("##Probabilities",
-                       prices.data(),
-                       probabilities.data(),
-                       prices.size(),
-                       bar_size);
-
-      ImPlot::EndPlot();
-    }
     ImGui::TreePop();
     ImGui::Spacing();
   }
