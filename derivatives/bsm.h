@@ -22,6 +22,8 @@ struct BSMIntermediates {
   double d2;
   double ert;
   double ebt;
+  double e_neg_rt;
+  double e_neg_bt;
 };
 
 // Helper function to calculate d1 and d2
@@ -31,6 +33,9 @@ inline BSMIntermediates calculateBSMIntermediates(
   double nu = vol * std::sqrt(t);
   bsm_vals.ert = std::exp(r * t);
   bsm_vals.ebt = std::exp(div * t);
+  bsm_vals.e_neg_rt = std::exp(-r * t);
+  bsm_vals.e_neg_bt = std::exp(-div * t);
+
   double erbt = std::exp((r - div) * t);
   bsm_vals.d1 = std::log(S * erbt / K) / nu + nu / 2;
   bsm_vals.d2 = std::log(S * erbt / K) / nu - nu / 2;
@@ -56,45 +61,43 @@ inline double put(
 inline double call_delta(
     double S, double K, double vol, double t, double r, double div) {
   const auto bsm_vals = calculateBSMIntermediates(S, K, vol, t, r, div);
-  return std::exp(-div * t) * normsdist(bsm_vals.d1);
+  return bsm_vals.e_neg_bt * normsdist(bsm_vals.d1);
 }
 
 inline double put_delta(
     double S, double K, double vol, double t, double r, double div) {
   const auto bsm_vals = calculateBSMIntermediates(S, K, vol, t, r, div);
-  return std::exp(-div * t) * (normsdist(bsm_vals.d1) - 1.0);
+  return bsm_vals.e_neg_bt * (normsdist(bsm_vals.d1) - 1.0);
 }
 
 inline double vega(
     double S, double K, double vol, double t, double r, double div) {
   const auto bsm_vals = calculateBSMIntermediates(S, K, vol, t, r, div);
-  return S * std::exp(-div * t) * normpdf(bsm_vals.d1) * std::sqrt(t) * 0.01;
+  return S * bsm_vals.e_neg_bt * normpdf(bsm_vals.d1) * std::sqrt(t) * 0.01;
 }
 
 inline double gamma(
     double S, double K, double vol, double t, double r, double div) {
   const auto bsm_vals = calculateBSMIntermediates(S, K, vol, t, r, div);
-  return std::exp(-div * t) * normpdf(bsm_vals.d1) / (S * vol * std::sqrt(t));
+  return bsm_vals.e_neg_bt * normpdf(bsm_vals.d1) / (S * vol * std::sqrt(t));
 }
 
 inline double call_theta(
     double S, double K, double vol, double t, double r, double div) {
   const auto bsm_vals = calculateBSMIntermediates(S, K, vol, t, r, div);
-  const double edivt = std::exp(-div * t);
-  const double ert_neg = std::exp(-r * t);
-  return -(S * edivt * normpdf(bsm_vals.d1) * vol / (2.0 * std::sqrt(t))) -
-         (r * K * ert_neg * normsdist(bsm_vals.d2)) +
-         (div * S * edivt * normsdist(bsm_vals.d1));
+  return -(S * bsm_vals.e_neg_bt * normpdf(bsm_vals.d1) * vol /
+           (2.0 * std::sqrt(t))) -
+         (r * K * bsm_vals.e_neg_rt * normsdist(bsm_vals.d2)) +
+         (div * S * bsm_vals.e_neg_bt * normsdist(bsm_vals.d1));
 }
 
 inline double put_theta(
     double S, double K, double vol, double t, double r, double div) {
-  const double edivt = std::exp(-div * t);
-  const double ert_neg = std::exp(-r * t);
   const auto bsm_vals = calculateBSMIntermediates(S, K, vol, t, r, div);
-  return -(S * edivt * normpdf(bsm_vals.d1) * vol / (2.0 * std::sqrt(t))) +
-         (r * K * ert_neg * normsdist(-bsm_vals.d2)) -
-         (div * S * edivt * normsdist(-bsm_vals.d1));
+  return -(S * bsm_vals.e_neg_bt * normpdf(bsm_vals.d1) * vol /
+           (2.0 * std::sqrt(t))) +
+         (r * K * bsm_vals.e_neg_rt * normsdist(-bsm_vals.d2)) -
+         (div * S * bsm_vals.e_neg_bt * normsdist(-bsm_vals.d1));
 }
 
 }  // namespace smileexplorer
