@@ -50,3 +50,19 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "trinomial_tree",
+    hdrs = ["trinomial_tree.h"],
+    deps = [
+    ],
+)
+
+cc_test(
+    name = "trinomial_tree_test",
+    srcs = ["trinomial_tree_test.cpp"],
+    deps = [
+        ":trinomial_tree",
+        "@googletest//:gtest_main",
+    ],
+)
