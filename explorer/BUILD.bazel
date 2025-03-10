@@ -6,6 +6,7 @@ cc_library(
     deps = [
         ":explorer_params",
         ":propagator_factories",
+        ":tree_render",
         "//derivatives:derivative",
         "//trees:stochastic_tree_model",
         "@imgui",
@@ -79,6 +80,14 @@ cc_library(
         "//rates:rates_curve",
         "@imgui",
         "@implot",
+    ],
+)
+
+cc_library(
+    name = "tree_render",
+    hdrs = ["tree_render.h"],
+    deps = [
+        "//trees:binomial_tree",
     ],
 )
 

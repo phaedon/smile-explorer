@@ -10,6 +10,7 @@
 #include "imgui/imgui.h"
 #include "implot.h"
 #include "propagator_factories.h"
+#include "tree_render.h"
 #include "trees/stochastic_tree_model.h"
 #include "vol_surface_factories.h"
 #include "volatility/volatility.h"
