@@ -29,16 +29,24 @@ namespace smileexplorer {
 
 struct DermanExampleVol {
   static constexpr VolSurfaceFnType type = VolSurfaceFnType::kTermStructure;
+  DermanExampleVol(const ExplorerParams& params) : params_(params) {}
+
   double operator()(double t) const {
-    if (t <= 1) return 0.2;
-    if (t <= 2) return forwardVol(0, 1, 2, 0.2, 0.255);
-    // return forwardVol(0, 2, 3, 0.255, 0.311);
-    return forwardVol(0, 2, 3, 0.255, 0.22);
+    if (t <= 1) return params_.flat_vol;
+    // The parameters 1.2 and 1.1 are hard-coded to generate a simple tree which
+    // first becomes more dense (because of rising forward vol in year 2) and
+    // then less dense (falling forward vol in year 3). The discrete jumps serve
+    // to make it more visually obvious.
+    if (t <= 2)
+      return forwardVol(0, 1, 2, params_.flat_vol, params_.flat_vol * 1.2);
+    return forwardVol(0, 2, 3, params_.flat_vol * 1.2, params_.flat_vol * 1.1);
   }
+
+  const ExplorerParams params_;
 };
 
-void PlotVolSurface() {
-  DermanExampleVol dermanvol;
+void PlotVolSurface(const ExplorerParams& params) {
+  DermanExampleVol dermanvol(params);
   Volatility volsurface(dermanvol);
   const auto timegrid = volsurface.generateTimegrid(5.0, 0.1);
 
@@ -73,25 +81,6 @@ void PlotVolSurface() {
   }
   ImGui::End();
 }
-
-struct DermanChapter14Vol {
-  static constexpr VolSurfaceFnType type =
-      VolSurfaceFnType::kTimeInvariantSkewSmile;
-  DermanChapter14Vol(double spot_price) : spot_price_(spot_price) {}
-
-  double operator()(double s) const {
-    // .5 / ( (1 + exp(.1(x - 80)))) + 0.1
-    double vol_range = 0.4;
-    double vol_floor = 0.12;
-    double stretchy = 0.1;
-    return vol_floor + vol_range / (1 + std::exp(stretchy * (s - spot_price_)));
-    // double v = std::max(0.15875 - 0.4 * (s - spot_price_) / spot_price_,
-    // 0.04); return std::min(v, 0.5);
-  }
-
- private:
-  double spot_price_;
-};
 
 }  // namespace smileexplorer
 
@@ -130,6 +119,7 @@ int main(int, char**) {
 
   smileexplorer::GlobalRates global_rates;
   smileexplorer::ExplorerParams crr_prop_params(&global_rates);
+  smileexplorer::ExplorerParams term_structure_params(&global_rates);
   smileexplorer::ExplorerParams jr_prop_params(&global_rates);
   smileexplorer::ExplorerParams localvol_prop_params(&global_rates);
 
@@ -140,7 +130,7 @@ int main(int, char**) {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    smileexplorer::PlotVolSurface();
+    smileexplorer::PlotVolSurface(crr_prop_params);
     smileexplorer::PlotForwardRateCurves(crr_prop_params);
 
     smileexplorer::displayPairedAssetDerivativePanel<
@@ -153,6 +143,12 @@ int main(int, char**) {
         smileexplorer::JarrowRuddPropagator,
         smileexplorer::ConstantVolSurface,
         smileexplorer::Derivative>("Jarrow-Rudd convention", jr_prop_params);
+
+    smileexplorer::displayPairedAssetDerivativePanel<
+        smileexplorer::CRRPropagator,
+        smileexplorer::DermanExampleVol,
+        smileexplorer::Derivative>("Deterministic term-structure vol",
+                                   term_structure_params);
 
     smileexplorer::displayPairedAssetDerivativePanel<
         smileexplorer::LocalVolatilityPropagator,
