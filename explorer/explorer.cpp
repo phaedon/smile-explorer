@@ -107,7 +107,7 @@ int main(int, char**) {
     ImGui::NewFrame();
 
     smileexplorer::PlotVolSurface(crr_prop_params);
-    smileexplorer::PlotForwardRateCurves(crr_prop_params);
+    smileexplorer::plotForwardRateCurves(crr_prop_params);
 
     smileexplorer::displayPairedAssetDerivativePanel<
         smileexplorer::CRRPropagator,

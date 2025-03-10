@@ -51,6 +51,17 @@ cc_library(
 )
 
 cc_library(
+    name = "gui_widgets",
+    hdrs = ["gui_widgets.h"],
+    deps = [
+        ":explorer_params",
+        "//rates:rates_curve",
+        "@imgui",
+        "@magic_enum",
+    ],
+)
+
+cc_library(
     name = "propagator_factories",
     hdrs = ["propagator_factories.h"],
     deps = [
@@ -64,6 +75,7 @@ cc_library(
     hdrs = ["rate_curve_visualiser.h"],
     deps = [
         ":explorer_params",
+        ":gui_widgets",
         "//rates:rates_curve",
         "@imgui",
         "@implot",

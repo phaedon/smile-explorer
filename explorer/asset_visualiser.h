@@ -6,6 +6,7 @@
 
 #include "derivatives/derivative.h"
 #include "explorer_params.h"
+#include "gui_widgets.h"
 #include "imgui/imgui.h"
 #include "implot.h"
 #include "propagator_factories.h"
@@ -14,15 +15,6 @@
 #include "volatility/volatility.h"
 
 namespace smileexplorer {
-
-inline void displayValueAsReadOnlyText(const char* label, double value) {
-  std::string value_str = std::to_string(value);
-  char buffer[64];
-  strncpy(buffer, value_str.c_str(), sizeof(buffer) - 1);
-  buffer[sizeof(buffer) - 1] = '\0';
-  ImGui::InputText(
-      label, buffer, IM_ARRAYSIZE(buffer), ImGuiInputTextFlags_ReadOnly);
-}
 
 inline void plotBinomialTree(const char* label, const BinomialTree& tree) {
   if (ImPlot::BeginPlot(label, ImVec2(-1, 0))) {
@@ -111,44 +103,23 @@ inline void displayAdditionalVolControls<SigmoidSmile>(
 template <typename DerivativeT>
 inline void displayAdditionalCurrencyControls(ExplorerParams& prop_params) {}
 
-// TODO: Refactor this (from the PlotForwardRateCurves impl) into a common
-// utility.
 template <>
 inline void displayAdditionalCurrencyControls<CurrencyDerivative>(
     ExplorerParams& prop_params) {
-  constexpr auto currency_names = magic_enum::enum_names<Currency>();
-
   static int foreign_currency_index = 0;
-  if (ImGui::BeginCombo("Foreign (base)",
-                        currency_names[foreign_currency_index].data())) {
-    for (int n = 0; n < currency_names.size(); n++) {
-      bool is_selected = (foreign_currency_index == n);
-      if (ImGui::Selectable(currency_names[n].data(), is_selected)) {
-        foreign_currency_index = n;  // Update the selection
-      }
-      if (is_selected) ImGui::SetItemDefaultFocus();
-    }
-    ImGui::EndCombo();
-  }
-  prop_params.foreign_currency =
-      magic_enum::enum_cast<Currency>(currency_names[foreign_currency_index])
-          .value();
-
   static int domestic_currency_index = 0;
-  if (ImGui::BeginCombo("Domestic (numeraire)",
-                        currency_names[domestic_currency_index].data())) {
-    for (int n = 0; n < currency_names.size(); n++) {
-      bool is_selected = (domestic_currency_index == n);
-      if (ImGui::Selectable(currency_names[n].data(), is_selected)) {
-        domestic_currency_index = n;  // Update the selection
-      }
-      if (is_selected) ImGui::SetItemDefaultFocus();
-    }
-    ImGui::EndCombo();
-  }
-  prop_params.currency =
-      magic_enum::enum_cast<Currency>(currency_names[domestic_currency_index])
-          .value();
+
+  displayCurrencyCombo(
+      "Foreign (base)",
+      foreign_currency_index,
+      prop_params,
+      [&](Currency currency) { prop_params.foreign_currency = currency; });
+
+  displayCurrencyCombo(
+      "Domestic (numeraire)",
+      domestic_currency_index,
+      prop_params,
+      [&](Currency currency) { prop_params.currency = currency; });
 }
 
 template <typename DerivativeT>

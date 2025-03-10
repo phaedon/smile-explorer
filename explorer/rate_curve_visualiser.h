@@ -4,37 +4,22 @@
 
 #include "absl/log/log.h"
 #include "explorer_params.h"
+#include "gui_widgets.h"
 #include "imgui/imgui.h"
 #include "implot.h"
 
 namespace smileexplorer {
 
-inline void PlotForwardRateCurves(ExplorerParams& prop_params) {
+inline void plotForwardRateCurves(ExplorerParams& prop_params) {
   ImGui::Begin("Spot/Forward Rates");
 
   constexpr auto currency_names = magic_enum::enum_names<Currency>();
   static int current_item = 0;  // Index of the currently selected item
-  // const char* items[] = currency_names.data();  // The options in the
-  // dropdown
-  if (ImGui::BeginCombo("Select an option",
-                        currency_names[current_item].data())) {
-    for (int n = 0; n < currency_names.size(); n++) {
-      bool is_selected = (current_item == n);  // Is this item selected?
-      if (ImGui::Selectable(currency_names[n].data(),
-                            is_selected))  // If the item is clicked
-      {
-        current_item = n;  // Update the selection
-      }
-      if (is_selected)
-        ImGui::SetItemDefaultFocus();  // Set the initial
-                                       // focus when
-                                       // opening the
-                                       // combo
-    }
-    ImGui::EndCombo();
-  }
-  prop_params.currency =
-      magic_enum::enum_cast<Currency>(currency_names[current_item]).value();
+
+  displayCurrencyCombo(
+      "Select an option", current_item, prop_params, [&](Currency currency) {
+        prop_params.currency = currency;
+      });
 
   ZeroSpotCurve* zero_curve = dynamic_cast<ZeroSpotCurve*>(
       prop_params.global_rates->curves[prop_params.currency].get());
@@ -74,8 +59,6 @@ inline void PlotForwardRateCurves(ExplorerParams& prop_params) {
         *std::max_element(spot_rates.begin(), spot_rates.end());
     float min_fwd_rate = *std::min_element(fwd_rates.begin(), fwd_rates.end());
     float max_fwd_rate = *std::max_element(fwd_rates.begin(), fwd_rates.end());
-    // LOG(WARNING) << "min fwd: " << min_fwd_rate << " max fwd:" <<
-    // max_fwd_rate;
     float min_limit = std::min(min_spot_rate, min_fwd_rate) - 0.0020;
     float max_limit = std::max(max_spot_rate, max_fwd_rate) + 0.0020;
     if (max_limit - min_limit < 0.0050) {  // TODO arbitrary threshold -- make
