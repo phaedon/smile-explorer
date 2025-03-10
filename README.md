@@ -79,6 +79,11 @@ There are more examples in the unit tests and the `explorer` code, and you can g
 
 One thing we had to add for local vol is a discount curve. The reason is that the method of tree construction requires computing the forward at each time step. As documented in the code, the technique follows the explanation in [*The Volatility Smile and Its Implied Tree*](https://emanuelderman.com/the-volatility-smile-and-its-implied-tree/) (Derman & Kani, 1994).
 
+Finally, the library supports trees with a non-constant term structure. This generates trees with varying timesteps, because of the requirement that the tree is recombinant even though the up/down states change as we move forward in time. Here's an example:
+
+![TSM vol tree](documentation/assets/term_structure_vol.png)
+
+
 ### Rates
 
 We take a slight detour into discounting. 
