@@ -33,6 +33,8 @@ double VanillaOption::blackScholesGreek(double spot,
       return payoff_ == OptionPayoff::Call
                  ? call_delta(spot, strike_, vol, t, r, div)
                  : put_delta(spot, strike_, vol, t, r, div);
+    case Greeks::Vega:
+      return vega(spot, strike_, vol, t, r, div);
     default:
       return 0.0;
   }

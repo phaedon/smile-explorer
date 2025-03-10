@@ -3,11 +3,18 @@
 #define SMILE_EXPLORER_DERIVATIVES_BSM_
 
 #include <cmath>
+#include <numbers>
 
 namespace smileexplorer {
 
 inline double normsdist(double x) {
-  return 0.5 * (1.0 + std::erf(x / std::sqrt(2.0)));
+  return 0.5 * (1.0 + std::erf(x / std::numbers::sqrt2));
+}
+
+inline double normpdf(double x) {
+  constexpr double inv_sqrt_2pi =
+      std::numbers::inv_sqrtpi / std::numbers::sqrt2;
+  return std::exp(-0.5 * x * x) * inv_sqrt_2pi;
 }
 
 struct BSMIntermediates {
@@ -56,6 +63,12 @@ inline double put_delta(
     double S, double K, double vol, double t, double r, double div) {
   const auto bsm_vals = calculateBSMIntermediates(S, K, vol, t, r, div);
   return std::exp(-div * t) * (normsdist(bsm_vals.d1) - 1.0);
+}
+
+inline double vega(
+    double S, double K, double vol, double t, double r, double div) {
+  const auto bsm_vals = calculateBSMIntermediates(S, K, vol, t, r, div);
+  return S * std::exp(-div * t) * normpdf(bsm_vals.d1) * std::sqrt(t) * 0.01;
 }
 
 }  // namespace smileexplorer

@@ -16,6 +16,8 @@ TEST(VanillaOptionTest, CurrencyOptions) {
   double expiry = 1.0;
 
   VanillaOption vanilla(strike, OptionPayoff::Call);
+  // Expected values extracted from
+  // http://www.finance-calculators.com/fxoptions/
   EXPECT_NEAR(
       9.007,
       vanilla.blackScholes(spot, vol, expiry, foreign_curve, domestic_curve),
@@ -24,6 +26,11 @@ TEST(VanillaOptionTest, CurrencyOptions) {
       0.46317,
       vanilla.blackScholesGreek(
           spot, vol, expiry, foreign_curve, domestic_curve, Greeks::Delta),
+      0.000005);
+  EXPECT_NEAR(
+      0.53608,
+      vanilla.blackScholesGreek(
+          spot, vol, expiry, foreign_curve, domestic_curve, Greeks::Vega),
       0.000005);
 }
 
