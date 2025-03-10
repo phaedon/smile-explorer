@@ -4,7 +4,6 @@
 
 #include <algorithm>
 
-#include "derivatives/bsm.h"
 #include "derivatives/derivative.h"
 #include "explorer_params.h"
 #include "imgui/imgui.h"
@@ -243,11 +242,9 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
                        "%.2f",
                        ImGuiSliderFlags_Logarithmic);
 
-    displayValueAsReadOnlyText(
-        "European call",
-        deriv.price(
-            VanillaOption(prop_params.option_strike, OptionPayoff::Call),
-            prop_params.option_expiry));
+    VanillaOption vanilla(prop_params.option_strike, OptionPayoff::Call);
+    displayValueAsReadOnlyText("European call",
+                               deriv.price(vanilla, prop_params.option_expiry));
 
     double df_end = prop_params.curve()->df(prop_params.option_expiry);
     // TODO: there is a bug here in the closed-form delta, because we need the
@@ -255,13 +252,14 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
     double cont_comp_spot_rate = fwdRateByPeriod(
         1.0, df_end, prop_params.option_expiry, CompoundingPeriod::kContinuous);
 
-    displayValueAsReadOnlyText("BSM call delta",
-                               call_delta(prop_params.spot_price,
-                                          prop_params.option_strike,
-                                          prop_params.flat_vol,
-                                          prop_params.option_expiry,
-                                          cont_comp_spot_rate,
-                                          0.0));
+    displayValueAsReadOnlyText(
+        "BSM call delta",
+        vanilla.blackScholesGreek(prop_params.spot_price,
+                                  prop_params.flat_vol,
+                                  prop_params.option_expiry,
+                                  cont_comp_spot_rate,
+                                  0.0,
+                                  Greeks::Delta));
 
     plotBinomialTree("Option tree", deriv.binomialTree());
 

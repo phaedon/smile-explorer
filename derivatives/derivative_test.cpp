@@ -7,6 +7,7 @@
 #include "trees/binomial_tree.h"
 #include "trees/propagators.h"
 #include "trees/stochastic_tree_model.h"
+#include "vanilla_option.h"
 #include "volatility/volatility.h"
 
 namespace smileexplorer {
@@ -34,7 +35,9 @@ TEST(DerivativeTest, TreePricingApproxEqualsBSM) {
   // Verify that tree pricing matches BSM for an OTM option with discounting.
   const double disc_rate = 0.12;
   ZeroSpotCurve curve({1.0, 10.0}, {disc_rate, disc_rate});
-  double bsm_otm_discounting = call(100, 105, 0.158745, 1.0, disc_rate);
+  VanillaOption option(105, OptionPayoff::Call);
+  double bsm_otm_discounting =
+      option.blackScholes(100, 0.158745, 1.0, disc_rate, 0.0);
   deriv = Derivative(&asset.binomialTree(), &curve);
   EXPECT_NEAR(bsm_otm_discounting,
               deriv.price(VanillaOption(105, OptionPayoff::Call), 1.0),
@@ -101,7 +104,7 @@ TEST(DerivativeTest, VerifySubscriptionMechanism) {
   EXPECT_LT(price2, price1);
 }
 
-TEST(DerivativeTest, CurrencyOption) {
+TEST(DerivativeTest, CurrencyOptionTreePricing) {
   // Example based on Figure 13.12 on pg. 306 of John Hull, "Options,
   // Futures..."
   ZeroSpotCurve domestic_curve(

@@ -3,6 +3,7 @@ package(default_visibility = ["//visibility:public"])
 cc_library(
     name = "bsm",
     hdrs = ["bsm.h"],
+    visibility = ["//visibility:private"],
 )
 
 cc_test(
@@ -42,6 +43,18 @@ cc_library(
     name = "vanilla_option",
     hdrs = ["vanilla_option.h"],
     deps = [
+        ":bsm",
         "//trees:binomial_tree",
+        "@abseil-cpp//absl/log",
+    ],
+)
+
+cc_test(
+    name = "vanilla_option_test",
+    srcs = ["vanilla_option_test.cpp"],
+    deps = [
+        ":vanilla_option",
+        "//rates:rates_curve",
+        "@googletest//:gtest_main",
     ],
 )
