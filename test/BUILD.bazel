@@ -5,6 +5,7 @@ cc_library(
     testonly = True,
     hdrs = ["tree_matchers.h"],
     deps = [
+        "//trees:binomial_tree",
         "@googletest//:gtest",
     ],
 )

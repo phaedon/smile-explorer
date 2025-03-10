@@ -2,6 +2,8 @@
 #define SMILEEXPLORER_TEST_TREE_MATCHERS_H_
 
 #include "gmock/gmock.h"
+#include "trees/binomial_tree.h"
+
 namespace smileexplorer {
 
 MATCHER_P2(BinomialTreeMatchesUpToTimeIndex, tree_excerpt, tolerance, "") {
