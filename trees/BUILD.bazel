@@ -55,6 +55,7 @@ cc_library(
     name = "trinomial_tree",
     hdrs = ["trinomial_tree.h"],
     deps = [
+        "//rates:rates_curve",
     ],
 )
 
