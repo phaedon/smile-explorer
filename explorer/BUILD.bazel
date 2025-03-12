@@ -47,6 +47,7 @@ cc_library(
     hdrs = ["global_rates.h"],
     deps = [
         "//rates:rates_curve",
+        "//rates:zero_curve",
         "@magic_enum",
     ],
 )

@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-#include "rates/rates_curve.h"
+#include "rates/zero_curve.h"
 #include "trees/binomial_tree.h"
 #include "trees/propagators.h"
 #include "trees/stochastic_tree_model.h"

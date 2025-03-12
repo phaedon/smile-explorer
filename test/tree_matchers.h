@@ -8,14 +8,14 @@ namespace smileexplorer {
 
 MATCHER_P2(BinomialTreeMatchesUpToTimeIndex, tree_excerpt, tolerance, "") {
   const BinomialTree& binomial_tree = arg;
-  for (size_t i = 0; i < tree_excerpt.size(); ++i) {
+  for (int i = 0; i < std::ssize(tree_excerpt); ++i) {
     const auto& expected_row = tree_excerpt[i];
     if (binomial_tree.numTimesteps() < i + 1) {
       *result_listener << "Actual matrix does not have enough columns for row "
                        << i << ".";
       return false;
     }
-    if (expected_row.size() < i + 1) {
+    if (std::ssize(expected_row) < i + 1) {
       *result_listener << "Expected row " << i
                        << " does not have the correct size.";
       return false;

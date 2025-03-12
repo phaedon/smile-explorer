@@ -39,7 +39,7 @@ TEST(BranchProbabilitiesTest, Hull_FirstStage) {
 
   // Verify truncation.
   std::vector<double> expected_num_nodes_per_timeslice{1, 3, 5, 5};
-  for (int i = 0; i < expected_num_nodes_per_timeslice.size(); ++i) {
+  for (size_t i = 0; i < expected_num_nodes_per_timeslice.size(); ++i) {
     EXPECT_EQ(expected_num_nodes_per_timeslice[i], tree.tree_[i].size());
   }
 }

@@ -1,6 +1,9 @@
 #include "vanilla_option.h"
 
 #include <gtest/gtest.h>
+
+#include "rates/zero_curve.h"
+
 namespace smileexplorer {
 namespace {
 

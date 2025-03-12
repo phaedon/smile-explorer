@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "derivatives/derivative.h"
-#include "rates/rates_curve.h"
+#include "rates/zero_curve.h"
 #include "test/tree_matchers.h"
 #include "time.h"
 #include "trees/binomial_tree.h"

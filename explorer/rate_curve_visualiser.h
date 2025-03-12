@@ -74,10 +74,10 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
   std::vector<float> spot_rates;
   std::vector<float> fwd_rates;
 
-  for (double t = 1.0; t <= 10.0; t += 0.1) {
+  for (double t = 1.0; t <= 10.0; t += 0.05) {
     timestamps.push_back(t);
     spot_rates.push_back(prop_params.curve()->forwardRate(0.0, t));
-    fwd_rates.push_back(prop_params.curve()->forwardRate(t, t + 1.0));
+    fwd_rates.push_back(prop_params.curve()->forwardRate(t, t + (1. / 12)));
   }
 
   if (ImPlot::BeginPlot("Rates", ImVec2(-1, -1))) {

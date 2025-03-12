@@ -5,6 +5,7 @@
 
 #include "magic_enum.hpp"
 #include "rates/rates_curve.h"
+#include "rates/zero_curve.h"
 
 namespace smileexplorer {
 

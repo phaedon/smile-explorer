@@ -1,11 +1,10 @@
 #ifndef SMILEEXPLORER_TREES_TRINOMIAL_TREE_H_
 #define SMILEEXPLORER_TREES_TRINOMIAL_TREE_H_
 
-#include <cmath>
 #include <numbers>
 #include <vector>
 
-#include "rates/rates_curve.h"
+#include "rates/zero_curve.h"
 
 namespace smileexplorer {
 

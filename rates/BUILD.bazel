@@ -55,3 +55,21 @@ cc_library(
         "//trees:stochastic_tree_model",
     ],
 )
+
+cc_library(
+    name = "zero_curve",
+    srcs = ["zero_curve.cpp"],
+    hdrs = ["zero_curve.h"],
+    deps = [
+        ":rates_curve",
+    ],
+)
+
+cc_test(
+    name = "zero_curve_test",
+    srcs = ["zero_curve_test.cpp"],
+    deps = [
+        ":zero_curve",
+        "@googletest//:gtest_main",
+    ],
+)
