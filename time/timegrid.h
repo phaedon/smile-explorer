@@ -57,7 +57,7 @@ inline std::optional<int> Timegrid::getTimeIndexForExpiry(
     return std::nullopt;
   }
 
-  for (int t = 0; t < grid_.size(); ++t) {
+  for (size_t t = 0; t < grid_.size(); ++t) {
     const double diff_curr = std::abs(grid_[t] - expiry_years);
     const double diff_next = std::abs(grid_[t + 1] - expiry_years);
     if (t == 0) {

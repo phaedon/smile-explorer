@@ -25,7 +25,7 @@ inline void yieldCurveShiftButton(ExplorerParams& params) {
     ZeroSpotCurve* zero_curve = dynamic_cast<ZeroSpotCurve*>(
         params.global_rates->curves[params.currency].get());
     const auto& input_rates = zero_curve->getInputRates();
-    for (int i = 0; i < input_rates.size(); ++i) {
+    for (int i = 0; i < std::ssize(input_rates); ++i) {
       zero_curve->updateRateAtMaturityIndex(
           i, input_rates[i] + curve_shift_bps * 0.0001);
     }
@@ -38,7 +38,7 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
   ImGui::Begin("Spot/Forward Rates");
 
   constexpr auto currency_names = magic_enum::enum_names<Currency>();
-  static int current_item = 0;  // Index of the currently selected item
+  static size_t current_item = 0;  // Index of the currently selected item
 
   displayCurrencyCombo(
       "Select an option", current_item, prop_params, [&](Currency currency) {
@@ -63,7 +63,7 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
                       0.25f,
                       "%.4f",
                       ImGuiSliderFlags_Logarithmic);
-    for (int i = 0; i < float_rates.size(); ++i) {
+    for (int i = 0; i < std::ssize(float_rates); ++i) {
       zero_curve->updateRateAtMaturityIndex(i, float_rates[i]);
     }
   }

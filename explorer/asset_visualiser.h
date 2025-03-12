@@ -107,8 +107,8 @@ inline void displayAdditionalCurrencyControls(ExplorerParams& prop_params) {}
 template <>
 inline void displayAdditionalCurrencyControls<CurrencyDerivative>(
     ExplorerParams& prop_params) {
-  static int foreign_currency_index = 1;
-  static int domestic_currency_index = 0;
+  static size_t foreign_currency_index = 1;
+  static size_t domestic_currency_index = 0;
 
   displayCurrencyCombo(
       "Foreign (base)",

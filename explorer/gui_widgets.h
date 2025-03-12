@@ -9,13 +9,13 @@
 namespace smileexplorer {
 
 inline void displayCurrencyCombo(const char* label,
-                                 int& selectedIndex,
+                                 size_t& selectedIndex,
                                  ExplorerParams& prop_params,
                                  std::function<void(Currency)> setCurrency) {
   constexpr auto currency_names = magic_enum::enum_names<Currency>();
 
   if (ImGui::BeginCombo(label, currency_names[selectedIndex].data())) {
-    for (int n = 0; n < currency_names.size(); n++) {
+    for (size_t n = 0; n < currency_names.size(); n++) {
       bool is_selected = (selectedIndex == n);
       if (ImGui::Selectable(currency_names[n].data(), is_selected)) {
         selectedIndex = n;

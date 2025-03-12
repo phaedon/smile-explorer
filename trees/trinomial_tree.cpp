@@ -108,12 +108,12 @@ void TrinomialTree::secondStage(const ZeroSpotCurve& market_curve) {
   alphas_[0] = market_curve.forwardRate(0, dt_);
   tree_[0][0].arrow_deb = 1.;
 
-  for (int ti = 0; ti < tree_.size() - 1; ++ti) {
+  for (size_t ti = 0; ti < tree_.size() - 1; ++ti) {
     std::cout << "For time index: " << ti << " ...." << std::endl;
     std::cout << "alpha! .....  " << alphas_[ti] << std::endl;
 
     // Iterate over each node in the current timeslice once...
-    for (int j = 0; j < tree_[ti].size(); ++j) {
+    for (int j = 0; j < std::ssize(tree_[ti]); ++j) {
       auto& curr_node = tree_[ti][j];
       // ... and for each iteration, update the 3 successor nodes in the next
       // timestep.

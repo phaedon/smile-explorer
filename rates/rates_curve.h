@@ -62,7 +62,7 @@ class ZeroSpotCurve : public RatesCurve {
     if (df_maturities_[ti] > time) {
       --ti_left;
       --ti_right;
-    } else if (ti >= df_maturities_.size() - 1) {
+    } else if (ti >= std::ssize(df_maturities_) - 1) {
       // Bug fix to extrapolate past the end of the curve.
       ti_left = df_maturities_.size() - 2;
       ti_right = ti_left + 1;
@@ -85,7 +85,7 @@ class ZeroSpotCurve : public RatesCurve {
     int closest_index = 0;
     double min_difference = std::numeric_limits<double>::max();
 
-    for (int i = 0; i < df_maturities_.size(); ++i) {
+    for (int i = 0; i < std::ssize(df_maturities_); ++i) {
       double difference = std::abs(df_maturities_[i] - target);
       if (difference < min_difference) {
         min_difference = difference;
@@ -131,7 +131,7 @@ class ZeroSpotCurve : public RatesCurve {
     discrete_dfs_.push_back(1.0);
     df_maturities_.push_back(0.0);
 
-    for (int i = 0; i < maturities_.size(); ++i) {
+    for (size_t i = 0; i < maturities_.size(); ++i) {
       df_maturities_.push_back(maturities_[i]);
       discrete_dfs_.push_back(dfByPeriod(rates_[i], maturities_[i], period_));
     }
