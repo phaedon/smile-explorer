@@ -53,8 +53,10 @@ cc_test(
 
 cc_library(
     name = "trinomial_tree",
+    srcs = ["trinomial_tree.cpp"],
     hdrs = ["trinomial_tree.h"],
     deps = [
+        "//rates:rates_curve",
     ],
 )
 
