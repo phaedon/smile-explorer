@@ -84,6 +84,8 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
         prop_params.currency = currency;
       });
 
+  yieldCurveShiftButton(prop_params);
+
   ZeroSpotCurve* zero_curve = dynamic_cast<ZeroSpotCurve*>(
       prop_params.global_rates->curves[prop_params.currency].get());
 
@@ -93,21 +95,40 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
   } else {
     // Copy the values, because we have to provide these as floats (rather than
     // doubles).
+    std::vector<int> fixed_maturities{1, 2, 3, 5, 7, 10};
     std::vector<float> float_rates(zero_curve->getInputRates().begin(),
                                    zero_curve->getInputRates().end());
-    ImGui::DragFloat4("{1,2,5,10}",
-                      float_rates.data(),
-                      0.0005f,
-                      0.0001f,  // 1 basis point
-                      0.25f,
-                      "%.4f",
-                      ImGuiSliderFlags_Logarithmic);
+
+    ImGui::PushID("Rate controllers");
+    for (size_t i = 0; i < float_rates.size(); i++) {
+      if (i > 0) ImGui::SameLine();
+      ImGui::PushID(i);
+      ImGui::PushStyleColor(ImGuiCol_FrameBg,
+                            (ImVec4)ImColor::HSV(i / 7.0f, 0.5f, 0.5f));
+      ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,
+                            (ImVec4)ImColor::HSV(i / 7.0f, 0.6f, 0.5f));
+      ImGui::PushStyleColor(ImGuiCol_FrameBgActive,
+                            (ImVec4)ImColor::HSV(i / 7.0f, 0.7f, 0.5f));
+      ImGui::PushStyleColor(ImGuiCol_SliderGrab,
+                            (ImVec4)ImColor::HSV(i / 7.0f, 0.9f, 0.9f));
+      ImGui::VSliderFloat("##v",
+                          ImVec2(18, 300),
+                          &float_rates[i],
+                          0.0001f,
+                          0.25f,
+                          "",
+                          ImGuiSliderFlags_Logarithmic);
+      if (ImGui::IsItemActive() || ImGui::IsItemHovered())
+        ImGui::SetTooltip("%dy:%.4f", fixed_maturities[i], float_rates[i]);
+      ImGui::PopStyleColor(4);
+      ImGui::PopID();
+    }
+    ImGui::PopID();
+
     for (int i = 0; i < std::ssize(float_rates); ++i) {
       zero_curve->updateRateAtMaturityIndex(i, float_rates[i]);
     }
   }
-
-  yieldCurveShiftButton(prop_params);
 
   std::vector<float> timestamps;
   std::vector<float> spot_rates;
@@ -119,6 +140,7 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
     fwd_rates.push_back(prop_params.curve()->forwardRate(t, t + (1. / 12)));
   }
 
+  ImGui::SameLine();
   if (ImPlot::BeginPlot("Rates", ImVec2(-1, 0))) {
     float min_spot_rate =
         *std::min_element(spot_rates.begin(), spot_rates.end());

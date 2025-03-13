@@ -44,10 +44,10 @@ struct GlobalRates {
     constexpr auto currencies = magic_enum::enum_values<Currency>();
     for (const auto currency : currencies) {
       double flat_rate = getApproxRate(currency);
-      curves[currency] = std::make_unique<ZeroSpotCurve>(
-          ZeroSpotCurve({1, 2, 5, 10},
-                        {flat_rate, flat_rate, flat_rate, flat_rate},
-                        CompoundingPeriod::kAnnual));
+      curves[currency] = std::make_unique<ZeroSpotCurve>(ZeroSpotCurve(
+          {1, 2, 3, 5, 7, 10},
+          {flat_rate, flat_rate, flat_rate, flat_rate, flat_rate, flat_rate},
+          CompoundingPeriod::kAnnual));
     }
   }
 
