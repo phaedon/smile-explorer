@@ -36,7 +36,6 @@ cc_library(
     hdrs = ["stochastic_tree_model.h"],
     deps = [
         ":binomial_tree",
-        "//derivatives:derivative",
     ],
 )
 
@@ -46,6 +45,7 @@ cc_test(
     deps = [
         ":propagators",
         ":stochastic_tree_model",
+        "//derivatives:derivative",
         "//rates:zero_curve",
         "//test:tree_matchers",
         "@googletest//:gtest_main",

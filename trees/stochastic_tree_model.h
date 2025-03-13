@@ -3,7 +3,6 @@
 #define SMILEEXPLORER_TREES_STOCHASTIC_TREE_MODEL_H_
 
 #include "absl/log/log.h"
-#include "derivatives/derivative.h"
 #include "trees/binomial_tree.h"
 
 namespace smileexplorer {
