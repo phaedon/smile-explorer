@@ -89,6 +89,7 @@ cc_library(
     hdrs = ["tree_render.h"],
     deps = [
         "//trees:binomial_tree",
+        "//trees:trinomial_tree",
     ],
 )
 

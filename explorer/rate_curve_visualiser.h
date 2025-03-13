@@ -8,8 +8,47 @@
 #include "imgui/imgui.h"
 #include "implot.h"
 #include "magic_enum.hpp"
+#include "tree_render.h"
+#include "trees/trinomial_tree.h"
 
 namespace smileexplorer {
+
+// How much extra room to allow above and beyond the display of a curve so that
+// it doesn't hit the limits of the graph display.
+constexpr int kBasisPointPadding = 25;
+constexpr double kRatePadding = kBasisPointPadding * 0.0001;
+
+inline void plotTrinomialTree(const char* label, const TrinomialTree& tree) {
+  if (ImPlot::BeginPlot(label, ImVec2(-1, 0))) {
+    const auto r = getTreeRenderData(tree);
+    ImPlotStyle& style = ImPlot::GetStyle();
+    style.MarkerSize = 1;
+
+    if (!r.x_coords.empty()) {
+      auto [min_it, max_it] =
+          std::minmax_element(r.x_coords.begin(), r.x_coords.end());
+      ImPlot::SetupAxisLimits(ImAxis_X1, *min_it, *max_it, ImPlotCond_Always);
+    }
+
+    if (!r.y_coords.empty()) {
+      auto [min_it, max_it] =
+          std::minmax_element(r.y_coords.begin(), r.y_coords.end());
+      ImPlot::SetupAxisLimits(ImAxis_Y1,
+                              *min_it - kRatePadding * 4,
+                              *max_it + kRatePadding * 4,
+                              ImPlotCond_Always);
+    }
+
+    ImPlot::PlotLine("##Edges",
+                     r.edge_x_coords.data(),
+                     r.edge_y_coords.data(),
+                     r.edge_x_coords.size(),
+                     ImPlotLineFlags_Segments);
+    ImPlot::PlotScatter(
+        "Nodes", r.x_coords.data(), r.y_coords.data(), r.x_coords.size());
+    ImPlot::EndPlot();
+  }
+}
 
 inline void yieldCurveShiftButton(ExplorerParams& params) {
   static int curve_shift_bps = 0;     // The integer variable
@@ -80,19 +119,18 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
     fwd_rates.push_back(prop_params.curve()->forwardRate(t, t + (1. / 12)));
   }
 
-  if (ImPlot::BeginPlot("Rates", ImVec2(-1, -1))) {
+  if (ImPlot::BeginPlot("Rates", ImVec2(-1, 0))) {
     float min_spot_rate =
         *std::min_element(spot_rates.begin(), spot_rates.end());
     float max_spot_rate =
         *std::max_element(spot_rates.begin(), spot_rates.end());
     float min_fwd_rate = *std::min_element(fwd_rates.begin(), fwd_rates.end());
     float max_fwd_rate = *std::max_element(fwd_rates.begin(), fwd_rates.end());
-    float min_limit = std::min(min_spot_rate, min_fwd_rate) - 0.0020;
-    float max_limit = std::max(max_spot_rate, max_fwd_rate) + 0.0020;
-    if (max_limit - min_limit < 0.0050) {  // TODO arbitrary threshold -- make
-                                           // this a constant or a param
-      max_limit += 0.0025;
-      min_limit -= 0.0025;
+    float min_limit = std::min(min_spot_rate, min_fwd_rate) - kRatePadding;
+    float max_limit = std::max(max_spot_rate, max_fwd_rate) + kRatePadding;
+    if (max_limit - min_limit < kRatePadding * 2) {
+      max_limit += kRatePadding;
+      min_limit -= kRatePadding;
     }
 
     ImPlot::SetupAxisLimits(ImAxis_Y1, min_limit, max_limit, ImPlotCond_Always);
@@ -103,6 +141,11 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
         "Forward", timestamps.data(), fwd_rates.data(), fwd_rates.size());
     ImPlot::EndPlot();
   }
+
+  TrinomialTree trinomial_tree(10.0, 0.1, 0.2, 0.02);
+  trinomial_tree.forwardPropagate(*zero_curve);
+  plotTrinomialTree("Hull-White tree", trinomial_tree);
+
   ImGui::End();
 }
 

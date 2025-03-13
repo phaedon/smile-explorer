@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "trees/binomial_tree.h"
+#include "trees/trinomial_tree.h"
 
 namespace smileexplorer {
 
@@ -53,6 +54,44 @@ inline TreeRenderData getTreeRenderData(const BinomialTree& tree) {
       }
     }
     cumul_start_index += t + 1;
+  }
+
+  return r;
+}
+
+inline TreeRenderData getTreeRenderData(const TrinomialTree& tree) {
+  TreeRenderData r;
+
+  // First loop to collect node coordinates
+  for (size_t ti = 0; ti < tree.tree_.size(); ++ti) {
+    for (size_t j = 0; j < tree.tree_[ti].size(); ++j) {
+      const auto& curr_node = tree.tree_[ti][j];
+      r.x_coords.push_back(tree.dt_ * ti);
+      r.y_coords.push_back(curr_node.val + tree.alphas_[ti]);
+    }
+  }
+
+  for (size_t ti = 0; ti < tree.tree_.size() - 1; ++ti) {
+    for (size_t j = 0; j < tree.tree_[ti].size(); ++j) {
+      const auto& curr_node = tree.tree_[ti][j];
+
+      const auto next = tree.getSuccessorNodes(curr_node, ti, j);
+
+      r.edge_x_coords.push_back(tree.dt_ * ti);
+      r.edge_y_coords.push_back(curr_node.val + tree.alphas_[ti]);
+      r.edge_x_coords.push_back(tree.dt_ * (ti + 1));
+      r.edge_y_coords.push_back(next.up.val + tree.alphas_[ti + 1]);
+
+      r.edge_x_coords.push_back(tree.dt_ * ti);
+      r.edge_y_coords.push_back(curr_node.val + tree.alphas_[ti]);
+      r.edge_x_coords.push_back(tree.dt_ * (ti + 1));
+      r.edge_y_coords.push_back(next.mid.val + tree.alphas_[ti + 1]);
+
+      r.edge_x_coords.push_back(tree.dt_ * ti);
+      r.edge_y_coords.push_back(curr_node.val + tree.alphas_[ti]);
+      r.edge_x_coords.push_back(tree.dt_ * (ti + 1));
+      r.edge_y_coords.push_back(next.down.val + tree.alphas_[ti + 1]);
+    }
   }
 
   return r;

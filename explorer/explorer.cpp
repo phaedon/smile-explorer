@@ -112,7 +112,7 @@ int main(int, char**) {
 
     ImGui::SetNextWindowPos(ImVec2(display_size.x * 0.5, window_spacing));
     ImGui::SetNextWindowSize(
-        ImVec2(display_size.x * 0.45, display_size.y * 0.45));
+        ImVec2(display_size.x * 0.45, display_size.y * 0.95));
     smileexplorer::plotForwardRateCurves(crr_prop_params);
 
     ImGui::SetNextWindowPos(ImVec2(10, window_spacing));
