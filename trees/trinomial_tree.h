@@ -40,12 +40,26 @@ struct TrinomialNode {
   BranchProbabilities branch_probs;
 };
 
+template <typename NodeT>
+struct NodeTriplet {
+  NodeT& up;
+  NodeT& mid;
+  NodeT& down;
+};
+
 using TrinomialTimeslice = std::vector<TrinomialNode>;
 
 class TrinomialTree {
  public:
-  TrinomialTree(double a, double dt, double sigma)
-      : a_(a), dt_(dt), sigma_(sigma) {}
+  TrinomialTree(double tree_duration_years, double a, double dt, double sigma)
+      : tree_duration_years_(tree_duration_years),
+        a_(a),
+        dt_(dt),
+        sigma_(sigma) {
+    int num_timesteps = std::ceil(tree_duration_years_ / dt_) + 1;
+    tree_.resize(num_timesteps);
+    alphas_.resize(num_timesteps);
+  }
 
   void forwardPropagate(const ZeroSpotCurve& market_curve) {
     firstStage();
@@ -54,9 +68,17 @@ class TrinomialTree {
   void firstStage();
   void secondStage(const ZeroSpotCurve& market_curve);
 
+  double tree_duration_years_;
   double a_, dt_, sigma_;
   std::vector<TrinomialTimeslice> tree_;
   std::vector<double> alphas_;
+
+  NodeTriplet<const TrinomialNode> getSuccessorNodes(
+      const TrinomialNode& curr_node, int time_index, int j) const;
+
+  NodeTriplet<TrinomialNode> getSuccessorNodes(const TrinomialNode& curr_node,
+                                               int time_index,
+                                               int j);
 
  private:
   void updateSuccessorNodes(const TrinomialNode& curr_node,

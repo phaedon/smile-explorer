@@ -14,7 +14,7 @@ using testing::Field;
 TEST(BranchProbabilitiesTest, Hull_FirstStage) {
   double sigma = 0.01;
   double dt = 1.0;
-  TrinomialTree tree(0.1, dt, sigma);
+  TrinomialTree tree(6, 0.1, dt, sigma);
   tree.firstStage();
 
   // Verify a couple of nodes from the table in Hull, pg 741 (or Hull & White
@@ -51,7 +51,7 @@ TEST(BranchProbabilitiesTest, Hull_SecondStage) {
 
   double sigma = 0.01;
   double dt = 1.0;
-  TrinomialTree tree(0.1, dt, sigma);
+  TrinomialTree tree(1.25, 0.1, dt, sigma);
   tree.forwardPropagate(market_curve);
   EXPECT_THAT(
       std::vector<double>(tree.alphas_.begin(), tree.alphas_.begin() + 3),

@@ -45,25 +45,23 @@ int TrinomialTree::numStatesWithClamping(int time_index) const {
 // jMax clamping factor, this timeslice has a narrower range of states.
 bool TrinomialTree::isTimesliceClamped(int time_index) const {
   int unclamped_num_states = time_index * 2 + 1;
-  return numStatesWithClamping(time_index) >= unclamped_num_states;
+  return numStatesWithClamping(time_index) < unclamped_num_states ||
+         numStatesWithClamping(time_index) ==
+             numStatesWithClamping(time_index + 1);
 }
 
 TrinomialBranchStyle TrinomialTree::getBranchStyleForNode(int time_index,
                                                           int j) const {
-  if (j == -jMax() && isTimesliceClamped(time_index)) {
+  if (j <= -jMax() && isTimesliceClamped(time_index)) {
     return TrinomialBranchStyle::SlantedUp;
-  } else if (j == jMax() && isTimesliceClamped(time_index)) {
+  } else if (j >= jMax() && isTimesliceClamped(time_index)) {
     return TrinomialBranchStyle::SlantedDown;
   }
   return TrinomialBranchStyle::Centered;
 }
 
 void TrinomialTree::firstStage() {
-  // TODO: Remove hardcoding of number of timeslices.
-  alphas_.resize(6);
-  tree_.resize(4);
-
-  for (int ti = 0; ti < 4; ++ti) {
+  for (size_t ti = 0; ti < tree_.size(); ++ti) {
     int num_states = numStatesWithClamping(ti);
     int shift = (num_states - 1) / 2;
 
@@ -77,31 +75,61 @@ void TrinomialTree::firstStage() {
   }
 }
 
+NodeTriplet<const TrinomialNode> TrinomialTree::getSuccessorNodes(
+    const TrinomialNode& curr_node, int time_index, int j) const {
+  if (!isTimesliceClamped(time_index) ||
+      curr_node.branch_style == TrinomialBranchStyle::SlantedUp) {
+    return NodeTriplet<const TrinomialNode>{tree_[time_index + 1][j + 2],
+                                            tree_[time_index + 1][j + 1],
+                                            tree_[time_index + 1][j + 0]};
+  }
+
+  if (curr_node.branch_style == TrinomialBranchStyle::SlantedDown) {
+    return NodeTriplet<const TrinomialNode>{tree_[time_index + 1][j + 0],
+                                            tree_[time_index + 1][j + -1],
+                                            tree_[time_index + 1][j + -2]};
+  }
+  // Clamped && mid:
+  return NodeTriplet<const TrinomialNode>{tree_[time_index + 1][j + 1],
+                                          tree_[time_index + 1][j + 0],
+                                          tree_[time_index + 1][j + -1]};
+}
+
+NodeTriplet<TrinomialNode> TrinomialTree::getSuccessorNodes(
+    const TrinomialNode& curr_node, int time_index, int j) {
+  if (!isTimesliceClamped(time_index) ||
+      curr_node.branch_style == TrinomialBranchStyle::SlantedUp) {
+    return NodeTriplet<TrinomialNode>{tree_[time_index + 1][j + 2],
+                                      tree_[time_index + 1][j + 1],
+                                      tree_[time_index + 1][j + 0]};
+  }
+
+  if (curr_node.branch_style == TrinomialBranchStyle::SlantedDown) {
+    return NodeTriplet<TrinomialNode>{tree_[time_index + 1][j + 0],
+                                      tree_[time_index + 1][j + -1],
+                                      tree_[time_index + 1][j + -2]};
+  }
+  // Clamped && mid:
+  return NodeTriplet<TrinomialNode>{tree_[time_index + 1][j + 1],
+                                    tree_[time_index + 1][j + 0],
+                                    tree_[time_index + 1][j + -1]};
+}
+
 void TrinomialTree::updateSuccessorNodes(const TrinomialNode& curr_node,
                                          int time_index,
                                          int j,  // curr_node's state index
                                          double alpha,
                                          double dt) {
-  int j_shift = 0;  // Default: Centered.
-  if (curr_node.branch_style == TrinomialBranchStyle::SlantedDown) {
-    j_shift = -1;
-  } else if (curr_node.branch_style == TrinomialBranchStyle::SlantedUp) {
-    j_shift = 1;
-  }
-
-  auto& next_up = tree_[time_index + 1][j + 2 + j_shift];
-  auto& next_mid = tree_[time_index + 1][j + 1 + j_shift];
-  auto& next_down = tree_[time_index + 1][j + 0 + j_shift];
-
+  auto next = getSuccessorNodes(curr_node, time_index, j);
   const double df = std::exp(-(alpha + curr_node.val) * dt);
 
   double arrow_deb_up = curr_node.branch_probs.pu * df;
   double arrow_deb_mid = curr_node.branch_probs.pm * df;
   double arrow_deb_down = curr_node.branch_probs.pd * df;
 
-  next_up.arrow_deb += arrow_deb_up * curr_node.arrow_deb;
-  next_mid.arrow_deb += arrow_deb_mid * curr_node.arrow_deb;
-  next_down.arrow_deb += arrow_deb_down * curr_node.arrow_deb;
+  next.up.arrow_deb += arrow_deb_up * curr_node.arrow_deb;
+  next.mid.arrow_deb += arrow_deb_mid * curr_node.arrow_deb;
+  next.down.arrow_deb += arrow_deb_down * curr_node.arrow_deb;
 }
 
 void TrinomialTree::secondStage(const ZeroSpotCurve& market_curve) {
