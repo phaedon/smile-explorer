@@ -164,6 +164,20 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
     ImPlot::EndPlot();
   }
 
+  ImGui::SliderFloat("Tree duration",
+                     &prop_params.asset_tree_duration,
+                     0.1f,
+                     20.f,
+                     "%.3f",
+                     ImGuiSliderFlags_Logarithmic);
+
+  ImGui::SliderFloat("Timestep (years)",
+                     &prop_params.asset_tree_timestep,
+                     1. / 252,
+                     1.f,
+                     "%.3f",
+                     ImGuiSliderFlags_Logarithmic);
+
   ImGui::SliderFloat("Hull-White mean-reversion",
                      &prop_params.hullwhite_mean_reversion,
                      0.01f,
@@ -178,9 +192,9 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
                      "%.3f",
                      ImGuiSliderFlags_Logarithmic);
 
-  TrinomialTree trinomial_tree(10.0,
+  TrinomialTree trinomial_tree(prop_params.asset_tree_duration,
                                prop_params.hullwhite_mean_reversion,
-                               0.2,
+                               prop_params.asset_tree_timestep,
                                prop_params.hullwhite_sigma);
   trinomial_tree.forwardPropagate(*zero_curve);
   plotTrinomialTree("Hull-White tree", trinomial_tree);
