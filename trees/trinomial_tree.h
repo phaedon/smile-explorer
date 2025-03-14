@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "rates/zero_curve.h"
+#include "time/timegrid.h"
 
 namespace smileexplorer {
 
@@ -59,6 +60,12 @@ class TrinomialTree {
     int num_timesteps = std::ceil(tree_duration_years_ / dt_) + 1;
     tree_.resize(num_timesteps);
     alphas_.resize(num_timesteps);
+
+    Timegrid grid(num_timesteps);
+    for (int i = 0; i < num_timesteps; ++i) {
+      grid.set(i, i * dt_);
+    }
+    timegrid_ = grid;
   }
 
   void forwardPropagate(const ZeroSpotCurve& market_curve) {
@@ -80,7 +87,17 @@ class TrinomialTree {
                                                int time_index,
                                                int j);
 
+  double totalTimeAtIndex(int time_index) const { return dt_ * (time_index); }
+
+  double shortRate(int time_index, int state_index) const {
+    return tree_[time_index][state_index].val + alphas_[time_index];
+  }
+
+  const Timegrid& getTimegrid() const { return timegrid_; }
+
  private:
+  Timegrid timegrid_;
+
   void updateSuccessorNodes(const TrinomialNode& curr_node,
                             int time_index,
                             int j,  // curr_node's state index

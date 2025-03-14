@@ -42,6 +42,9 @@ struct ExplorerParams {
 
   float time_for_displaying_probability = 1.0;
 
+  float short_rate_tree_duration = 6.0;
+  float short_rate_tree_timestep = 1 / 12.;
+
   // Represents the speed at which the short rate tends to revert to its
   // long-term mean:
   float hullwhite_mean_reversion = 0.10;

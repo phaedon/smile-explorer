@@ -2,6 +2,8 @@
 #ifndef SMILEEXPLORER_EXPLORER_RATE_CURVE_VISUALISER_
 #define SMILEEXPLORER_EXPLORER_RATE_CURVE_VISUALISER_
 
+#include <algorithm>
+
 #include "absl/log/log.h"
 #include "explorer_params.h"
 #include "gui_widgets.h"
@@ -56,7 +58,7 @@ inline void yieldCurveShiftButton(ExplorerParams& params) {
 
   ImGui::InputInt("Parallel curve shift (bps)", &curve_shift_bps);
 
-  if (ImGui::Button("Update curve")) {  // Button
+  if (ImGui::Button("Apply shift")) {
     buttonPressed = true;
   }
 
@@ -73,6 +75,53 @@ inline void yieldCurveShiftButton(ExplorerParams& params) {
   }
 }
 
+inline void plotProbabilityDistribution(const char* label,
+                                        const TrinomialTree& rate_tree,
+                                        int time_index) {
+  if (time_index >= rate_tree.tree_.size()) {
+    time_index = rate_tree.tree_.size() - 1;
+  }
+
+  if (ImPlot::BeginPlot(label, ImVec2(-1, 0))) {
+    const auto& nodes = rate_tree.tree_[time_index];
+
+    std::vector<double> rates;
+    std::vector<double> probabilities;
+    for (const auto& node : nodes) {
+      rates.push_back(rate_tree.alphas_[time_index] + node.val);
+      probabilities.push_back(node.arrow_deb);
+    }
+
+    float bar_size = 1.;
+    if (rates.size() > 2) {
+      double min_spacing = std::numeric_limits<float>::infinity();
+      for (size_t i = 1; i < rates.size(); ++i) {
+        double distance = std::abs(rates[i] - rates[i - 1]);
+        min_spacing = std::min(min_spacing, distance);
+      }
+      bar_size = min_spacing * 0.9;
+    }
+
+    auto [min_rate_iter, max_rate_iter] =
+        std::minmax_element(rates.begin(), rates.end());
+    ImPlot::SetupAxisLimits(
+        ImAxis_X1, -0.01, *max_rate_iter, ImPlotCond_Always);
+
+    ImPlot::SetupAxisLimits(
+        ImAxis_Y1,
+        0,
+        *std::max_element(probabilities.begin(), probabilities.end()) * 1.1,
+        ImPlotCond_Always);
+    ImPlot::PlotBars("##Probabilities",
+                     rates.data(),
+                     probabilities.data(),
+                     rates.size(),
+                     bar_size);
+
+    ImPlot::EndPlot();
+  }
+}
+
 inline void plotForwardRateCurves(ExplorerParams& prop_params) {
   ImGui::Begin("Spot/Forward Rates");
 
@@ -80,7 +129,7 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
   static size_t current_item = 0;  // Index of the currently selected item
 
   displayCurrencyCombo(
-      "Select an option", current_item, prop_params, [&](Currency currency) {
+      "Currency", current_item, prop_params, [&](Currency currency) {
         prop_params.currency = currency;
       });
 
@@ -164,40 +213,65 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
     ImPlot::EndPlot();
   }
 
-  ImGui::SliderFloat("Tree duration",
-                     &prop_params.asset_tree_duration,
-                     0.1f,
-                     20.f,
-                     "%.3f",
-                     ImGuiSliderFlags_Logarithmic);
-
-  ImGui::SliderFloat("Timestep (years)",
-                     &prop_params.asset_tree_timestep,
-                     1. / 252,
-                     1.f,
-                     "%.3f",
-                     ImGuiSliderFlags_Logarithmic);
-
-  ImGui::SliderFloat("Hull-White mean-reversion",
-                     &prop_params.hullwhite_mean_reversion,
-                     0.01f,
-                     1.0f,
-                     "%.3f",
-                     ImGuiSliderFlags_Logarithmic);
-
-  ImGui::SliderFloat("Hull-White normal vol",
-                     &prop_params.hullwhite_sigma,
-                     0.001f,
-                     0.25f,
-                     "%.3f",
-                     ImGuiSliderFlags_Logarithmic);
-
-  TrinomialTree trinomial_tree(prop_params.asset_tree_duration,
+  TrinomialTree trinomial_tree(prop_params.short_rate_tree_duration,
                                prop_params.hullwhite_mean_reversion,
-                               prop_params.asset_tree_timestep,
+                               prop_params.short_rate_tree_timestep,
                                prop_params.hullwhite_sigma);
   trinomial_tree.forwardPropagate(*zero_curve);
-  plotTrinomialTree("Hull-White tree", trinomial_tree);
+
+  ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+  if (ImGui::TreeNode("Hull-White tree")) {
+    ImGui::SliderFloat("Tree duration",
+                       &prop_params.short_rate_tree_duration,
+                       0.1f,
+                       20.f,
+                       "%.3f",
+                       ImGuiSliderFlags_Logarithmic);
+
+    ImGui::SliderFloat("Timestep (years)",
+                       &prop_params.short_rate_tree_timestep,
+                       1. / 252,
+                       1.f,
+                       "%.3f",
+                       ImGuiSliderFlags_Logarithmic);
+
+    ImGui::SliderFloat("Hull-White mean-reversion",
+                       &prop_params.hullwhite_mean_reversion,
+                       0.01f,
+                       1.0f,
+                       "%.3f",
+                       ImGuiSliderFlags_Logarithmic);
+
+    ImGui::SliderFloat("Hull-White normal vol",
+                       &prop_params.hullwhite_sigma,
+                       0.001f,
+                       0.25f,
+                       "%.3f",
+                       ImGuiSliderFlags_Logarithmic);
+
+    plotTrinomialTree("Hull-White tree", trinomial_tree);
+
+    ImGui::TreePop();
+    ImGui::Spacing();
+  }
+
+  ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+  if (ImGui::TreeNode("Risk-neutral probabilities")) {
+    ImGui::SliderFloat("Time (years)",
+                       &prop_params.time_for_displaying_probability,
+                       0.1f,
+                       20.f,
+                       "%.3f",
+                       ImGuiSliderFlags_Logarithmic);
+    int time_index =
+        trinomial_tree.getTimegrid()
+            .getTimeIndexForExpiry(prop_params.time_for_displaying_probability)
+            .value_or(trinomial_tree.tree_.size() - 1);
+    plotProbabilityDistribution(
+        "Rate distribution", trinomial_tree, time_index);
+    ImGui::TreePop();
+    ImGui::Spacing();
+  }
 
   ImGui::End();
 }
