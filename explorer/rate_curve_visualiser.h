@@ -164,7 +164,24 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
     ImPlot::EndPlot();
   }
 
-  TrinomialTree trinomial_tree(10.0, 0.1, 0.2, 0.02);
+  ImGui::SliderFloat("Hull-White mean-reversion",
+                     &prop_params.hullwhite_mean_reversion,
+                     0.01f,
+                     1.0f,
+                     "%.3f",
+                     ImGuiSliderFlags_Logarithmic);
+
+  ImGui::SliderFloat("Hull-White normal vol",
+                     &prop_params.hullwhite_sigma,
+                     0.001f,
+                     0.25f,
+                     "%.3f",
+                     ImGuiSliderFlags_Logarithmic);
+
+  TrinomialTree trinomial_tree(10.0,
+                               prop_params.hullwhite_mean_reversion,
+                               0.2,
+                               prop_params.hullwhite_sigma);
   trinomial_tree.forwardPropagate(*zero_curve);
   plotTrinomialTree("Hull-White tree", trinomial_tree);
 

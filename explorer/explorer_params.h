@@ -41,6 +41,13 @@ struct ExplorerParams {
   float sigmoid_vol_stretch = 0.1;
 
   float time_for_displaying_probability = 1.0;
+
+  // Represents the speed at which the short rate tends to revert to its
+  // long-term mean:
+  float hullwhite_mean_reversion = 0.10;
+
+  // A normal volatility because of the nature of the Hull-White model.
+  float hullwhite_sigma = 0.01;
 };
 }  // namespace smileexplorer
 
