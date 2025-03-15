@@ -119,28 +119,29 @@ int main(int, char**) {
     smileexplorer::displayPairedAssetDerivativePanel<
         smileexplorer::CRRPropagator,
         smileexplorer::ConstantVolSurface,
-        smileexplorer::Derivative>("Cox-Ross-Rubinstein convention",
-                                   crr_prop_params);
+        smileexplorer::SingleAssetDerivative>("Cox-Ross-Rubinstein convention",
+                                              crr_prop_params);
 
     ImGui::SetNextWindowPos(ImVec2(10, window_spacing * 2));
     smileexplorer::displayPairedAssetDerivativePanel<
         smileexplorer::JarrowRuddPropagator,
         smileexplorer::ConstantVolSurface,
-        smileexplorer::Derivative>("Jarrow-Rudd convention", jr_prop_params);
+        smileexplorer::SingleAssetDerivative>("Jarrow-Rudd convention",
+                                              jr_prop_params);
 
     ImGui::SetNextWindowPos(ImVec2(10, window_spacing * 3));
     smileexplorer::displayPairedAssetDerivativePanel<
         smileexplorer::CRRPropagator,
         smileexplorer::TermStructureVolSurface,
-        smileexplorer::Derivative>("Deterministic term-structure vol",
-                                   term_structure_params);
+        smileexplorer::SingleAssetDerivative>(
+        "Deterministic term-structure vol", term_structure_params);
 
     ImGui::SetNextWindowPos(ImVec2(10, window_spacing * 4));
     smileexplorer::displayPairedAssetDerivativePanel<
         smileexplorer::LocalVolatilityPropagator,
         smileexplorer::SigmoidSmile,
-        smileexplorer::Derivative>("Smile with a negative sigmoid function",
-                                   localvol_prop_params);
+        smileexplorer::SingleAssetDerivative>(
+        "Smile with a negative sigmoid function", localvol_prop_params);
 
     ImGui::SetNextWindowPos(ImVec2(10, window_spacing * 5));
     smileexplorer::displayPairedAssetDerivativePanel<

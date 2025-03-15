@@ -8,36 +8,18 @@
 
 namespace smileexplorer {
 
-class DerivativeBase {
+class Derivative {
   virtual double price(const VanillaOption& vanilla_option,
                        double expiry_years) = 0;
 };
 
-class Derivative : public DerivativeBase {
+class SingleAssetDerivative : public Derivative {
  public:
-  Derivative(const BinomialTree* asset_tree, const RatesCurve* curve)
+  SingleAssetDerivative(const BinomialTree* asset_tree, const RatesCurve* curve)
       : deriv_tree_(BinomialTree::createFrom(*asset_tree)),
         arrow_debreu_tree_(BinomialTree::createFrom(*asset_tree)),
         asset_tree_(asset_tree),
         curve_(curve) {}
-
-  // This is the Arrow-Debreu pricing method but it is only relevant for
-  // Europeans. Filing it away for now.
-  //
-  // double price(const std::function<double(double)>& payoff_fn,
-  //              double expiry_years) {
-  //   updateArrowDebreuPrices();
-  //   double price = 0.;
-  //   auto t_final_or =
-  //       deriv_tree_.getTimegrid().getTimeIndexForExpiry(expiry_years);
-  //   int t_final = t_final_or.value();
-  //   // Set the payoff at each scenario on the maturity date.
-  //   for (int i = 0; i <= t_final; ++i) {
-  //     price += payoff_fn(asset_tree_->nodeValue(t_final, i)) *
-  //              arrow_debreu_tree_.nodeValue(t_final, i);
-  //   }
-  //   return price;
-  // }
 
   double price(const VanillaOption& vanilla_option,
                double expiry_years) override {
@@ -118,12 +100,13 @@ class Derivative : public DerivativeBase {
   }
 };
 
-class CurrencyDerivative : public Derivative {
+class CurrencyDerivative : public SingleAssetDerivative {
  public:
   CurrencyDerivative(const BinomialTree* asset_tree,
                      const RatesCurve* domestic_curve,
                      const RatesCurve* foreign_curve)
-      : Derivative(asset_tree, domestic_curve), foreign_curve_(foreign_curve) {}
+      : SingleAssetDerivative(asset_tree, domestic_curve),
+        foreign_curve_(foreign_curve) {}
 
  private:
   const RatesCurve* foreign_curve_;
@@ -132,16 +115,6 @@ class CurrencyDerivative : public Derivative {
     return this->asset_tree_->getUpProbAt(
         *this->curve_, *foreign_curve_, time_index, i);
   }
-};
-
-class InterestRateDerivative : public DerivativeBase {
- public:
-  double price(const VanillaOption& vanilla_option,
-               double expiry_years) override {
-    return -1;
-  }
-
- private:
 };
 
 }  // namespace smileexplorer

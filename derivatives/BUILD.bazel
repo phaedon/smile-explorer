@@ -40,6 +40,17 @@ cc_test(
 )
 
 cc_library(
+    name = "interest_rate_derivative",
+    hdrs = ["interest_rate_derivative.h"],
+    deps = [
+        ":derivative",
+        ":vanilla_option",
+        "//trees:trinomial_tree",
+        "@abseil-cpp//absl/log",
+    ],
+)
+
+cc_library(
     name = "vanilla_option",
     srcs = ["vanilla_option.cpp"],
     hdrs = ["vanilla_option.h"],

@@ -128,9 +128,9 @@ DerivativeT createDerivative(const BinomialTree* asset_tree,
                              const ExplorerParams& params);
 
 template <>
-inline Derivative createDerivative<Derivative>(const BinomialTree* asset_tree,
-                                               const ExplorerParams& params) {
-  return Derivative(asset_tree, params.curve());
+inline SingleAssetDerivative createDerivative<SingleAssetDerivative>(
+    const BinomialTree* asset_tree, const ExplorerParams& params) {
+  return SingleAssetDerivative(asset_tree, params.curve());
 }
 
 template <>
