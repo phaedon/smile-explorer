@@ -195,8 +195,8 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
   for (double t = 0.0; t <= 10.0; t += 0.05) {
     timestamps.push_back(t);
     spot_rates.push_back(prop_params.curve()->forwardRate(0.0, t));
-    fwd_rates.push_back(prop_params.curve()->forwardRate(t, t + (1. / 12)));
-    tree_fwd_rates.push_back(tree_curve.forwardRate(t, t + (1. / 12)));
+    fwd_rates.push_back(prop_params.curve()->forwardRate(t, t + 0.25));
+    tree_fwd_rates.push_back(tree_curve.forwardRate(t, t + 0.25));
   }
 
   ImGui::SameLine();
@@ -220,6 +220,10 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
         "Spot", timestamps.data(), spot_rates.data(), spot_rates.size());
     ImPlot::PlotLine(
         "Forward", timestamps.data(), fwd_rates.data(), fwd_rates.size());
+    ImPlot::PlotLine("Hull-White Forward",
+                     timestamps.data(),
+                     tree_fwd_rates.data(),
+                     tree_fwd_rates.size());
     ImPlot::EndPlot();
   }
 

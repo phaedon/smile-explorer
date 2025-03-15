@@ -87,23 +87,22 @@ class ShortRateTreeCurve : public RatesCurve {
     // TODO add error handling
     const auto& timegrid = trinomial_tree_.getTimegrid();
     auto ti_candidate = timegrid.getTimeIndexForExpiry(time);
-
-    if (!ti_candidate.has_value()) {
-      // TODO LOG AN ERROR
-      return 1.0;
-    }
-    int ti = ti_candidate.value();
+    int ti = ti_candidate.value_or(timegrid.size() - 1);
 
     if (timegrid.time(ti) == time) {
       return trinomial_tree_.arrowDebreuSumAtTimestep(ti);
     }
 
     // Get the timestamp indices surrounding the requested time.
-    int ti_left = ti - 1;
-    int ti_right = ti;
+    int ti_left = ti;
+    int ti_right = ti + 1;
     if (timegrid.time(ti) > time) {
-      ++ti_left;
-      ++ti_right;
+      --ti_left;
+      --ti_right;
+    } else if (ti >= timegrid.size() - 1) {
+      // Bug fix to extrapolate past the end of the curve.
+      ti_left = timegrid.size() - 2;
+      ti_right = ti_left + 1;
     }
 
     double fwdrate = getForwardRateByIndices(
