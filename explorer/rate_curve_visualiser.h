@@ -10,6 +10,7 @@
 #include "imgui/imgui.h"
 #include "implot.h"
 #include "magic_enum.hpp"
+#include "rates/tree_curves.h"
 #include "tree_render.h"
 #include "trees/trinomial_tree.h"
 
@@ -78,7 +79,7 @@ inline void yieldCurveShiftButton(ExplorerParams& params) {
 inline void plotProbabilityDistribution(const char* label,
                                         const TrinomialTree& rate_tree,
                                         int time_index) {
-  if (time_index >= rate_tree.tree_.size()) {
+  if (time_index >= std::ssize(rate_tree.tree_)) {
     time_index = rate_tree.tree_.size() - 1;
   }
 
@@ -88,8 +89,8 @@ inline void plotProbabilityDistribution(const char* label,
     std::vector<double> rates;
     std::vector<double> probabilities;
     for (const auto& node : nodes) {
-      rates.push_back(rate_tree.alphas_[time_index] + node.val);
-      probabilities.push_back(node.arrow_deb);
+      rates.push_back(rate_tree.alphas_[time_index] + node.state_value);
+      probabilities.push_back(node.arrow_debreu);
     }
 
     float bar_size = 1.;
@@ -179,14 +180,23 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
     }
   }
 
+  TrinomialTree trinomial_tree(prop_params.short_rate_tree_duration,
+                               prop_params.hullwhite_mean_reversion,
+                               prop_params.short_rate_tree_timestep,
+                               prop_params.hullwhite_sigma);
+  trinomial_tree.forwardPropagate(*zero_curve);
+  ShortRateTreeCurve tree_curve(std::move(trinomial_tree));
+
   std::vector<float> timestamps;
   std::vector<float> spot_rates;
   std::vector<float> fwd_rates;
+  std::vector<float> tree_fwd_rates;
 
   for (double t = 0.0; t <= 10.0; t += 0.05) {
     timestamps.push_back(t);
     spot_rates.push_back(prop_params.curve()->forwardRate(0.0, t));
     fwd_rates.push_back(prop_params.curve()->forwardRate(t, t + (1. / 12)));
+    tree_fwd_rates.push_back(tree_curve.forwardRate(t, t + (1. / 12)));
   }
 
   ImGui::SameLine();
@@ -212,12 +222,6 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
         "Forward", timestamps.data(), fwd_rates.data(), fwd_rates.size());
     ImPlot::EndPlot();
   }
-
-  TrinomialTree trinomial_tree(prop_params.short_rate_tree_duration,
-                               prop_params.hullwhite_mean_reversion,
-                               prop_params.short_rate_tree_timestep,
-                               prop_params.hullwhite_sigma);
-  trinomial_tree.forwardPropagate(*zero_curve);
 
   ImGui::SetNextItemOpen(true, ImGuiCond_Once);
   if (ImGui::TreeNode("Hull-White tree")) {
@@ -249,7 +253,7 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
                        "%.3f",
                        ImGuiSliderFlags_Logarithmic);
 
-    plotTrinomialTree("Hull-White tree", trinomial_tree);
+    plotTrinomialTree("Hull-White tree", tree_curve.trinomialTree());
 
     ImGui::TreePop();
     ImGui::Spacing();
@@ -264,11 +268,12 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
                        "%.3f",
                        ImGuiSliderFlags_Logarithmic);
     int time_index =
-        trinomial_tree.getTimegrid()
+        tree_curve.trinomialTree()
+            .getTimegrid()
             .getTimeIndexForExpiry(prop_params.time_for_displaying_probability)
-            .value_or(trinomial_tree.tree_.size() - 1);
+            .value_or(tree_curve.trinomialTree().tree_.size() - 1);
     plotProbabilityDistribution(
-        "Rate distribution", trinomial_tree, time_index);
+        "Rate distribution", tree_curve.trinomialTree(), time_index);
     ImGui::TreePop();
     ImGui::Spacing();
   }

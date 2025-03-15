@@ -25,6 +25,10 @@ inline double fwdRateByPeriod(double df_start,
                               double df_end,
                               double dt,
                               CompoundingPeriod period) {
+  if (dt == 0) {
+    // TODO log an error
+    return 0.;
+  }
   double df_ratio = df_start / df_end;
   const int p = static_cast<int>(period);
   switch (period) {

@@ -8,7 +8,12 @@
 
 namespace smileexplorer {
 
-class Derivative {
+class DerivativeBase {
+  virtual double price(const VanillaOption& vanilla_option,
+                       double expiry_years) = 0;
+};
+
+class Derivative : public DerivativeBase {
  public:
   Derivative(const BinomialTree* asset_tree, const RatesCurve* curve)
       : deriv_tree_(BinomialTree::createFrom(*asset_tree)),
@@ -34,7 +39,8 @@ class Derivative {
   //   return price;
   // }
 
-  double price(const VanillaOption& vanilla_option, double expiry_years) {
+  double price(const VanillaOption& vanilla_option,
+               double expiry_years) override {
     runBackwardInduction(vanilla_option, expiry_years);
     return deriv_tree_.nodeValue(0, 0);
   }
@@ -119,13 +125,23 @@ class CurrencyDerivative : public Derivative {
                      const RatesCurve* foreign_curve)
       : Derivative(asset_tree, domestic_curve), foreign_curve_(foreign_curve) {}
 
+ private:
+  const RatesCurve* foreign_curve_;
+
   double getUpProbAt(int time_index, int i) const override {
     return this->asset_tree_->getUpProbAt(
         *this->curve_, *foreign_curve_, time_index, i);
   }
+};
+
+class InterestRateDerivative : public DerivativeBase {
+ public:
+  double price(const VanillaOption& vanilla_option,
+               double expiry_years) override {
+    return -1;
+  }
 
  private:
-  const RatesCurve* foreign_curve_;
 };
 
 }  // namespace smileexplorer

@@ -79,6 +79,7 @@ cc_library(
         ":explorer_params",
         ":gui_widgets",
         "//rates:rates_curve",
+        "//rates:tree_curves",
         "@imgui",
         "@implot",
     ],

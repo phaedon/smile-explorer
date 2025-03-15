@@ -27,7 +27,7 @@ TEST(BranchProbabilitiesTest, Hull_FirstStage) {
       AllOf(Field(&BranchProbabilities::pu, DoubleNear(0.8867, 0.00005)),
             Field(&BranchProbabilities::pm, DoubleNear(0.0267, 0.00005)),
             Field(&BranchProbabilities::pd, DoubleNear(0.0867, 0.00005))));
-  EXPECT_NEAR(0.03464, node_E.val, 0.00001);
+  EXPECT_NEAR(0.03464, tree.shortRate(2, 4), 0.00001);
 
   const auto& node_H = tree.tree_[2][1];
   EXPECT_THAT(
@@ -35,7 +35,7 @@ TEST(BranchProbabilitiesTest, Hull_FirstStage) {
       AllOf(Field(&BranchProbabilities::pu, DoubleNear(0.2217, 0.00005)),
             Field(&BranchProbabilities::pm, DoubleNear(0.6567, 0.00005)),
             Field(&BranchProbabilities::pd, DoubleNear(0.1217, 0.00005))));
-  EXPECT_NEAR(-0.01732, node_H.val, 0.00001);
+  EXPECT_NEAR(-0.01732, tree.shortRate(2, 1), 0.00001);
 
   // Verify truncation.
   std::vector<double> expected_num_nodes_per_timeslice{1, 3, 5, 5};

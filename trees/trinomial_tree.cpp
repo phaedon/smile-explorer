@@ -121,20 +121,31 @@ void TrinomialTree::updateSuccessorNodes(const TrinomialNode& curr_node,
                                          double alpha,
                                          double dt) {
   auto next = getSuccessorNodes(curr_node, time_index, j);
-  const double df = std::exp(-(alpha + curr_node.val) * dt);
+  const double df = std::exp(-(alpha + curr_node.state_value) * dt);
 
   double arrow_deb_up = curr_node.branch_probs.pu * df;
   double arrow_deb_mid = curr_node.branch_probs.pm * df;
   double arrow_deb_down = curr_node.branch_probs.pd * df;
 
-  next.up.arrow_deb += arrow_deb_up * curr_node.arrow_deb;
-  next.mid.arrow_deb += arrow_deb_mid * curr_node.arrow_deb;
-  next.down.arrow_deb += arrow_deb_down * curr_node.arrow_deb;
+  next.up.arrow_debreu += arrow_deb_up * curr_node.arrow_debreu;
+  next.mid.arrow_debreu += arrow_deb_mid * curr_node.arrow_debreu;
+  next.down.arrow_debreu += arrow_deb_down * curr_node.arrow_debreu;
+}
+
+double TrinomialTree::arrowDebreuSumAtTimestep(int time_index) const {
+  const auto& timeslice = tree_[time_index];
+  return std::accumulate(timeslice.begin(),
+                         timeslice.end(),
+                         0.0,
+                         [](double ad_sum, const TrinomialNode& node) {
+                           return ad_sum + node.arrow_debreu *
+                                               std::exp(-node.state_value);
+                         });
 }
 
 void TrinomialTree::secondStage(const ZeroSpotCurve& market_curve) {
   alphas_[0] = market_curve.forwardRate(0, dt_);
-  tree_[0][0].arrow_deb = 1.;
+  tree_[0][0].arrow_debreu = 1.;
 
   for (size_t ti = 0; ti < tree_.size() - 1; ++ti) {
     // Iterate over each node in the current timeslice once...
@@ -153,17 +164,9 @@ void TrinomialTree::secondStage(const ZeroSpotCurve& market_curve) {
       updateSuccessorNodes(curr_node, ti, j, alphas_[ti], dt_);
     }
 
-    const auto& next_timeslice = tree_[ti + 1];
-    double arrow_debreu_sum = std::accumulate(
-        next_timeslice.begin(),
-        next_timeslice.end(),
-        0.0,
-        [](double ad_sum, const TrinomialNode& next_node) {
-          return ad_sum + next_node.arrow_deb * std::exp(-next_node.val);
-        });
-
-    alphas_[ti + 1] =
-        std::log(arrow_debreu_sum / market_curve.df(dt_ * (ti + 2))) / dt_;
+    alphas_[ti + 1] = std::log(arrowDebreuSumAtTimestep(ti + 1) /
+                               market_curve.df(dt_ * (ti + 2))) /
+                      dt_;
   }
 }
 

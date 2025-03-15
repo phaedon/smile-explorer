@@ -57,8 +57,6 @@ class ZeroSpotCurve : public RatesCurve {
 
   double df(double time) const override;
 
-  double forwardRate(double start_time, double end_time) const override;
-
   // TODO: Exposed for testing.
   int findClosestMaturityIndex(double target) const;
 

@@ -30,13 +30,16 @@ struct TrinomialNode {
                 int j,
                 double sigma,
                 TrinomialBranchStyle branch_style)
-      : arrow_deb(0),
-        val(j * dR(sigma, dt)),
+      : arrow_debreu(0),
+        state_value(j * dR(sigma, dt)),
+        auxiliary_value(0),
         branch_style(branch_style),
         branch_probs(BranchProbabilities(a, dt, j, branch_style)) {}
 
-  double arrow_deb;
-  double val;
+  double arrow_debreu;
+  double state_value;
+  double auxiliary_value;
+
   TrinomialBranchStyle branch_style;
   BranchProbabilities branch_probs;
 };
@@ -90,10 +93,12 @@ class TrinomialTree {
   double totalTimeAtIndex(int time_index) const { return dt_ * (time_index); }
 
   double shortRate(int time_index, int state_index) const {
-    return tree_[time_index][state_index].val + alphas_[time_index];
+    return tree_[time_index][state_index].state_value + alphas_[time_index];
   }
 
   const Timegrid& getTimegrid() const { return timegrid_; }
+
+  double arrowDebreuSumAtTimestep(int time_index) const;
 
  private:
   Timegrid timegrid_;

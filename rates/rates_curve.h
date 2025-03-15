@@ -15,7 +15,19 @@ class RatesCurve {
   // Return discount factor at any time in the future.
   virtual double df(double time) const = 0;
 
-  virtual double forwardRate(double start_time, double end_time) const = 0;
+  double forwardRate(
+      double start_time,
+      double end_time,
+      CompoundingPeriod period = CompoundingPeriod::kContinuous) const {
+    if (end_time == 0) {
+      // Hard-code to 1 month just to prevent division by 0.
+      end_time = 1 / 12.;
+    }
+    double df_start = df(start_time);
+    double df_end = df(end_time);
+    double dt = end_time - start_time;
+    return fwdRateByPeriod(df_start, df_end, dt, period);
+  }
 
   double forwardDF(double start_time, double end_time) const {
     return df(end_time) / df(start_time);
@@ -32,9 +44,6 @@ class NoDiscountingCurve : public RatesCurve {
  public:
   ~NoDiscountingCurve() override = default;
   double df(double time) const override { return 1.0; }
-  double forwardRate(double start_time, double end_time) const override {
-    return 0.0;
-  }
 };
 
 // Utility for convenient extraction of two spot rates (continuously compounded)

@@ -65,9 +65,8 @@ inline TreeRenderData getTreeRenderData(const TrinomialTree& tree) {
   // First loop to collect node coordinates
   for (size_t ti = 0; ti < tree.tree_.size(); ++ti) {
     for (size_t j = 0; j < tree.tree_[ti].size(); ++j) {
-      const auto& curr_node = tree.tree_[ti][j];
-      r.x_coords.push_back(tree.dt_ * ti);
-      r.y_coords.push_back(curr_node.val + tree.alphas_[ti]);
+      r.x_coords.push_back(tree.totalTimeAtIndex(ti));
+      r.y_coords.push_back(tree.shortRate(ti, j));
     }
   }
 
@@ -77,20 +76,20 @@ inline TreeRenderData getTreeRenderData(const TrinomialTree& tree) {
 
       const auto next = tree.getSuccessorNodes(curr_node, ti, j);
 
-      r.edge_x_coords.push_back(tree.dt_ * ti);
-      r.edge_y_coords.push_back(curr_node.val + tree.alphas_[ti]);
-      r.edge_x_coords.push_back(tree.dt_ * (ti + 1));
-      r.edge_y_coords.push_back(next.up.val + tree.alphas_[ti + 1]);
+      r.edge_x_coords.push_back(tree.totalTimeAtIndex(ti));
+      r.edge_y_coords.push_back(curr_node.state_value + tree.alphas_[ti]);
+      r.edge_x_coords.push_back(tree.totalTimeAtIndex(ti + 1));
+      r.edge_y_coords.push_back(next.up.state_value + tree.alphas_[ti + 1]);
 
-      r.edge_x_coords.push_back(tree.dt_ * ti);
-      r.edge_y_coords.push_back(curr_node.val + tree.alphas_[ti]);
-      r.edge_x_coords.push_back(tree.dt_ * (ti + 1));
-      r.edge_y_coords.push_back(next.mid.val + tree.alphas_[ti + 1]);
+      r.edge_x_coords.push_back(tree.totalTimeAtIndex(ti));
+      r.edge_y_coords.push_back(curr_node.state_value + tree.alphas_[ti]);
+      r.edge_x_coords.push_back(tree.totalTimeAtIndex(ti + 1));
+      r.edge_y_coords.push_back(next.mid.state_value + tree.alphas_[ti + 1]);
 
-      r.edge_x_coords.push_back(tree.dt_ * ti);
-      r.edge_y_coords.push_back(curr_node.val + tree.alphas_[ti]);
-      r.edge_x_coords.push_back(tree.dt_ * (ti + 1));
-      r.edge_y_coords.push_back(next.down.val + tree.alphas_[ti + 1]);
+      r.edge_x_coords.push_back(tree.totalTimeAtIndex(ti));
+      r.edge_y_coords.push_back(curr_node.state_value + tree.alphas_[ti]);
+      r.edge_x_coords.push_back(tree.totalTimeAtIndex(ti + 1));
+      r.edge_y_coords.push_back(next.down.state_value + tree.alphas_[ti + 1]);
     }
   }
 
