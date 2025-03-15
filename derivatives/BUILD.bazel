@@ -45,8 +45,18 @@ cc_library(
     deps = [
         ":derivative",
         ":vanilla_option",
+        "//rates:tree_curves",
         "//trees:trinomial_tree",
         "@abseil-cpp//absl/log",
+    ],
+)
+
+cc_test(
+    name = "interest_rate_derivative_test",
+    srcs = ["interest_rate_derivative_test.cpp"],
+    deps = [
+        ":interest_rate_derivative",
+        "@googletest//:gtest_main",
     ],
 )
 

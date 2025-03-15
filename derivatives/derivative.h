@@ -9,6 +9,7 @@
 namespace smileexplorer {
 
 class Derivative {
+ public:
   virtual double price(const VanillaOption& vanilla_option,
                        double expiry_years) = 0;
 };

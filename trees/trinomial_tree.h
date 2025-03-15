@@ -75,7 +75,15 @@ class TrinomialTree {
     firstStage();
     secondStage(market_curve);
   }
+
+  // Constructs the tree centered at 0, without fitting market rates, just based
+  // on the timestep, mean reversion and volatility params.
+  // TODO: Rename to reflect this.
   void firstStage();
+
+  // Runs the forward propagation required to fit market rates.
+  // TODO: Rename, with a longer comment to describe exactly what is happening
+  // here. Also, consider moving this core to the HullWhitePropagator.
   void secondStage(const ZeroSpotCurve& market_curve);
 
   double tree_duration_years_;
@@ -99,6 +107,14 @@ class TrinomialTree {
   const Timegrid& getTimegrid() const { return timegrid_; }
 
   double arrowDebreuSumAtTimestep(int time_index) const;
+
+  void setZeroAfterIndex(int time_index) {
+    for (size_t ti = time_index + 1; ti < tree_.size(); ++ti) {
+      for (auto& node : tree_[ti]) {
+        node.auxiliary_value = 0;
+      }
+    }
+  }
 
  private:
   Timegrid timegrid_;
