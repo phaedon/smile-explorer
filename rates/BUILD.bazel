@@ -1,28 +1,19 @@
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
-    name = "arrow_debreu",
-    hdrs = ["arrow_debreu.h"],
-    deps = ["//trees:binomial_tree"],
-)
-
-# cc_test(
-#     name = "arrow_debreu_test",
-#     srcs = ["arrow_debreu_test.cpp"],
-#     deps = [
-#         ":arrow_debreu",
-#         "//trees:binomial_tree",
-#         "//trees:propagators",
-#         "//trees:stochastic_tree_model",
-#         "@googletest//:gtest_main",
-#     ],
-# )
-
-cc_library(
     name = "curve_calculators",
     hdrs = ["curve_calculators.h"],
     deps = [
         "//time",
+    ],
+)
+
+cc_test(
+    name = "curve_calculators_test",
+    srcs = ["curve_calculators_test.cpp"],
+    deps = [
+        ":curve_calculators",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -35,16 +26,6 @@ cc_library(
     ],
 )
 
-cc_test(
-    name = "rates_curve_test",
-    srcs = ["rates_curve_test.cpp"],
-    deps = [
-        ":rates_curve",
-        ":short_rate_tree_curve",
-        "@googletest//:gtest_main",
-    ],
-)
-
 cc_library(
     name = "short_rate_tree_curve",
     hdrs = ["short_rate_tree_curve.h"],
@@ -52,6 +33,15 @@ cc_library(
         ":curve_calculators",
         ":rates_curve",
         "//trees:trinomial_tree",
+    ],
+)
+
+cc_test(
+    name = "short_rate_tree_curve_test",
+    srcs = ["short_rate_tree_curve_test.cpp"],
+    deps = [
+        ":short_rate_tree_curve",
+        "@googletest//:gtest_main",
     ],
 )
 

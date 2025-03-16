@@ -2,17 +2,6 @@
 
 namespace smileexplorer {
 
-// double ZeroSpotCurve::forwardRate(double start_time, double end_time) const {
-//   if (end_time == 0) {
-//     // Hard-code to 1 month just to prevent division by 0.
-//     end_time = 1 / 12.;
-//   }
-//   double df_start = df(start_time);
-//   double df_end = df(end_time);
-//   double dt = end_time - start_time;
-//   return fwdRateByPeriod(df_start, df_end, dt, period_);
-// }
-
 double ZeroSpotCurve::df(double time) const {
   int ti = findClosestMaturityIndex(time);
 
