@@ -11,21 +11,20 @@ namespace smileexplorer {
 
 class InterestRateDerivative : public Derivative {
  public:
-  InterestRateDerivative(ShortRateTreeCurve* short_rate_curve)
-      : short_rate_curve_(short_rate_curve) {}
+  InterestRateDerivative(const ShortRateTreeCurve* short_rate_curve)
+      : short_rate_curve_(short_rate_curve),
+        deriv_tree_(
+            TrinomialTree::createFrom(short_rate_curve_->trinomialTree())) {}
 
   double price(const VanillaOption& vanilla_option,
                double expiry_years) override {
     runBackwardInduction(vanilla_option, expiry_years);
-
-    static_assert("Unimplemented!");
-    return -1;
+    return deriv_tree_.auxiliaryValue(0, 0);
   }
 
  private:
-  // Warning! This is no longer thread-safe and very dangerous! Just a temporary
-  // hack until we implement createFrom() for trinomial trees.
-  ShortRateTreeCurve* short_rate_curve_;
+  const ShortRateTreeCurve* short_rate_curve_;
+  TrinomialTree deriv_tree_;
 
   template <typename OptionEvaluatorT>
   void runBackwardInduction(const OptionEvaluatorT& option_evaluator,
@@ -39,9 +38,14 @@ class InterestRateDerivative : public Derivative {
       return;
     }
     int ti_final = ti_final_or.value();
-    short_rate_curve_->trinomialTree().setZeroAfterIndex(ti_final);
+    deriv_tree_.setZeroAfterIndex(ti_final);
 
-    static_assert("Unimplemented!");
+    for (int ti = ti_final; ti >= 0; --ti) {
+      for (int i = 0; i <= ti; ++i) {
+        static_assert("Unimplemented!");
+        deriv_tree_.setAuxiliaryValue(ti, i, 12345);
+      }
+    }
   }
 };
 }  // namespace smileexplorer

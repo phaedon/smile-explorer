@@ -71,6 +71,12 @@ class TrinomialTree {
     timegrid_ = grid;
   }
 
+  static TrinomialTree createFrom(const TrinomialTree& underlying) {
+    TrinomialTree derived = underlying;
+    derived.setZeroAfterIndex(-1);
+    return derived;
+  }
+
   void forwardPropagate(const ZeroSpotCurve& market_curve) {
     firstStage();
     secondStage(market_curve);
@@ -114,6 +120,14 @@ class TrinomialTree {
         node.auxiliary_value = 0;
       }
     }
+  }
+
+  double auxiliaryValue(int time_index, int state_index) const {
+    return tree_[time_index][state_index].auxiliary_value;
+  }
+
+  void setAuxiliaryValue(int time_index, int state_index, double value) {
+    tree_[time_index][state_index].auxiliary_value = value;
   }
 
  private:
