@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "absl/log/log.h"
+#include "derivatives/interest_rate_derivative.h"
 #include "explorer_params.h"
 #include "gui_widgets.h"
 #include "imgui/imgui.h"
@@ -21,9 +22,11 @@ namespace smileexplorer {
 constexpr int kBasisPointPadding = 25;
 constexpr double kRatePadding = kBasisPointPadding * 0.0001;
 
-inline void plotTrinomialTree(const char* label, const TrinomialTree& tree) {
+inline void plotTrinomialTree(const char* label,
+                              const TrinomialTree& tree,
+                              TrinomialValueExtractionType extraction) {
   if (ImPlot::BeginPlot(label, ImVec2(-1, 0))) {
-    const auto r = getTreeRenderData(tree);
+    const auto r = getTreeRenderData(tree, extraction);
     ImPlotStyle& style = ImPlot::GetStyle();
     style.MarkerSize = 1;
 
@@ -257,11 +260,29 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
                        "%.3f",
                        ImGuiSliderFlags_Logarithmic);
 
-    plotTrinomialTree("Hull-White tree", tree_curve.trinomialTree());
+    plotTrinomialTree("Hull-White tree",
+                      tree_curve.trinomialTree(),
+                      TrinomialValueExtractionType::kShortRate);
 
     ImGui::TreePop();
     ImGui::Spacing();
   }
+
+  InterestRateDerivative trinomial_option(&tree_curve);
+  VanillaOption atm_caplet(tree_curve.forwardRate(1., 2.), OptionPayoff::Call);
+  trinomial_option.price(atm_caplet, 1.0);
+
+  // Visualising backward inductino for the interest-rate option might be useful
+  // for debugging but otherwise may not be that interesting. If we restore
+  // this, change the y-scaling in plotTrinomialTree which is currently a fixed
+  // constant. ImGui::SetNextItemOpen(true, ImGuiCond_Once); if
+  // (ImGui::TreeNode("Option tree")) {
+  //   plotTrinomialTree("Option tree",
+  //                     trinomial_option.tree(),
+  //                     TrinomialValueExtractionType::kDerivValue);
+  //   ImGui::TreePop();
+  //   ImGui::Spacing();
+  // }
 
   ImGui::SetNextItemOpen(true, ImGuiCond_Once);
   if (ImGui::TreeNode("Risk-neutral probabilities")) {

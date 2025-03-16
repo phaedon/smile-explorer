@@ -59,41 +59,73 @@ inline TreeRenderData getTreeRenderData(const BinomialTree& tree) {
   return r;
 }
 
-inline TreeRenderData getTreeRenderData(const TrinomialTree& tree) {
+inline TreeRenderData generateTreeRenderData(
+    const TrinomialTree& tree,
+    std::function<double(size_t, size_t)> nodeValueFn,
+    std::function<double(const TrinomialNode&, size_t)> edgeValueFn,
+    std::function<bool(size_t)> treeValueEndDetector) {
   TreeRenderData r;
 
-  // First loop to collect node coordinates
   for (size_t ti = 0; ti < tree.tree_.size(); ++ti) {
+    if (treeValueEndDetector(ti)) {
+      break;
+    }
+
     for (size_t j = 0; j < tree.tree_[ti].size(); ++j) {
       r.x_coords.push_back(tree.totalTimeAtIndex(ti));
-      r.y_coords.push_back(tree.shortRate(ti, j));
+      r.y_coords.push_back(nodeValueFn(ti, j));
     }
   }
 
   for (size_t ti = 0; ti < tree.tree_.size() - 1; ++ti) {
+    if (treeValueEndDetector(ti)) {
+      break;
+    }
+
     for (size_t j = 0; j < tree.tree_[ti].size(); ++j) {
       const auto& curr_node = tree.tree_[ti][j];
-
       const auto next = tree.getSuccessorNodes(curr_node, ti, j);
 
-      r.edge_x_coords.push_back(tree.totalTimeAtIndex(ti));
-      r.edge_y_coords.push_back(curr_node.state_value + tree.alphas_[ti]);
-      r.edge_x_coords.push_back(tree.totalTimeAtIndex(ti + 1));
-      r.edge_y_coords.push_back(next.up.state_value + tree.alphas_[ti + 1]);
+      auto addEdge = [&](const TrinomialNode& nextNode) {
+        r.edge_x_coords.push_back(tree.totalTimeAtIndex(ti));
+        r.edge_y_coords.push_back(edgeValueFn(curr_node, ti));
+        r.edge_x_coords.push_back(tree.totalTimeAtIndex(ti + 1));
+        r.edge_y_coords.push_back(edgeValueFn(nextNode, ti + 1));
+      };
 
-      r.edge_x_coords.push_back(tree.totalTimeAtIndex(ti));
-      r.edge_y_coords.push_back(curr_node.state_value + tree.alphas_[ti]);
-      r.edge_x_coords.push_back(tree.totalTimeAtIndex(ti + 1));
-      r.edge_y_coords.push_back(next.mid.state_value + tree.alphas_[ti + 1]);
-
-      r.edge_x_coords.push_back(tree.totalTimeAtIndex(ti));
-      r.edge_y_coords.push_back(curr_node.state_value + tree.alphas_[ti]);
-      r.edge_x_coords.push_back(tree.totalTimeAtIndex(ti + 1));
-      r.edge_y_coords.push_back(next.down.state_value + tree.alphas_[ti + 1]);
+      addEdge(next.up);
+      addEdge(next.mid);
+      addEdge(next.down);
     }
   }
 
   return r;
+}
+
+enum class TrinomialValueExtractionType { kShortRate, kDerivValue };
+
+inline TreeRenderData getTreeRenderData(
+    const TrinomialTree& tree, TrinomialValueExtractionType extraction) {
+  if (extraction == TrinomialValueExtractionType::kShortRate) {
+    return generateTreeRenderData(
+        tree,
+        [&tree](size_t ti, size_t j) { return tree.shortRate(ti, j); },
+        [&](const TrinomialNode& node, size_t ti) {
+          return node.state_value + tree.alphas_[ti];
+        },
+        [](size_t ti) { return false; });
+  } else if (extraction == TrinomialValueExtractionType::kDerivValue) {
+    return generateTreeRenderData(
+        tree,
+        [&tree](size_t ti, size_t j) { return tree.auxiliaryValue(ti, j); },
+        [&](const TrinomialNode& node, size_t ti) {
+          return node.auxiliary_value;
+        },
+        [&tree](size_t ti) { return tree.isTreeEmptyAt(ti); });
+  } else {
+    static_assert("Not supported!");
+    return TreeRenderData();  // TODO replace with a status message perhaps?
+  }
 }
 
 }  // namespace smileexplorer

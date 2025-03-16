@@ -22,6 +22,8 @@ class InterestRateDerivative : public Derivative {
     return deriv_tree_.auxiliaryValue(0, 0);
   }
 
+  const TrinomialTree& tree() const { return deriv_tree_; }
+
  private:
   const ShortRateTreeCurve* short_rate_curve_;
   TrinomialTree deriv_tree_;

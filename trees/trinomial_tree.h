@@ -130,6 +130,16 @@ class TrinomialTree {
     tree_[time_index][state_index].auxiliary_value = value;
   }
 
+  // Useful for visualisation.
+  bool isTreeEmptyAt(size_t time_index) const {
+    // current assumption: if an entire timeslice is 0, nothing after it can be
+    // populated.
+    for (const auto& node : tree_[time_index]) {
+      if (node.auxiliary_value != 0.0) return false;
+    }
+    return true;
+  }
+
  private:
   Timegrid timegrid_;
 
