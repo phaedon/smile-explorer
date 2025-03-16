@@ -127,61 +127,13 @@ inline void plotProbabilityDistribution(const char* label,
 }
 
 inline void plotForwardRateCurves(ExplorerParams& prop_params) {
-  ImGui::Begin("Spot/Forward Rates");
+  ImGui::Begin("Interest Rates");
 
   constexpr auto currency_names = magic_enum::enum_names<Currency>();
   static size_t current_item = 0;  // Index of the currently selected item
 
-  displayCurrencyCombo(
-      "Currency", current_item, prop_params, [&](Currency currency) {
-        prop_params.currency = currency;
-      });
-
-  yieldCurveShiftButton(prop_params);
-
   ZeroSpotCurve* zero_curve = dynamic_cast<ZeroSpotCurve*>(
       prop_params.global_rates->curves[prop_params.currency].get());
-
-  if (zero_curve == nullptr) {
-    LOG(ERROR) << "Rates curve for currency:" << currency_names[current_item]
-               << " not convertible to a ZeroSpotCurve.";
-  } else {
-    // Copy the values, because we have to provide these as floats (rather than
-    // doubles).
-    std::vector<int> fixed_maturities{1, 2, 3, 5, 7, 10};
-    std::vector<float> float_rates(zero_curve->getInputRates().begin(),
-                                   zero_curve->getInputRates().end());
-
-    ImGui::PushID("Rate controllers");
-    for (size_t i = 0; i < float_rates.size(); i++) {
-      if (i > 0) ImGui::SameLine();
-      ImGui::PushID(i);
-      ImGui::PushStyleColor(ImGuiCol_FrameBg,
-                            (ImVec4)ImColor::HSV(i / 7.0f, 0.5f, 0.5f));
-      ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,
-                            (ImVec4)ImColor::HSV(i / 7.0f, 0.6f, 0.5f));
-      ImGui::PushStyleColor(ImGuiCol_FrameBgActive,
-                            (ImVec4)ImColor::HSV(i / 7.0f, 0.7f, 0.5f));
-      ImGui::PushStyleColor(ImGuiCol_SliderGrab,
-                            (ImVec4)ImColor::HSV(i / 7.0f, 0.9f, 0.9f));
-      ImGui::VSliderFloat("##v",
-                          ImVec2(18, 300),
-                          &float_rates[i],
-                          0.0001f,
-                          0.25f,
-                          "",
-                          ImGuiSliderFlags_Logarithmic);
-      if (ImGui::IsItemActive() || ImGui::IsItemHovered())
-        ImGui::SetTooltip("%dy:%.4f", fixed_maturities[i], float_rates[i]);
-      ImGui::PopStyleColor(4);
-      ImGui::PopID();
-    }
-    ImGui::PopID();
-
-    for (int i = 0; i < std::ssize(float_rates); ++i) {
-      zero_curve->updateRateAtMaturityIndex(i, float_rates[i]);
-    }
-  }
 
   TrinomialTree trinomial_tree(prop_params.short_rate_tree_duration,
                                prop_params.hullwhite_mean_reversion,
@@ -190,44 +142,100 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
   trinomial_tree.forwardPropagate(*zero_curve);
   ShortRateTreeCurve tree_curve(std::move(trinomial_tree));
 
-  std::vector<float> timestamps;
-  std::vector<float> spot_rates;
-  std::vector<float> fwd_rates;
-  std::vector<float> tree_fwd_rates;
+  ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+  if (ImGui::TreeNode("Yield curve")) {
+    displayCurrencyCombo(
+        "Currency", current_item, prop_params, [&](Currency currency) {
+          prop_params.currency = currency;
+        });
 
-  for (double t = 0.0; t <= 10.0; t += 0.05) {
-    timestamps.push_back(t);
-    spot_rates.push_back(prop_params.curve()->forwardRate(0.0, t));
-    fwd_rates.push_back(prop_params.curve()->forwardRate(t, t + 0.25));
-    tree_fwd_rates.push_back(tree_curve.forwardRate(t, t + 0.25));
-  }
+    yieldCurveShiftButton(prop_params);
 
-  ImGui::SameLine();
-  if (ImPlot::BeginPlot("Rates", ImVec2(-1, 0))) {
-    float min_spot_rate =
-        *std::min_element(spot_rates.begin(), spot_rates.end());
-    float max_spot_rate =
-        *std::max_element(spot_rates.begin(), spot_rates.end());
-    float min_fwd_rate = *std::min_element(fwd_rates.begin(), fwd_rates.end());
-    float max_fwd_rate = *std::max_element(fwd_rates.begin(), fwd_rates.end());
-    float min_limit = std::min(min_spot_rate, min_fwd_rate) - kRatePadding;
-    float max_limit = std::max(max_spot_rate, max_fwd_rate) + kRatePadding;
-    if (max_limit - min_limit < kRatePadding * 2) {
-      max_limit += kRatePadding;
-      min_limit -= kRatePadding;
+    if (zero_curve == nullptr) {
+      LOG(ERROR) << "Rates curve for currency:" << currency_names[current_item]
+                 << " not convertible to a ZeroSpotCurve.";
+    } else {
+      // Copy the values, because we have to provide these as floats (rather
+      // than doubles).
+      std::vector<int> fixed_maturities{1, 2, 3, 5, 7, 10};
+      std::vector<float> float_rates(zero_curve->getInputRates().begin(),
+                                     zero_curve->getInputRates().end());
+
+      ImGui::PushID("Rate controllers");
+      for (size_t i = 0; i < float_rates.size(); i++) {
+        if (i > 0) ImGui::SameLine();
+        ImGui::PushID(i);
+        ImGui::PushStyleColor(ImGuiCol_FrameBg,
+                              (ImVec4)ImColor::HSV(i / 7.0f, 0.5f, 0.5f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,
+                              (ImVec4)ImColor::HSV(i / 7.0f, 0.6f, 0.5f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive,
+                              (ImVec4)ImColor::HSV(i / 7.0f, 0.7f, 0.5f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab,
+                              (ImVec4)ImColor::HSV(i / 7.0f, 0.9f, 0.9f));
+        ImGui::VSliderFloat("##v",
+                            ImVec2(18, 200),
+                            &float_rates[i],
+                            0.0001f,
+                            0.25f,
+                            "",
+                            ImGuiSliderFlags_Logarithmic);
+        if (ImGui::IsItemActive() || ImGui::IsItemHovered())
+          ImGui::SetTooltip("%dy:%.4f", fixed_maturities[i], float_rates[i]);
+        ImGui::PopStyleColor(4);
+        ImGui::PopID();
+      }
+      ImGui::PopID();
+
+      for (int i = 0; i < std::ssize(float_rates); ++i) {
+        zero_curve->updateRateAtMaturityIndex(i, float_rates[i]);
+      }
     }
 
-    ImPlot::SetupAxisLimits(ImAxis_Y1, min_limit, max_limit, ImPlotCond_Always);
+    std::vector<float> timestamps;
+    std::vector<float> spot_rates;
+    std::vector<float> fwd_rates;
+    std::vector<float> tree_fwd_rates;
 
-    ImPlot::PlotLine(
-        "Spot", timestamps.data(), spot_rates.data(), spot_rates.size());
-    ImPlot::PlotLine(
-        "Forward", timestamps.data(), fwd_rates.data(), fwd_rates.size());
-    ImPlot::PlotLine("Hull-White Forward",
-                     timestamps.data(),
-                     tree_fwd_rates.data(),
-                     tree_fwd_rates.size());
-    ImPlot::EndPlot();
+    for (double t = 0.0; t <= 10.0; t += 0.05) {
+      timestamps.push_back(t);
+      spot_rates.push_back(prop_params.curve()->forwardRate(0.0, t));
+      fwd_rates.push_back(prop_params.curve()->forwardRate(t, t + 0.25));
+      tree_fwd_rates.push_back(tree_curve.forwardRate(t, t + 0.25));
+    }
+
+    ImGui::SameLine();
+    if (ImPlot::BeginPlot("Rates", ImVec2(-1, 200))) {
+      float min_spot_rate =
+          *std::min_element(spot_rates.begin(), spot_rates.end());
+      float max_spot_rate =
+          *std::max_element(spot_rates.begin(), spot_rates.end());
+      float min_fwd_rate =
+          *std::min_element(fwd_rates.begin(), fwd_rates.end());
+      float max_fwd_rate =
+          *std::max_element(fwd_rates.begin(), fwd_rates.end());
+      float min_limit = std::min(min_spot_rate, min_fwd_rate) - kRatePadding;
+      float max_limit = std::max(max_spot_rate, max_fwd_rate) + kRatePadding;
+      if (max_limit - min_limit < kRatePadding * 2) {
+        max_limit += kRatePadding;
+        min_limit -= kRatePadding;
+      }
+
+      ImPlot::SetupAxisLimits(
+          ImAxis_Y1, min_limit, max_limit, ImPlotCond_Always);
+
+      ImPlot::PlotLine(
+          "Spot", timestamps.data(), spot_rates.data(), spot_rates.size());
+      ImPlot::PlotLine(
+          "Forward", timestamps.data(), fwd_rates.data(), fwd_rates.size());
+      ImPlot::PlotLine("Hull-White Forward",
+                       timestamps.data(),
+                       tree_fwd_rates.data(),
+                       tree_fwd_rates.size());
+      ImPlot::EndPlot();
+    }
+    ImGui::TreePop();
+    ImGui::Spacing();
   }
 
   ImGui::SetNextItemOpen(true, ImGuiCond_Once);
