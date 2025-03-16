@@ -42,8 +42,9 @@ class InterestRateDerivative : public Derivative {
 
     for (int ti = ti_final; ti >= 0; --ti) {
       for (int i = 0; i <= ti; ++i) {
-        static_assert("Unimplemented!");
-        deriv_tree_.setAuxiliaryValue(ti, i, 12345);
+        const double deriv_value_at_node =
+            option_evaluator(deriv_tree_, *short_rate_curve_, ti, i, ti_final);
+        deriv_tree_.setAuxiliaryValue(ti, i, deriv_value_at_node);
       }
     }
   }

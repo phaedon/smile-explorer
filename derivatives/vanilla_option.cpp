@@ -74,4 +74,34 @@ double VanillaOption::operator()(const BinomialTree& deriv_tree,
   return discounted_expected_next_state;
 }
 
+double VanillaOption::operator()(const TrinomialTree& deriv_tree,
+                                 const ShortRateTreeCurve& short_rate_curve,
+                                 int ti,
+                                 int i,
+                                 int ti_final) const {
+  const auto& rate_tree = short_rate_curve.trinomialTree();
+  if (ti == ti_final) {
+    // TODO: Also take in a compounding convention to support flexibility in
+    // deriv. specs.
+    const double state = rate_tree.shortRate(ti, i);
+    return getPayoff(state, strike_);
+  }
+
+  const auto& curr_deriv_node = deriv_tree.tree_[ti][i];
+  const auto& next = deriv_tree.getSuccessorNodes(curr_deriv_node, ti, i);
+  double expected_next =
+      next.up.auxiliary_value * curr_deriv_node.branch_probs.pu +
+      next.mid.auxiliary_value * curr_deriv_node.branch_probs.pm +
+      next.down.auxiliary_value * curr_deriv_node.branch_probs.pd;
+  const double fwd_df = short_rate_curve.forwardDF(
+      deriv_tree.totalTimeAtIndex(ti), deriv_tree.totalTimeAtIndex(ti + 1));
+  const double discounted_expected_next_state = fwd_df * expected_next;
+
+  if (style_ == ExerciseStyle::American) {
+    static_assert("Unimplemented!");
+  }
+
+  return discounted_expected_next_state;
+}
+
 }  // namespace smileexplorer
