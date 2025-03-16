@@ -40,19 +40,17 @@ cc_test(
     srcs = ["rates_curve_test.cpp"],
     deps = [
         ":rates_curve",
-        ":tree_curves",
+        ":short_rate_tree_curve",
         "@googletest//:gtest_main",
     ],
 )
 
 cc_library(
-    name = "tree_curves",
-    hdrs = ["tree_curves.h"],
+    name = "short_rate_tree_curve",
+    hdrs = ["short_rate_tree_curve.h"],
     deps = [
-        ":arrow_debreu",
-        "//trees:binomial_tree",
-        "//trees:propagators",
-        "//trees:stochastic_tree_model",
+        ":curve_calculators",
+        ":rates_curve",
         "//trees:trinomial_tree",
     ],
 )

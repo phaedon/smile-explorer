@@ -1,7 +1,7 @@
 #ifndef SMILEEXPLORER_DERIVATIVES_VANILLA_OPTION_H_
 #define SMILEEXPLORER_DERIVATIVES_VANILLA_OPTION_H_
 
-#include "rates/tree_curves.h"
+#include "rates/short_rate_tree_curve.h"
 #include "trees/binomial_tree.h"
 #include "trees/trinomial_tree.h"
 

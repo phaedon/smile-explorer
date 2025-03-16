@@ -4,25 +4,31 @@
 
 #include <cmath>
 
-#include "tree_curves.h"
+#include "short_rate_tree_curve.h"
 
 namespace smileexplorer {
 namespace {
 
-TEST(RatesCurveTest, SimpleUncalibrated_Basic) {
-  // TODO these are all approximations / sanity-checks during development and
-  // are expected to fail, for now.
-  SimpleUncalibratedShortRatesCurve curve(10.0, 0.1);
-  EXPECT_NEAR(0.05, curve.forwardRate(0, 1), 0.0005);
-  EXPECT_NEAR(0.05, curve.forwardRate(1, 2), 0.0005);
-  EXPECT_NEAR(0.05, curve.forwardRate(0, 2), 0.0005);
-  EXPECT_NEAR(0.05, curve.forwardRate(5, 7), 0.0010);
+TEST(RatesCurveTest, TreeCalibrationMatchesMarketRates) {
+  constexpr double tolerance = 0.0001;
+  ZeroSpotCurve market_curve({1, 2, 5, 10}, {.03, .035, .04, .045});
 
-  EXPECT_NEAR(0.95, curve.df(1.0), 0.01);
-  EXPECT_NEAR(0.9, curve.df(2.0), 0.01);
-  EXPECT_NEAR(0.895, curve.df(2.1), 0.01);
+  // TODO: See if it is possible to increase the grid spacing while still
+  // getting within a 1bps tolerance of market rate fitting.
+  constexpr double dt = 1. / 80;
+  TrinomialTree tree(10, 0.1, dt, 0.05);
+  tree.forwardPropagate(market_curve);
+  ShortRateTreeCurve tree_curve(std::move(tree));
 
-  EXPECT_NEAR(1.0 / (std::pow(1.05, 5)), curve.df(5.0), 0.01);
+  for (double i = 0; i < 10; i += 1) {
+    for (double j = i + 0.25; j <= i + 5; j += 0.25) {
+      const double mkt_fwd =
+          market_curve.forwardRate(i, j, CompoundingPeriod::kQuarterly);
+      const double tree_fwd =
+          tree_curve.forwardRate(i, j, CompoundingPeriod::kQuarterly);
+      EXPECT_NEAR(mkt_fwd, tree_fwd, tolerance);
+    }
+  }
 }
 
 TEST(RatesCurveTest, ForwardRatesAndDiscountFactorsMatch) {

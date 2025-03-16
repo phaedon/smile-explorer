@@ -3,6 +3,8 @@
 #include <gtest/gtest.h>
 
 #include "derivative.h"
+#include "trees/propagators.h"
+#include "trees/stochastic_tree_model.h"
 
 namespace smileexplorer {
 

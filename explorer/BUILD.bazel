@@ -80,7 +80,7 @@ cc_library(
         ":gui_widgets",
         "//derivatives:interest_rate_derivative",
         "//rates:rates_curve",
-        "//rates:tree_curves",
+        "//rates:short_rate_tree_curve",
         "@imgui",
         "@implot",
     ],

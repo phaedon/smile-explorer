@@ -11,7 +11,7 @@
 #include "imgui/imgui.h"
 #include "implot.h"
 #include "magic_enum.hpp"
-#include "rates/tree_curves.h"
+#include "rates/short_rate_tree_curve.h"
 #include "tree_render.h"
 #include "trees/trinomial_tree.h"
 

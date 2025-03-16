@@ -45,7 +45,7 @@ cc_library(
     deps = [
         ":derivative",
         ":vanilla_option",
-        "//rates:tree_curves",
+        "//rates:short_rate_tree_curve",
         "//trees:trinomial_tree",
         "@abseil-cpp//absl/log",
     ],
@@ -56,6 +56,8 @@ cc_test(
     srcs = ["interest_rate_derivative_test.cpp"],
     deps = [
         ":interest_rate_derivative",
+        "//trees:propagators",
+        "//trees:stochastic_tree_model",
         "@googletest//:gtest_main",
     ],
 )
@@ -66,7 +68,7 @@ cc_library(
     hdrs = ["vanilla_option.h"],
     deps = [
         ":bsm",
-        "//rates:tree_curves",
+        "//rates:short_rate_tree_curve",
         "//trees:binomial_tree",
         "//trees:trinomial_tree",
         "@abseil-cpp//absl/log",

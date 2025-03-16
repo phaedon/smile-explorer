@@ -4,7 +4,7 @@
 
 #include "absl/log/log.h"
 #include "derivative.h"
-#include "rates/tree_curves.h"
+#include "rates/short_rate_tree_curve.h"
 #include "vanilla_option.h"
 
 namespace smileexplorer {
