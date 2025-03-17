@@ -5,7 +5,7 @@
 #include "derivatives/derivative.h"
 #include "rates/zero_curve.h"
 #include "test/tree_matchers.h"
-#include "time.h"
+#include "time/time_enums.h"
 #include "trees/binomial_tree.h"
 #include "trees/propagators.h"
 #include "volatility/volatility.h"

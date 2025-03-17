@@ -6,7 +6,7 @@ cc_library(
     hdrs = ["binomial_tree.h"],
     deps = [
         "//rates:rates_curve",
-        "//time",
+        "//time:time_enums",
         "//volatility",
         "@abseil-cpp//absl/log",
         "@eigen",

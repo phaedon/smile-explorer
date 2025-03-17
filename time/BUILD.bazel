@@ -1,8 +1,8 @@
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
-    name = "time",
-    hdrs = ["time.h"],
+    name = "time_enums",
+    hdrs = ["time_enums.h"],
 )
 
 cc_library(

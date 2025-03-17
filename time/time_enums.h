@@ -1,5 +1,5 @@
-#ifndef SMILEEXPLORER_TIME_H_
-#define SMILEEXPLORER_TIME_H_
+#ifndef SMILEEXPLORER_TIME_ENUMS_H_
+#define SMILEEXPLORER_TIME_ENUMS_H_
 
 namespace smileexplorer {
 
@@ -40,4 +40,4 @@ inline double numDaysInYear(YearStyle style) {
 
 }  // namespace smileexplorer
 
-#endif  // SMILEEXPLORER_TIME_H_
+#endif  // SMILEEXPLORER_TIME_ENUMS_H_

@@ -4,7 +4,7 @@ cc_library(
     name = "curve_calculators",
     hdrs = ["curve_calculators.h"],
     deps = [
-        "//time",
+        "//time:time_enums",
     ],
 )
 
@@ -22,7 +22,7 @@ cc_library(
     hdrs = ["rates_curve.h"],
     deps = [
         ":curve_calculators",
-        "//time",
+        "//time:time_enums",
     ],
 )
 

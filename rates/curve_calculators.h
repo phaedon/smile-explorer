@@ -3,7 +3,7 @@
 
 #include <cmath>
 
-#include "time/time.h"
+#include "time/time_enums.h"
 
 namespace smileexplorer {
 

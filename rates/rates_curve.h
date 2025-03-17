@@ -4,7 +4,7 @@
 #include <utility>  // std::pair
 
 #include "curve_calculators.h"
-#include "time.h"
+#include "time/time_enums.h"
 
 namespace smileexplorer {
 

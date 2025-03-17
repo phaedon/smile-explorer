@@ -9,7 +9,7 @@
 #include "implot.h"
 #include "implot3d.h"
 #include "rate_curve_visualiser.h"
-#include "time.h"
+#include "time/time_enums.h"
 #include "trees/propagators.h"
 #include "volatility/volatility.h"
 #define GL_SILENCE_DEPRECATION

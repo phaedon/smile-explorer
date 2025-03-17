@@ -4,7 +4,7 @@
 
 #include "curve_calculators.h"
 #include "rates_curve.h"
-#include "time.h"
+#include "time/time_enums.h"
 #include "trees/trinomial_tree.h"
 
 namespace smileexplorer {
