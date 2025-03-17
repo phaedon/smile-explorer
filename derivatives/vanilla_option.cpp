@@ -93,6 +93,8 @@ double VanillaOption::operator()(const TrinomialTree& deriv_tree,
       next.up.auxiliary_value * curr_deriv_node.branch_probs.pu +
       next.mid.auxiliary_value * curr_deriv_node.branch_probs.pm +
       next.down.auxiliary_value * curr_deriv_node.branch_probs.pd;
+  // TODO: this is incorrect, because it is not the discounting conditional on
+  // the state of the short rate.
   const double fwd_df = short_rate_curve.forwardDF(
       deriv_tree.totalTimeAtIndex(ti), deriv_tree.totalTimeAtIndex(ti + 1));
   const double discounted_expected_next_state = fwd_df * expected_next;

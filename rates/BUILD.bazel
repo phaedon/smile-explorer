@@ -32,7 +32,9 @@ cc_library(
     deps = [
         ":curve_calculators",
         ":rates_curve",
+        "//derivatives:forward_rate_agreement",
         "//trees:trinomial_tree",
+        "@abseil-cpp//absl/log",
     ],
 )
 

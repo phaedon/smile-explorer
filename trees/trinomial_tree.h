@@ -2,6 +2,8 @@
 #define SMILEEXPLORER_TREES_TRINOMIAL_TREE_H_
 
 #include <numbers>
+#include <optional>
+#include <unordered_map>
 #include <vector>
 
 #include "rates/zero_curve.h"
@@ -24,6 +26,14 @@ struct BranchProbabilities {
   double pu, pm, pd;
 };
 
+struct ForwardRateCache {
+  std::optional<double> operator()(ForwardRateTenor tenor) const {
+    if (cache.contains(tenor)) return cache.at(tenor);
+    return std::nullopt;
+  }
+  std::unordered_map<ForwardRateTenor, double> cache;
+};
+
 struct TrinomialNode {
   TrinomialNode(double a,
                 double dt,
@@ -42,6 +52,7 @@ struct TrinomialNode {
 
   TrinomialBranchStyle branch_style;
   BranchProbabilities branch_probs;
+  ForwardRateCache forward_rate_cache;
 };
 
 template <typename NodeT>
@@ -69,6 +80,26 @@ class TrinomialTree {
       grid.set(i, i * dt_);
     }
     timegrid_ = grid;
+  }
+
+  // TODO: Move this to ShortRateTreeCurve once curve-fitting (secondStage and
+  // forwardPropagate) have been moved out of this library, which should only be
+  // concerned with the core data structure.
+  static TrinomialTree create(double tree_duration_years,
+                              ForwardRateTenor fra_tenor,
+                              int tenor_subdivisions,
+                              double a,
+                              double sigma) {
+    // The smallest timestep must fit within the target tenor.
+    if (tenor_subdivisions < 1) {
+      tenor_subdivisions = 1;
+    }
+
+    // For example, a 3m tenor and 6 subdivisions results in half month
+    // intervals: 3/(6*12) == 1/24 of a year.
+    double dt = static_cast<int>(fra_tenor) /
+                (tenor_subdivisions * static_cast<double>(kNumMonthsPerYear));
+    return TrinomialTree(tree_duration_years, a, dt, sigma);
   }
 
   static TrinomialTree createFrom(const TrinomialTree& underlying) {
@@ -138,6 +169,15 @@ class TrinomialTree {
       if (node.auxiliary_value != 0.0) return false;
     }
     return true;
+  }
+
+  int timestepsPerForwardRateTenor(ForwardRateTenor tenor) {
+    // For example, a 3m tenor and 6 subdivisions results in half month
+    // intervals:
+    //     3 / (6 * 12) == 1/24 of a year.
+    // So we reconstitute the number of subdivisions by doing:
+    //     3 / (.0416667 * 12) == 3*24/12 == 6
+    return std::round(static_cast<int>(tenor) / (dt_ * kNumMonthsPerYear));
   }
 
  private:

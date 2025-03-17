@@ -40,6 +40,14 @@ cc_test(
 )
 
 cc_library(
+    name = "forward_rate_agreement",
+    hdrs = ["forward_rate_agreement.h"],
+    deps = [
+        "//trees:trinomial_tree",
+    ],
+)
+
+cc_library(
     name = "interest_rate_derivative",
     hdrs = ["interest_rate_derivative.h"],
     deps = [
