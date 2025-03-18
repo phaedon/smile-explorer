@@ -1,6 +1,7 @@
 #ifndef SMILEEXPLORER_TREES_TRINOMIAL_TREE_H_
 #define SMILEEXPLORER_TREES_TRINOMIAL_TREE_H_
 
+#include <iostream>
 #include <numbers>
 #include <optional>
 #include <unordered_map>
@@ -108,6 +109,12 @@ class TrinomialTree {
 
   static int unclampedNumStates(int time_index) { return time_index * 2 + 1; }
 
+  bool isTimesliceClamped(int time_index) const {
+    return tree_[time_index].size() <
+               TrinomialTree::unclampedNumStates(time_index) ||
+           tree_[time_index].size() == tree_[time_index + 1].size();
+  }
+
   // TODO: Move this to ShortRateTreeCurve once curve-fitting (secondStage and
   // forwardPropagate) have been moved out of this library, which should only be
   // concerned with the core data structure.
@@ -133,21 +140,6 @@ class TrinomialTree {
     derived.setZeroAfterIndex(-1);
     return derived;
   }
-
-  void forwardPropagate(const ZeroSpotCurve& market_curve) {
-    firstStage();
-    secondStage(market_curve);
-  }
-
-  // Constructs the tree centered at 0, without fitting market rates, just based
-  // on the timestep, mean reversion and volatility params.
-  // TODO: Rename to reflect this.
-  void firstStage();
-
-  // Runs the forward propagation required to fit market rates.
-  // TODO: Rename, with a longer comment to describe exactly what is happening
-  // here. Also, consider moving this core to the HullWhitePropagator.
-  void secondStage(const ZeroSpotCurve& market_curve);
 
   double tree_duration_years_;
   double a_, dt_, sigma_;
@@ -208,8 +200,15 @@ class TrinomialTree {
     return std::round(static_cast<int>(tenor) / (dt_ * kNumMonthsPerYear));
   }
 
- private:
-  Timegrid timegrid_;
+  void printUpTo(size_t time_index) const {
+    for (size_t ti = 0; ti < std::min(time_index, tree_.size()); ++ti) {
+      std::cout << "ti:" << ti << " ::  ";
+      for (size_t j = 0; j < tree_[ti].size(); ++j) {
+        std::cout << "  " << tree_[ti][j].state_value;
+      }
+      std::cout << std::endl;
+    }
+  }
 
   void updateSuccessorNodes(const TrinomialNode& curr_node,
                             int time_index,
@@ -217,16 +216,8 @@ class TrinomialTree {
                             double alpha,
                             double dt);
 
-  // Returns threshold for which probabilities are always positive.
-  int jMax() const;
-
-  int numStatesWithClamping(int time_index) const;
-
-  // Returns true if the timeslice would have had more states, but due to the
-  // jMax clamping factor, this timeslice has a narrower range of states.
-  bool isTimesliceClamped(int time_index) const;
-
-  TrinomialBranchStyle getBranchStyleForNode(int time_index, int j) const;
+ private:
+  Timegrid timegrid_;
 };
 
 }  // namespace smileexplorer

@@ -29,6 +29,8 @@ TEST(ShortRateTreeCurveTest, Hull_SecondStage) {
               testing::ElementsAre(DoubleNear(0.03824, 0.00001),
                                    DoubleNear(0.05205, 0.00001),
                                    DoubleNear(0.06252, 0.00001)));
+
+  tree.printUpTo(10);
 }
 
 TEST(ShortRateTreeCurveTest, TreeCalibrationMatchesMarketRates) {

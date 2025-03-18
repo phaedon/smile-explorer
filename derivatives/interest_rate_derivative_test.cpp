@@ -32,9 +32,10 @@ TEST(InterestRateDerivativeTest, RoughSanityCheck) {
   // Now set up the proper trinomial tree to simulate the same conditions.
   double normalvol = estimateNormalVol(disc_rate, strike, 0.12, 3.0);
   std::cout << normalvol << "  normal vol estimate" << std::endl;
-  TrinomialTree tree(3.1, 0.005, 1 / 100., normalvol);
-  tree.forwardPropagate(curve);
-  ShortRateTreeCurve hullwhitecurve(std::move(tree));
+
+  HullWhitePropagator hwprop(0.005, normalvol, 1 / 100.);
+  TrinomialTree tree(3.1, 1 / 100.);
+  ShortRateTreeCurve hullwhitecurve(hwprop, curve, std::move(tree));
   InterestRateDerivative trinomial_option(&hullwhitecurve);
   double hw_caplet_price = trinomial_option.price(caplet, 3.0);
 

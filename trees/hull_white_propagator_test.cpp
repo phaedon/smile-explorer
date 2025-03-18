@@ -12,6 +12,38 @@ using testing::AllOf;
 using testing::DoubleNear;
 using testing::Field;
 
+MATCHER(AllProbabilitiesBetween0And1, "") {
+  const BranchProbabilities& probs = arg;
+  return probs.pu >= 0.0 && probs.pu <= 1.0 &&  //
+         probs.pm >= 0.0 && probs.pm <= 1.0 &&  //
+         probs.pd >= 0.0 && probs.pd <= 1.0;
+}
+
+TEST(HullWhitePropagatorTest, BranchProbabilitiesPositiveAndSumToOne) {
+  const double tolerance = 1.e-10;
+  int counter = 0;
+
+  for (double mean_reversion_speed : {0.01, 0.05, 0.1, 0.15, 0.2, 0.25}) {
+    for (double dt : {0.01, 0.05, 0.1, 0.125, 0.15, 0.2, 0.25, 0.5}) {
+      for (double sigma : {0.01, 0.02, 0.05, 0.1, 0.12}) {
+        HullWhitePropagator hw(mean_reversion_speed, sigma, dt);
+        for (int j = -hw.jMax(); j <= hw.jMax(); ++j) {
+          for (int ti : {1, 2, 5, 10, 20, 30, 40, 50}) {
+            auto branch_style = hw.getBranchStyleForNode(ti, j);
+            auto probs = hw.computeBranchProbabilities(j, branch_style);
+            EXPECT_THAT(probs, AllProbabilitiesBetween0And1());
+            EXPECT_NEAR(1.0, probs.pd + probs.pm + probs.pu, tolerance);
+            ++counter;
+          }
+        }
+      }
+    }
+  }
+
+  // Just to make sure we've tried a large number of valid combinations.
+  EXPECT_GT(counter, 200000);
+}
+
 TEST(BranchProbabilitiesTest, HullWhite_FirstStage) {
   double dt = 1.0;
   double sigma = 0.01;

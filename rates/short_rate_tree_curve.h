@@ -108,9 +108,7 @@ class ShortRateTreeCurve : public RatesCurve {
   void forwardPropagate(const HullWhitePropagator& propagator,
                         const ZeroSpotCurve& market_curve) {
     firstStage(propagator);
-
-    // TODO move this implementation here.
-    trinomial_tree_.secondStage(market_curve);
+    secondStage(propagator, market_curve);
   }
 
  private:
@@ -129,11 +127,45 @@ class ShortRateTreeCurve : public RatesCurve {
 
   void firstStage(const HullWhitePropagator& propagator) {
     for (size_t ti = 0; ti < trinomial_tree_.tree_.size(); ++ti) {
+      LOG(INFO) << "ti: " << ti
+                << " numstates:" << propagator.numStatesAtTimeIndex(ti);
       for (int state_index = 0;
            state_index < propagator.numStatesAtTimeIndex(ti);
            ++state_index) {
         trinomial_tree_.tree_[ti].push_back(propagator(ti, state_index));
       }
+    }
+  }
+
+  void secondStage(const HullWhitePropagator& propagator,
+                   const ZeroSpotCurve& market_curve) {
+    const double dt = propagator.dt();
+
+    trinomial_tree_.alphas_[0] = market_curve.forwardRate(0, dt);
+    trinomial_tree_.tree_[0][0].arrow_debreu = 1.;
+
+    for (size_t ti = 0; ti < trinomial_tree_.tree_.size() - 1; ++ti) {
+      // Iterate over each node in the current timeslice once...
+      for (int j = 0; j < std::ssize(trinomial_tree_.tree_[ti]); ++j) {
+        auto& curr_node = trinomial_tree_.tree_[ti][j];
+        // ... and for each iteration, update the 3 successor nodes in the next
+        // timestep.
+        //
+        // Note that the formula in John Hull, "Options..." (pg 745,
+        // formula 32.12) writes this a bit differently, as a single expression
+        // for Q_{m+1,j}, as a sum which iterates over all Q_{m} which can lead
+        // to this node. Mathematically that is more concise, but for the
+        // implementation it would be more complicated because the number of
+        // incoming edges can vary greatly, whereas the number of outgoing edges
+        // is always 3.
+        trinomial_tree_.updateSuccessorNodes(
+            curr_node, ti, j, trinomial_tree_.alphas_[ti], dt);
+      }
+
+      trinomial_tree_.alphas_[ti + 1] =
+          std::log(trinomial_tree_.arrowDebreuSumAtTimestep(ti + 1) /
+                   market_curve.df(dt * (ti + 2))) /
+          dt;
     }
   }
 };

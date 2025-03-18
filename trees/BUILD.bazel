@@ -24,6 +24,7 @@ cc_test(
 
 cc_library(
     name = "hull_white_propagator",
+    srcs = ["hull_white_propagator.cpp"],
     hdrs = ["hull_white_propagator.h"],
     deps = [":trinomial_tree"],
 )
