@@ -9,6 +9,7 @@
 #include "time/time_enums.h"
 #include "trees/hull_white_propagator.h"
 #include "trees/trinomial_tree.h"
+#include "zero_curve.h"
 
 namespace smileexplorer {
 

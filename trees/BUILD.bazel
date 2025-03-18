@@ -74,7 +74,7 @@ cc_library(
     srcs = ["trinomial_tree.cpp"],
     hdrs = ["trinomial_tree.h"],
     deps = [
-        "//rates:zero_curve",
+        "//time:time_enums",
         "//time:timegrid",
     ],
 )
