@@ -19,9 +19,6 @@ namespace smileexplorer {
 // match market rates.
 class ShortRateTreeCurve : public RatesCurve {
  public:
-  ShortRateTreeCurve(TrinomialTree trinomial_tree)
-      : trinomial_tree_(std::move(trinomial_tree)) {}
-
   ShortRateTreeCurve(const HullWhitePropagator& propagator,
                      const ZeroSpotCurve& market_curve,
                      TrinomialTree trinomial_tree)
@@ -87,7 +84,6 @@ class ShortRateTreeCurve : public RatesCurve {
       for (int ti_fwd = 0;
            ti_fwd < trinomial_tree_.getTimegrid().size() - timesteps_in_tenor;
            ++ti_fwd) {
-        // LOG(INFO) << "Precomputing fwd rates at ti_fwd:" << ti_fwd;
         precomputeForwardRatesForTenorAtTime(tenor, ti_fwd);
 
         // Cache the conditional forwards just computed.
@@ -97,10 +93,6 @@ class ShortRateTreeCurve : public RatesCurve {
                               node.auxiliary_value,
                               timesteps_in_tenor * trinomial_tree_.dt_,
                               CompoundingPeriod::kMonthly);
-          // LOG(INFO) << "  Cache at state j: "
-          //           << node.forward_rate_cache(tenor).value()
-          //           << "  and inst. fwd:"
-          //           << node.state_value + trinomial_tree_.alphas_[ti_fwd];
         }
       }
     }
@@ -128,8 +120,6 @@ class ShortRateTreeCurve : public RatesCurve {
 
   void firstStage(const HullWhitePropagator& propagator) {
     for (size_t ti = 0; ti < trinomial_tree_.tree_.size(); ++ti) {
-      LOG(INFO) << "ti: " << ti
-                << " numstates:" << propagator.numStatesAtTimeIndex(ti);
       for (int state_index = 0;
            state_index < propagator.numStatesAtTimeIndex(ti);
            ++state_index) {
