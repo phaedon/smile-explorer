@@ -121,6 +121,11 @@ inline void displayAdditionalCurrencyControls<CurrencyDerivative>(
       domestic_currency_index,
       prop_params,
       [&](Currency currency) { prop_params.currency = currency; });
+
+  prop_params.spot_price =
+      (*prop_params.global_currencies)(prop_params.foreign_currency,
+                                       prop_params.currency)
+          .value_or(1.);
 }
 
 template <typename DerivativeT>

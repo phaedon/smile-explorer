@@ -7,7 +7,8 @@
 namespace smileexplorer {
 
 struct ExplorerParams {
-  ExplorerParams(GlobalRates* rates) : global_rates(rates) {}
+  ExplorerParams(GlobalRates* rates, GlobalCurrencies* currencies)
+      : global_rates(rates), global_currencies(currencies) {}
 
   float asset_tree_duration = 3.0;
   float asset_tree_timestep = 0.05;
@@ -26,6 +27,7 @@ struct ExplorerParams {
 
   // Not owned.
   GlobalRates* global_rates;
+  GlobalCurrencies* global_currencies;
 
   Currency currency = Currency::USD;
   Currency foreign_currency = Currency::EUR;

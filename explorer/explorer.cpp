@@ -94,10 +94,15 @@ int main(int, char**) {
   ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
   smileexplorer::GlobalRates global_rates;
-  smileexplorer::ExplorerParams crr_prop_params(&global_rates);
-  smileexplorer::ExplorerParams term_structure_params(&global_rates);
-  smileexplorer::ExplorerParams jr_prop_params(&global_rates);
-  smileexplorer::ExplorerParams localvol_prop_params(&global_rates);
+  smileexplorer::GlobalCurrencies global_currencies;
+  smileexplorer::ExplorerParams crr_prop_params(&global_rates,
+                                                &global_currencies);
+  smileexplorer::ExplorerParams term_structure_params(&global_rates,
+                                                      &global_currencies);
+  smileexplorer::ExplorerParams jr_prop_params(&global_rates,
+                                               &global_currencies);
+  smileexplorer::ExplorerParams localvol_prop_params(&global_rates,
+                                                     &global_currencies);
 
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
