@@ -1,3 +1,7 @@
+module(
+    name = "smile-explorer",
+)
+
 bazel_dep(name = "abseil-cpp", version = "20250127.0")
 
 # Required for GLFW support on MacOS.
