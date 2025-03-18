@@ -33,6 +33,7 @@ cc_library(
         ":curve_calculators",
         ":rates_curve",
         "//derivatives:forward_rate_agreement",
+        "//trees:hull_white_propagator",
         "//trees:trinomial_tree",
         "@abseil-cpp//absl/log",
     ],

@@ -1,7 +1,6 @@
 #include "trinomial_tree.h"
 
 #include <cmath>
-#include <iostream>
 #include <numeric>
 
 namespace smileexplorer {
@@ -37,14 +36,14 @@ int TrinomialTree::jMax() const {
 }
 
 int TrinomialTree::numStatesWithClamping(int time_index) const {
-  int unclamped_num_states = time_index * 2 + 1;
+  int unclamped_num_states = TrinomialTree::unclampedNumStates(time_index);
   return std::min(jMax() * 2 + 1, unclamped_num_states);
 }
 
 // Returns true if the timeslice would have had more states, but due to the
 // jMax clamping factor, this timeslice has a narrower range of states.
 bool TrinomialTree::isTimesliceClamped(int time_index) const {
-  int unclamped_num_states = time_index * 2 + 1;
+  int unclamped_num_states = TrinomialTree::unclampedNumStates(time_index);
   return numStatesWithClamping(time_index) < unclamped_num_states ||
          numStatesWithClamping(time_index) ==
              numStatesWithClamping(time_index + 1);
@@ -67,7 +66,7 @@ void TrinomialTree::firstStage() {
 
     for (int i = 0; i < num_states; ++i) {
       // i is the index for indexing into the vector of states.
-      // However, we convert them to i, which is centered at 0.
+      // However, we convert them to j, which is centered at 0.
       int curr_j = i - shift;
       tree_[ti].push_back(TrinomialNode(
           a_, dt_, curr_j, sigma_, getBranchStyleForNode(ti, curr_j)));

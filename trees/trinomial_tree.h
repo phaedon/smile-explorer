@@ -19,6 +19,7 @@ inline double dR(double sigma, double dt) {
 enum class TrinomialBranchStyle { Centered, SlantedUp, SlantedDown };
 
 struct BranchProbabilities {
+  BranchProbabilities() = default;
   BranchProbabilities(double a,
                       double dt,
                       int j,
@@ -46,6 +47,15 @@ struct TrinomialNode {
         branch_style(branch_style),
         branch_probs(BranchProbabilities(a, dt, j, branch_style)) {}
 
+  TrinomialNode(double state_val,
+                TrinomialBranchStyle style,
+                BranchProbabilities probs)
+      : arrow_debreu(0),
+        state_value(state_val),
+        auxiliary_value(0),
+        branch_style(style),
+        branch_probs(probs) {}
+
   double arrow_debreu;
   double state_value;
   double auxiliary_value;
@@ -66,6 +76,7 @@ using TrinomialTimeslice = std::vector<TrinomialNode>;
 
 class TrinomialTree {
  public:
+  // TODO delete this constructor.
   TrinomialTree(double tree_duration_years, double a, double dt, double sigma)
       : tree_duration_years_(tree_duration_years),
         a_(a),
@@ -81,6 +92,21 @@ class TrinomialTree {
     }
     timegrid_ = grid;
   }
+
+  TrinomialTree(double tree_duration_years, double dt)
+      : tree_duration_years_(tree_duration_years), dt_(dt) {
+    int num_timesteps = std::ceil(tree_duration_years_ / dt_) + 1;
+    tree_.resize(num_timesteps);
+    alphas_.resize(num_timesteps);
+
+    Timegrid grid(num_timesteps);
+    for (int i = 0; i < num_timesteps; ++i) {
+      grid.set(i, i * dt_);
+    }
+    timegrid_ = grid;
+  }
+
+  static int unclampedNumStates(int time_index) { return time_index * 2 + 1; }
 
   // TODO: Move this to ShortRateTreeCurve once curve-fitting (secondStage and
   // forwardPropagate) have been moved out of this library, which should only be
@@ -108,10 +134,10 @@ class TrinomialTree {
     return derived;
   }
 
-  void forwardPropagate(const ZeroSpotCurve& market_curve) {
-    firstStage();
-    secondStage(market_curve);
-  }
+  // void forwardPropagate(const ZeroSpotCurve& market_curve) {
+  //   firstStage();
+  //   secondStage(market_curve);
+  // }
 
   // Constructs the tree centered at 0, without fitting market rates, just based
   // on the timestep, mean reversion and volatility params.
@@ -126,6 +152,8 @@ class TrinomialTree {
   double tree_duration_years_;
   double a_, dt_, sigma_;
   std::vector<TrinomialTimeslice> tree_;
+
+  // TODO: Consider moving this out and into the ShortRateTreeCurve.
   std::vector<double> alphas_;
 
   NodeTriplet<const TrinomialNode> getSuccessorNodes(

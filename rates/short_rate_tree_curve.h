@@ -7,6 +7,7 @@
 #include "derivatives/forward_rate_agreement.h"
 #include "rates_curve.h"
 #include "time/time_enums.h"
+#include "trees/hull_white_propagator.h"
 #include "trees/trinomial_tree.h"
 
 namespace smileexplorer {
@@ -19,6 +20,13 @@ class ShortRateTreeCurve : public RatesCurve {
  public:
   ShortRateTreeCurve(TrinomialTree trinomial_tree)
       : trinomial_tree_(std::move(trinomial_tree)) {}
+
+  ShortRateTreeCurve(const HullWhitePropagator& propagator,
+                     const ZeroSpotCurve& market_curve,
+                     TrinomialTree trinomial_tree)
+      : trinomial_tree_(std::move(trinomial_tree)) {
+    forwardPropagate(propagator, market_curve);
+  }
 
   double df(double time) const override {
     // TODO add error handling
@@ -97,6 +105,14 @@ class ShortRateTreeCurve : public RatesCurve {
     }
   }
 
+  void forwardPropagate(const HullWhitePropagator& propagator,
+                        const ZeroSpotCurve& market_curve) {
+    firstStage(propagator);
+
+    // TODO move this implementation here.
+    trinomial_tree_.secondStage(market_curve);
+  }
+
  private:
   TrinomialTree trinomial_tree_;
 
@@ -109,6 +125,16 @@ class ShortRateTreeCurve : public RatesCurve {
     double df_end = trinomial_tree_.arrowDebreuSumAtTimestep(end_ti);
     double dt = timegrid.time(end_ti) - timegrid.time(start_ti);
     return fwdRateByPeriod(df_start, df_end, dt, period);
+  }
+
+  void firstStage(const HullWhitePropagator& propagator) {
+    for (size_t ti = 0; ti < trinomial_tree_.tree_.size(); ++ti) {
+      for (int state_index = 0;
+           state_index < propagator.numStatesAtTimeIndex(ti);
+           ++state_index) {
+        trinomial_tree_.tree_[ti].push_back(propagator(ti, state_index));
+      }
+    }
   }
 };
 

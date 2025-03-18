@@ -13,9 +13,8 @@ TEST(ShortRateTreeCurveTest, TreeCalibrationMatchesMarketRates) {
   // TODO: See if it is possible to increase the grid spacing while still
   // getting within a 1bps tolerance of market rate fitting.
   constexpr double dt = 1. / 80;
-  TrinomialTree tree(10, 0.1, dt, 0.05);
-  tree.forwardPropagate(market_curve);
-  ShortRateTreeCurve tree_curve(std::move(tree));
+  HullWhitePropagator hw_prop(0.1, 0.05, dt);
+  ShortRateTreeCurve tree_curve(hw_prop, market_curve, TrinomialTree(10.0, dt));
 
   auto period = CompoundingPeriod::kQuarterly;
   for (double i = 0; i < 10; i += 1) {
@@ -31,14 +30,15 @@ TEST(ShortRateTreeCurveTest, CheckPrecomputedForwardRates) {
   constexpr double tolerance = 0.0001;
   ZeroSpotCurve market_curve({1, 2, 5, 10}, {.03, .035, .04, .045});
 
+  // TODO: Move this back out to a factory method.
+  const double dt = 0.25 / 17;
+
   // TODO: This test fails if we raise the volatility or tighten the tolerance.
   // It may have to do with compounding or some other subtlety (off-by-one
   // error)? Debugging to be continued, but for now this indicates a reasonable
   // first approximation.
-  auto tree =
-      TrinomialTree::create(3, ForwardRateTenor::k3Month, 17, 0.1, 0.006);
-  tree.forwardPropagate(market_curve);
-  ShortRateTreeCurve tree_curve(std::move(tree));
+  HullWhitePropagator hw_prop(0.1, 0.006, dt);
+  ShortRateTreeCurve tree_curve(hw_prop, market_curve, TrinomialTree(3.0, dt));
 
   tree_curve.precomputeForwardRatesForTenors({ForwardRateTenor::k3Month});
   auto period = CompoundingPeriod::kMonthly;

@@ -23,6 +23,22 @@ cc_test(
 )
 
 cc_library(
+    name = "hull_white_propagator",
+    hdrs = ["hull_white_propagator.h"],
+    deps = [":trinomial_tree"],
+)
+
+cc_test(
+    name = "hull_white_propagator_test",
+    srcs = ["hull_white_propagator_test.cpp"],
+    deps = [
+        ":hull_white_propagator",
+        ":trinomial_tree",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "propagators",
     hdrs = ["propagators.h"],
     deps = [
