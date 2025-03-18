@@ -45,10 +45,22 @@ cc_binary(
 cc_library(
     name = "global_rates",
     hdrs = ["global_rates.h"],
+    data = ["//explorer/market_data"],
     deps = [
         "//rates:rates_curve",
         "//rates:zero_curve",
+        "@abseil-cpp//absl/log",
+        "@csv-parser",
         "@magic_enum",
+    ],
+)
+
+cc_test(
+    name = "global_rates_test",
+    srcs = ["global_rates_test.cpp"],
+    deps = [
+        ":global_rates",
+        "@googletest//:gtest_main",
     ],
 )
 

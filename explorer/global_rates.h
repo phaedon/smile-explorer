@@ -1,8 +1,11 @@
 #ifndef SMILEEXPLORER_EXPLORER_GLOBAL_RATES_
 #define SMILEEXPLORER_EXPLORER_GLOBAL_RATES_
 
+#include <optional>
 #include <unordered_map>
 
+#include "absl/log/log.h"
+#include "csv.hpp"
 #include "magic_enum.hpp"
 #include "rates/rates_curve.h"
 #include "rates/zero_curve.h"
@@ -52,6 +55,54 @@ struct GlobalRates {
   }
 
   std::unordered_map<Currency, std::unique_ptr<RatesCurve>> curves;
+};
+
+struct GlobalCurrencies {
+  // TODO: Move this into a config file.
+  GlobalCurrencies() {
+    csv::CSVReader reader("explorer/market_data/currency_pairs_20250318.csv");
+
+    for (csv::CSVRow& row : reader) {
+      // The first column contains the "foreign" currency in the FOR-DOM
+      // convention.
+      const auto foreign_name = row[0].get<std::string>();
+      const auto foreign = magic_enum::enum_cast<Currency>(foreign_name);
+      if (!foreign.has_value()) {
+        LOG(INFO) << "Currency " << foreign_name
+                  << " not found in enum definition. Skipping row.";
+        continue;
+      }
+
+      for (const auto& domestic : magic_enum::enum_values<Currency>()) {
+        if (domestic == foreign.value()) {
+          continue;
+        }
+        const auto domestic_name = magic_enum::enum_name(domestic);
+        const double for_dom = row[domestic_name.data()].get<double>();
+
+        fx_rates_[foreign.value()][domestic] = for_dom;
+        std::cout << foreign_name << "-" << domestic_name << " == " << for_dom
+                  << std::endl;
+      }
+    }
+  }
+
+  std::optional<double> operator()(Currency foreign, Currency domestic) {
+    if (!fx_rates_.contains(foreign)) {
+      LOG(ERROR) << "No market data found for currency "
+                 << magic_enum::enum_name(foreign);
+      return std::nullopt;
+    }
+    if (!fx_rates_[foreign].contains(domestic)) {
+      LOG(ERROR) << "No market data found for currency "
+                 << magic_enum::enum_name(domestic);
+      return std::nullopt;
+    }
+    return fx_rates_[foreign][domestic];
+  }
+
+ private:
+  std::unordered_map<Currency, std::unordered_map<Currency, double>> fx_rates_;
 };
 
 }  // namespace smileexplorer

@@ -135,12 +135,15 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
   ZeroSpotCurve* zero_curve = dynamic_cast<ZeroSpotCurve*>(
       prop_params.global_rates->curves[prop_params.currency].get());
 
+  HullWhitePropagator hw_propagator(prop_params.hullwhite_mean_reversion,
+                                    prop_params.hullwhite_sigma,
+                                    prop_params.short_rate_tree_timestep);
+
   TrinomialTree trinomial_tree(prop_params.short_rate_tree_duration,
-                               prop_params.hullwhite_mean_reversion,
-                               prop_params.short_rate_tree_timestep,
-                               prop_params.hullwhite_sigma);
-  trinomial_tree.forwardPropagate(*zero_curve);
-  ShortRateTreeCurve tree_curve(std::move(trinomial_tree));
+                               prop_params.short_rate_tree_timestep);
+
+  ShortRateTreeCurve tree_curve(
+      hw_propagator, *zero_curve, std::move(trinomial_tree));
 
   ImGui::SetNextItemOpen(true, ImGuiCond_Once);
   if (ImGui::TreeNode("Yield curve")) {
