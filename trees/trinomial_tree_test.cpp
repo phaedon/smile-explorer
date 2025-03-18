@@ -16,13 +16,14 @@ TEST(BranchProbabilitiesTest, Hull_SecondStage) {
 
   double sigma = 0.01;
   double dt = 1.0;
-  TrinomialTree tree(1.25, 0.1, dt, sigma);
+  size_t num_elems_to_verify = 3;
+  TrinomialTree tree(num_elems_to_verify * dt, 0.1, dt, sigma);
   tree.forwardPropagate(market_curve);
-  EXPECT_THAT(
-      std::vector<double>(tree.alphas_.begin(), tree.alphas_.begin() + 3),
-      testing::ElementsAre(DoubleNear(0.03824, 0.00001),
-                           DoubleNear(0.05205, 0.00001),
-                           DoubleNear(0.06252, 0.00001)));
+  EXPECT_THAT(std::vector<double>(tree.alphas_.begin(),
+                                  tree.alphas_.begin() + num_elems_to_verify),
+              testing::ElementsAre(DoubleNear(0.03824, 0.00001),
+                                   DoubleNear(0.05205, 0.00001),
+                                   DoubleNear(0.06252, 0.00001)));
 }
 
 }  // namespace

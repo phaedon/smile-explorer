@@ -86,7 +86,7 @@ class ShortRateTreeCurve : public RatesCurve {
       for (int ti_fwd = 0;
            ti_fwd < trinomial_tree_.getTimegrid().size() - timesteps_in_tenor;
            ++ti_fwd) {
-        LOG(INFO) << "Precomputing fwd rates at ti_fwd:" << ti_fwd;
+        // LOG(INFO) << "Precomputing fwd rates at ti_fwd:" << ti_fwd;
         precomputeForwardRatesForTenorAtTime(tenor, ti_fwd);
 
         // Cache the conditional forwards just computed.
@@ -96,10 +96,10 @@ class ShortRateTreeCurve : public RatesCurve {
                               node.auxiliary_value,
                               timesteps_in_tenor * trinomial_tree_.dt_,
                               CompoundingPeriod::kMonthly);
-          LOG(INFO) << "  Cache at state j: "
-                    << node.forward_rate_cache(tenor).value()
-                    << "  and inst. fwd:"
-                    << node.state_value + trinomial_tree_.alphas_[ti_fwd];
+          // LOG(INFO) << "  Cache at state j: "
+          //           << node.forward_rate_cache(tenor).value()
+          //           << "  and inst. fwd:"
+          //           << node.state_value + trinomial_tree_.alphas_[ti_fwd];
         }
       }
     }

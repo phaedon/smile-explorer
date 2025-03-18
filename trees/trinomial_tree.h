@@ -134,10 +134,10 @@ class TrinomialTree {
     return derived;
   }
 
-  // void forwardPropagate(const ZeroSpotCurve& market_curve) {
-  //   firstStage();
-  //   secondStage(market_curve);
-  // }
+  void forwardPropagate(const ZeroSpotCurve& market_curve) {
+    firstStage();
+    secondStage(market_curve);
+  }
 
   // Constructs the tree centered at 0, without fitting market rates, just based
   // on the timestep, mean reversion and volatility params.
