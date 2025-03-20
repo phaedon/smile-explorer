@@ -104,8 +104,52 @@ class ShortRateTreeCurve : public RatesCurve {
     secondStage(propagator, market_curve);
   }
 
+  /**
+   * @brief Returns the forward rate beginning at `time_index`, conditional on
+   * reaching a particular state.
+   *
+   * This method is marked non-const because it populates the forward-rate cache
+   * the first time that a specific tenor is requested.
+   *
+   * @param tenor A ForwardRateTenor enum.
+   * @param time_index The zero-indexed time at which the forward rate is
+   * effective.
+   * @param state_index The zero-indexed state at the requested timeslice.
+   * @return double
+   */
+  double conditionalForwardRate(ForwardRateTenor tenor,
+                                int time_index,
+                                int state_index) {
+    if (!hasCachedForwardRates(tenor)) {
+      precomputeForwardRatesForTenors({tenor});
+    }
+
+    // TODO: Don't allow arbitrarily high time_index, or return the last one
+    // cached to avoid requiring the caller to do something like:
+    //
+    //  if (ti < tree_curve.trinomialTree().getTimegrid().size() -
+    //      tree_curve.trinomialTree().timestepsPerForwardRateTenor(ForwardRateTenor::k3Month))
+    return trinomial_tree_.tree_[time_index][state_index]
+        .forward_rate_cache(tenor)
+        .value();
+  }
+
+  double conditionalForwardRate(ForwardRateTenor tenor,
+                                const TrinomialNode& node) {
+    if (!hasCachedForwardRates(tenor)) {
+      precomputeForwardRatesForTenors({tenor});
+    }
+    // TODO: Similarly here, make this safe, perhaps by caching constant
+    // forwards after a certain time_index.
+    return node.forward_rate_cache(tenor).value();
+  }
+
  private:
   TrinomialTree trinomial_tree_;
+
+  bool hasCachedForwardRates(ForwardRateTenor tenor) {
+    return trinomial_tree_.tree_[0][0].forward_rate_cache.cache.contains(tenor);
+  }
 
   double getForwardRateByIndices(int start_ti,
                                  int end_ti,

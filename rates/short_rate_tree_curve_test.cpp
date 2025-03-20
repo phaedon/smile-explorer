@@ -67,29 +67,28 @@ TEST(ShortRateTreeCurveTest, CheckPrecomputedForwardRates) {
   HullWhitePropagator hw_prop(0.1, 0.006, dt);
   ShortRateTreeCurve tree_curve(hw_prop, market_curve, TrinomialTree(3.0, dt));
 
-  tree_curve.precomputeForwardRatesForTenors({ForwardRateTenor::k3Month});
   auto period = CompoundingPeriod::kMonthly;
 
-  for (int ti = 0; ti < tree_curve.trinomialTree().getTimegrid().size(); ++ti) {
+  for (int ti = 0;
+       ti < tree_curve.trinomialTree().getTimegrid().size() -
+                tree_curve.trinomialTree().timestepsPerForwardRateTenor(
+                    ForwardRateTenor::k3Month);
+       ++ti) {
     const double t_start = ti * tree_curve.trinomialTree().dt_;
     const double t_end = t_start + 0.25;  // 3 month tenor
     const double mkt_fwd = market_curve.forwardRate(t_start, t_end, period);
 
     double wtd_avg_fwd_rate = 0.0;
-    bool cache_value_not_found = false;
+    std::cout << "checking nodes at ti:" << ti << std::endl;
+
     for (const auto& node : tree_curve.trinomialTree().tree_[ti]) {
-      auto cached_fra = node.forward_rate_cache(ForwardRateTenor::k3Month);
-      if (!cached_fra.has_value()) {
-        cache_value_not_found = true;
-        continue;
-      }
-      wtd_avg_fwd_rate += node.arrow_debreu * cached_fra.value();
+      double cached_fra =
+          tree_curve.conditionalForwardRate(ForwardRateTenor::k3Month, node);
+      wtd_avg_fwd_rate += node.arrow_debreu * cached_fra;  //.value();
     }
-    if (!cache_value_not_found) {
-      wtd_avg_fwd_rate *=
-          1.0 / tree_curve.trinomialTree().arrowDebreuSumAtTimestep(ti);
-      EXPECT_NEAR(mkt_fwd, wtd_avg_fwd_rate, tolerance);
-    }
+    wtd_avg_fwd_rate *=
+        1.0 / tree_curve.trinomialTree().arrowDebreuSumAtTimestep(ti);
+    EXPECT_NEAR(mkt_fwd, wtd_avg_fwd_rate, tolerance);
   }
 }
 
