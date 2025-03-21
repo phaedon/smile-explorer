@@ -68,8 +68,12 @@ class ShortRateTreeCurve : public RatesCurve {
     for (int ti = ti_fwd + timesteps_in_tenor; ti >= ti_fwd; --ti) {
       for (int j = 0; j < std::ssize(trinomial_tree_.tree_[ti]); ++j) {
         auto& curr_node = trinomial_tree_.tree_[ti][j];
-        curr_node.auxiliary_value = ForwardRateAgreement{}(
-            trinomial_tree_, ti, j, ti_fwd + timesteps_in_tenor);
+        curr_node.auxiliary_value =
+            ForwardRateAgreement{1.0}(trinomial_tree_,
+                                      trinomial_tree_,
+                                      ti,
+                                      j,
+                                      ti_fwd + timesteps_in_tenor);
       }
     }
   }

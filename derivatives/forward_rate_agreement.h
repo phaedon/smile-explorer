@@ -17,19 +17,22 @@ namespace smileexplorer {
 // enables us to reuse the backward induction in the Derivative class to compute
 // these conditional rates.
 struct ForwardRateAgreement {
-  double operator()(const TrinomialTree& short_rate_tree,
+  ForwardRateAgreement(double payout_at_expiry)
+      : payout_at_expiry_(payout_at_expiry) {}
+
+  double operator()(const TrinomialTree& deriv_tree,
+                    const TrinomialTree& short_rate_tree,
                     int ti,
                     int j,
                     int ti_final) const {
     // This represents the money actually received at the end of the
     // accrual period.
     if (ti == ti_final) {
-      return 1.0;
+      return payout_at_expiry_;
     }
 
-    const auto& curr_deriv_node = short_rate_tree.tree_[ti][j];
-    const auto& next =
-        short_rate_tree.getSuccessorNodes(curr_deriv_node, ti, j);
+    const auto& curr_deriv_node = deriv_tree.tree_[ti][j];
+    const auto& next = deriv_tree.getSuccessorNodes(curr_deriv_node, ti, j);
     double expected_next =
         next.up.auxiliary_value * curr_deriv_node.branch_probs.pu +
         next.mid.auxiliary_value * curr_deriv_node.branch_probs.pm +
@@ -38,6 +41,8 @@ struct ForwardRateAgreement {
     double r = short_rate_tree.shortRate(ti, j);
     return std::exp(-r * short_rate_tree.dt_) * expected_next;
   }
+
+  double payout_at_expiry_;
 };
 
 }  // namespace smileexplorer

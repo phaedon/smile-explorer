@@ -79,7 +79,6 @@ TEST(ShortRateTreeCurveTest, CheckPrecomputedForwardRates) {
     const double mkt_fwd = market_curve.forwardRate(t_start, t_end, period);
 
     double wtd_avg_fwd_rate = 0.0;
-    std::cout << "checking nodes at ti:" << ti << std::endl;
 
     for (const auto& node : tree_curve.trinomialTree().tree_[ti]) {
       double cached_fra =

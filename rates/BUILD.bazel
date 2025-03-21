@@ -18,6 +18,26 @@ cc_test(
 )
 
 cc_library(
+    name = "fixed_cashflow_instrument",
+    hdrs = ["fixed_cashflow_instrument.h"],
+    deps = [
+        ":short_rate_tree_curve",
+        "//trees:trinomial_tree",
+        "@abseil-cpp//absl/log",
+    ],
+)
+
+cc_test(
+    name = "fixed_cashflow_instrument_test",
+    srcs = ["fixed_cashflow_instrument_test.cpp"],
+    deps = [
+        ":fixed_cashflow_instrument",
+        ":zero_curve",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "rates_curve",
     hdrs = ["rates_curve.h"],
     deps = [
