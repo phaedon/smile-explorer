@@ -2,45 +2,110 @@
 
 #include <gtest/gtest.h>
 
+#include <vector>
+
 #include "derivative.h"
+#include "rates/fixed_cashflow_instrument.h"
 #include "trees/propagators.h"
 #include "trees/stochastic_tree_model.h"
+#include "vanilla_option.h"
 
 namespace smileexplorer {
 
-double estimateNormalVol(double f, double k, double lnvol, double expiry) {
-  return lnvol * ((f - k) / std::log(f / k)) *
-         (1 - (lnvol * lnvol * expiry) / 24.);
-}
+// This test replicates the results in Example 32.1 in Hull, "Options,
+// Futures..." (11th ed., pg 748).
+// =============================
+// NOTE: The tolerances are somewhat higher than expected given the precision
+// specified in Hull. However, he mentions that the zero coupon rates should be
+// linearly interpolated. Since we are using constant forwards, this is not
+// exactly equivalent. Adding a lin interp flag to the ZeroSpotCurve class
+// should get much closer to the expected values. If not, then there is another
+// bug to figure out.
+TEST(InterestRateDerivativeTest, EuropeanBondOption) {
+  std::vector<double> maturities{3,
+                                 31,
+                                 62,
+                                 94,
+                                 185,
+                                 367,
+                                 731,
+                                 1096,
+                                 1461,
+                                 1826,
+                                 2194,
+                                 2558,
+                                 2922,
+                                 3287,
+                                 3653};
+  for (auto& m : maturities) {
+    m /= 365.;
+  }
 
-TEST(InterestRateDerivativeTest, RoughSanityCheck) {
-  // Set up a binomial tree, treating the short rate as a "lognormal asset".
-  const double disc_rate = 0.04;
-  StochasticTreeModel<CRRPropagator> asset(BinomialTree(3.1, 1 / 360.),
-                                           CRRPropagator(disc_rate));
-  Volatility flat_vol(FlatVol(0.12));
-  asset.forwardPropagate(flat_vol);
-  ZeroSpotCurve curve({1.0, 10.0}, {disc_rate, disc_rate});
-  SingleAssetDerivative binomial_option(&asset.binomialTree(), &curve);
+  std::vector<double> rates = {.0501772,
+                               .0498284,
+                               .0497234,
+                               .0496157,
+                               .0499058,
+                               .0509389,
+                               .0579733,
+                               .0630595,
+                               .0673464,
+                               .0694816,
+                               .0708807,
+                               .0727527,
+                               .0730852,
+                               .073979,
+                               .0749015};
+  ZeroSpotCurve curve(maturities, rates, CompoundingPeriod::kContinuous);
 
-  // 50 bps OTM from fwd (actually spot, but we've specified a flat yield curve
-  // for simplicity).
-  double strike = disc_rate + 0.0001;
-  VanillaOption caplet(strike, OptionPayoff::Call);
-  double bsm_caplet_price = binomial_option.price(caplet, 3.0);
+  // Sanity check to ensure that the input rates were entered correctly.
+  constexpr double kOneBP = 0.0001;
+  EXPECT_NEAR(.0694816,
+              curve.forwardRate(0.0, 5.0, CompoundingPeriod::kContinuous),
+              kOneBP * 0.05);
 
-  // Now set up the proper trinomial tree to simulate the same conditions.
-  double normalvol = estimateNormalVol(disc_rate, strike, 0.12, 3.0);
-  std::cout << normalvol << "  normal vol estimate" << std::endl;
+  const double mean_reversion_speed = 0.1;
+  const double sigma = 0.01;
 
-  HullWhitePropagator hwprop(0.005, normalvol, 1 / 100.);
-  TrinomialTree tree(3.1, 1 / 100.);
-  ShortRateTreeCurve hullwhitecurve(hwprop, curve, std::move(tree));
-  InterestRateDerivative trinomial_option(&hullwhitecurve);
-  double hw_caplet_price = trinomial_option.price(caplet, 3.0);
+  // This table is directly from the example in Hull.
+  std::vector<int> steps{10, 30, 50, 100, 200, 500};
+  std::vector<double> expected_tree_values{
+      1.8468, 1.8172, 1.8057, 1.8128, 1.8090, 1.8091};
+  const double analytic_bond_option_value = 1.8093;
+  const double expected_max_tree_error =
+      std::abs(expected_tree_values[0] - analytic_bond_option_value);
 
-  // EXPECT_NEAR(bsm_caplet_price, hw_caplet_price, 0.0001);
-  //  TODO: Add a passing test.
+  for (size_t i = 0; i < steps.size(); ++i) {
+    double dt = 3.0 / steps[i];
+    HullWhitePropagator hwprop(mean_reversion_speed, sigma, dt);
+    TrinomialTree tree(11, dt);
+    ShortRateTreeCurve hullwhitecurve(hwprop, curve, std::move(tree));
+
+    // Sanity check to ensure that the short-rate tree fits the market
+    // zeros correctly.
+    // TODO: Get this down to a tenth of a bp.
+    EXPECT_NEAR(
+        .0694816,
+        hullwhitecurve.forwardRate(0, 5.0, CompoundingPeriod::kContinuous),
+        kOneBP * 0.7);
+
+    FixedCashflowInstrument bond(&hullwhitecurve);
+    bond.setCashflows({Cashflow{.time_years = 9.0, .amount = 100.}});
+    EXPECT_NEAR(100 * std::exp(-.073979 * 9), bond.price(), 0.10);
+
+    InterestRateDerivative bond_option(&hullwhitecurve, &bond);
+    double bond_option_price =
+        bond_option.price(VanillaOption(63., OptionPayoff::Put), 3.0);
+
+    // TODO get this tolerance down to 0.0001
+    EXPECT_NEAR(expected_tree_values[i], bond_option_price, 0.05);
+
+    // Slightly bigger margin of error relative to Hull's calculation of the
+    // analytic option value.
+    EXPECT_NEAR(analytic_bond_option_value,
+                bond_option_price,
+                expected_max_tree_error * 2.4);  // TODO get this down to 1
+  }
 }
 
 }  // namespace smileexplorer

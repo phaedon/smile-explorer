@@ -279,22 +279,6 @@ inline void plotForwardRateCurves(ExplorerParams& prop_params) {
     ImGui::Spacing();
   }
 
-  InterestRateDerivative trinomial_option(&tree_curve);
-  VanillaOption atm_caplet(tree_curve.forwardRate(1., 2.), OptionPayoff::Call);
-  trinomial_option.price(atm_caplet, 1.0);
-
-  // Visualising backward inductino for the interest-rate option might be useful
-  // for debugging but otherwise may not be that interesting. If we restore
-  // this, change the y-scaling in plotTrinomialTree which is currently a fixed
-  // constant. ImGui::SetNextItemOpen(true, ImGuiCond_Once); if
-  // (ImGui::TreeNode("Option tree")) {
-  //   plotTrinomialTree("Option tree",
-  //                     trinomial_option.tree(),
-  //                     TrinomialValueExtractionType::kDerivValue);
-  //   ImGui::TreePop();
-  //   ImGui::Spacing();
-  // }
-
   ImGui::SetNextItemOpen(true, ImGuiCond_Once);
   if (ImGui::TreeNode("Risk-neutral probabilities")) {
     ImGui::SliderFloat("Time (years)",
