@@ -75,29 +75,30 @@ double VanillaOption::operator()(const BinomialTree& deriv_tree,
 }
 
 double VanillaOption::operator()(const TrinomialTree& deriv_tree,
-                                 const ShortRateTreeCurve& short_rate_curve,
+                                 const FixedCashflowInstrument& underlying,
                                  int ti,
                                  int i,
                                  int ti_final) const {
-  const auto& rate_tree = short_rate_curve.trinomialTree();
+  const auto& bond_tree = underlying.trinomialTree();
+  const auto& curr_deriv_node = deriv_tree.tree_[ti][i];
+
   if (ti == ti_final) {
     // TODO: Also take in a compounding convention to support flexibility in
     // deriv. specs.
-    const double state = rate_tree.shortRate(ti, i);
+    const double state = bond_tree.tree_[ti][i].state_value;
     return getPayoff(state, strike_);
   }
 
-  const auto& curr_deriv_node = deriv_tree.tree_[ti][i];
   const auto& next = deriv_tree.getSuccessorNodes(curr_deriv_node, ti, i);
   double expected_next =
       next.up.auxiliary_value * curr_deriv_node.branch_probs.pu +
       next.mid.auxiliary_value * curr_deriv_node.branch_probs.pm +
       next.down.auxiliary_value * curr_deriv_node.branch_probs.pd;
-  // TODO: this is incorrect, because it is not the discounting conditional on
-  // the state of the short rate.
-  const double fwd_df = short_rate_curve.forwardDF(
-      deriv_tree.totalTimeAtIndex(ti), deriv_tree.totalTimeAtIndex(ti + 1));
-  const double discounted_expected_next_state = fwd_df * expected_next;
+
+  const auto& short_rate_tree = underlying.shortRateModel().trinomialTree();
+  double r = short_rate_tree.shortRate(ti, i);
+  const double discounted_expected_next_state =
+      std::exp(-r * short_rate_tree.getTimegrid().dt(ti)) * expected_next;
 
   if (style_ == ExerciseStyle::American) {
     static_assert("Unimplemented!");

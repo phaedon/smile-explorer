@@ -1,7 +1,7 @@
 #ifndef SMILEEXPLORER_DERIVATIVES_VANILLA_OPTION_H_
 #define SMILEEXPLORER_DERIVATIVES_VANILLA_OPTION_H_
 
-#include "rates/short_rate_tree_curve.h"
+#include "rates/fixed_cashflow_instrument.h"
 #include "trees/binomial_tree.h"
 #include "trees/trinomial_tree.h"
 
@@ -59,7 +59,7 @@ struct VanillaOption {
                     double fwd_df) const;
 
   double operator()(const TrinomialTree& deriv_tree,
-                    const ShortRateTreeCurve& short_rate_curve,
+                    const FixedCashflowInstrument& underlying,
                     int ti,
                     int i,
                     int ti_final) const;
