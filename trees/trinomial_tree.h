@@ -138,6 +138,14 @@ class TrinomialTree {
     }
   }
 
+  void clearNodeValues() {
+    for (size_t ti = 0; ti < tree_.size(); ++ti) {
+      for (auto& node : tree_[ti]) {
+        node.state_value = 0;
+      }
+    }
+  }
+
   double auxiliaryValue(int time_index, int state_index) const {
     return tree_[time_index][state_index].auxiliary_value;
   }
