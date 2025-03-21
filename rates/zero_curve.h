@@ -67,51 +67,12 @@ class ZeroSpotCurve : public RatesCurve {
 
   const std::vector<double>& getInputRates() const { return rates_; }
 
-  void generateFineSpacedForwards(double spacing) {
-    if (!areAllSpacingsIntegerMultiplesOf(maturities_, spacing)) {
-      LOG(ERROR) << "Input maturities are not integer multiples of spacing: "
-                 << spacing;
-    }
-
-    if (maturities_[0] > 0) {
-      // A little trick/hack: if no "time 0" rate (like an overnight rate) was
-      // specified to anchor the front of the curve, let's just set it by
-      // subtracting out half of the difference between the first two forwards:
-      fine_spaced_maturities_.push_back(0);
-      double fwd_01 = getForwardRateByIndices(0, 1);
-      double fwd_12 = getForwardRateByIndices(1, 2);
-      double avg_first_two_fwds_diff = 0.5 * (fwd_12 - fwd_01);
-      fine_spaced_forwards_.push_back(fwd_01 - avg_first_two_fwds_diff);
-    }
-
-    // TODO: Work in progress.
-    // STEP 1:
-    // General idea is to come up with a first approximation by subdividing the
-    // range between each consecutive pair, and then step up (or down)
-    // incrementally. At that point, we are not done, but we can "test" it
-    // visually by recomputing the zero spot rates and graphing the resulting
-    // forwards. (They should still have a stairstep pattern, but at a much
-    // finer resolution.)
-    //
-    // STEP 2:
-    // Then solve a nonlinear optimisation where we try to get as close as
-    // possible to these fine-spaced forward approximations, but tweak them up
-    // and down to hit the input forwards exactly. This will take a bit more
-    // work.
-  }
-
  private:
   std::vector<double> maturities_;
   std::vector<double> rates_;
 
   std::vector<double> discrete_dfs_;
   std::vector<double> df_maturities_;
-
-  // A regularly spaced grid of forward rates. These will serve as approximate
-  // "targets" for the curve-fitting to try to minimise some distance metric.
-  // The goal is to try to find an equivalent
-  std::vector<double> fine_spaced_maturities_;
-  std::vector<double> fine_spaced_forwards_;
 
   CompoundingPeriod period_;
 
