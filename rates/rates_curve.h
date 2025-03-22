@@ -8,6 +8,12 @@
 
 namespace smileexplorer {
 
+enum class CurveInterpolationStyle {
+  kConstantForwards,
+  // See https://en.wikipedia.org/wiki/Monotone_cubic_interpolation
+  kMonotonePiecewiseCubicZeros
+};
+
 class RatesCurve {
  public:
   virtual ~RatesCurve() = default;

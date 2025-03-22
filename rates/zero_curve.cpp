@@ -1,8 +1,17 @@
 #include "rates/zero_curve.h"
 
+#include "rates_curve.h"
+
 namespace smileexplorer {
 
 double ZeroSpotCurve::df(double time) const {
+  if (interp_style_ == CurveInterpolationStyle::kMonotonePiecewiseCubicZeros &&
+      spline_ != nullptr && time >= maturities_[0] &&
+      time <= maturities_.back()) {
+    double interp_zero_rate = (*spline_)(time);
+    return dfByPeriod(interp_zero_rate, time, period_);
+  }
+
   int ti = findClosestMaturityIndex(time);
 
   if (df_maturities_[ti] == time) {

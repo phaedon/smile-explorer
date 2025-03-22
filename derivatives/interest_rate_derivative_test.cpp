@@ -6,6 +6,7 @@
 
 #include "derivative.h"
 #include "rates/fixed_cashflow_instrument.h"
+#include "rates/rates_curve.h"
 #include "trees/propagators.h"
 #include "trees/stochastic_tree_model.h"
 #include "vanilla_option.h"
@@ -56,7 +57,10 @@ TEST(InterestRateDerivativeTest, EuropeanBondOption) {
                                .0730852,
                                .073979,
                                .0749015};
-  ZeroSpotCurve curve(maturities, rates, CompoundingPeriod::kContinuous);
+  ZeroSpotCurve curve(maturities,
+                      rates,
+                      CompoundingPeriod::kContinuous,
+                      CurveInterpolationStyle::kMonotonePiecewiseCubicZeros);
 
   // Sanity check to ensure that the input rates were entered correctly.
   constexpr double kOneBP = 0.0001;
