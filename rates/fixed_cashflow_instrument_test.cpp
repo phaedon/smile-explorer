@@ -14,11 +14,10 @@ TEST(FixedIncomeInstrumentTest, ZeroCouponBond_FlatYieldCurve) {
   ZeroSpotCurve market_curve(
       {1, 2, 5, 10}, {.06, .06, .06, .06}, CompoundingPeriod::kAnnual);
 
-  // TODO: It is a design flaw in the API that I have to specify dt twice. Fix
-  // this.
-  const double dt = 0.01;
   ShortRateTreeCurve short_rate_tree(
-      HullWhitePropagator(0.1, 0.01, dt), market_curve, TrinomialTree(10, dt));
+      std::make_unique<HullWhitePropagator>(0.1, 0.01, .01),
+      market_curve,
+      10.0);
 
   FixedCashflowInstrument bond(&short_rate_tree);
   bond.setCashflows({Cashflow{
@@ -35,11 +34,8 @@ TEST(FixedIncomeInstrumentTest, CouponBond_FlatYieldCurve) {
   ZeroSpotCurve market_curve(
       {1, 2, 5, 10}, {.06, .06, .06, .06}, CompoundingPeriod::kAnnual);
 
-  // TODO: It is a design flaw in the API that I have to specify dt twice. Fix
-  // this.
-  const double dt = 0.01;
   ShortRateTreeCurve short_rate_tree(
-      HullWhitePropagator(0.1, 0.01, dt), market_curve, TrinomialTree(5, dt));
+      std::make_unique<HullWhitePropagator>(0.1, 0.01, .01), market_curve, 5.0);
 
   FixedCashflowInstrument bond(&short_rate_tree);
   // 3-year coupon bond with annual 6% coupons.

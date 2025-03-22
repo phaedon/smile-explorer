@@ -19,9 +19,10 @@ TEST(ShortRateTreeCurveTest, Hull_SecondStage) {
   const double dt = 1.0;
   size_t num_elems_to_verify = 3;
 
-  HullWhitePropagator hw_prop(0.1, sigma, dt);
   ShortRateTreeCurve tree_curve(
-      hw_prop, market_curve, TrinomialTree(num_elems_to_verify * dt, dt));
+      std::make_unique<HullWhitePropagator>(.1, sigma, dt),
+      market_curve,
+      num_elems_to_verify * dt);
   const auto& tree = tree_curve.trinomialTree();
 
   EXPECT_THAT(std::vector<double>(tree.alphas_.begin(),
@@ -40,8 +41,8 @@ TEST(ShortRateTreeCurveTest, TreeCalibrationMatchesMarketRates) {
   // TODO: See if it is possible to increase the grid spacing while still
   // getting within a 1bps tolerance of market rate fitting.
   constexpr double dt = 1. / 80;
-  HullWhitePropagator hw_prop(0.1, 0.05, dt);
-  ShortRateTreeCurve tree_curve(hw_prop, market_curve, TrinomialTree(10.0, dt));
+  ShortRateTreeCurve tree_curve(
+      std::make_unique<HullWhitePropagator>(0.1, 0.05, dt), market_curve, 10.0);
 
   auto period = CompoundingPeriod::kQuarterly;
   for (double i = 0; i < 10; i += 1) {
@@ -64,8 +65,8 @@ TEST(ShortRateTreeCurveTest, CheckPrecomputedForwardRates) {
   // It may have to do with compounding or some other subtlety (off-by-one
   // error)? Debugging to be continued, but for now this indicates a reasonable
   // first approximation.
-  HullWhitePropagator hw_prop(0.1, 0.006, dt);
-  ShortRateTreeCurve tree_curve(hw_prop, market_curve, TrinomialTree(3.0, dt));
+  ShortRateTreeCurve tree_curve(
+      std::make_unique<HullWhitePropagator>(.1, 0.006, dt), market_curve, 3.0);
 
   auto period = CompoundingPeriod::kMonthly;
 

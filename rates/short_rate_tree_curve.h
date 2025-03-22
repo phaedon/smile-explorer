@@ -19,11 +19,25 @@ namespace smileexplorer {
 // match market rates.
 class ShortRateTreeCurve : public RatesCurve {
  public:
-  ShortRateTreeCurve(const HullWhitePropagator& propagator,
+  /**
+   * @brief Initialises a new short-rate tree process, fitted to current market
+   * rates.
+   *
+   * @param propagator A propagator for a trinomial tree containing short rates.
+   * This is provided as a unique_ptr in order to support a hierarchy of similar
+   * propagators in the future, such as Black-Karasinski (lognormal), without
+   * needing to turn this into a templated class.
+   *
+   * @param market_curve Current market rates for the initial fitting of the
+   * tree.
+   * @param tree_duration_years Total duration spanned by the tree, in years.
+   */
+  ShortRateTreeCurve(std::unique_ptr<HullWhitePropagator> propagator,
                      const ZeroSpotCurve& market_curve,
-                     TrinomialTree trinomial_tree)
-      : trinomial_tree_(std::move(trinomial_tree)) {
-    forwardPropagate(propagator, market_curve);
+                     double tree_duration_years)
+      : trinomial_tree_(TrinomialTree(tree_duration_years, propagator->dt())),
+        propagator_(std::move(propagator)) {
+    forwardPropagate(*propagator_, market_curve);
   }
 
   double df(double time) const override {
@@ -150,6 +164,7 @@ class ShortRateTreeCurve : public RatesCurve {
 
  private:
   TrinomialTree trinomial_tree_;
+  std::unique_ptr<HullWhitePropagator> propagator_;
 
   bool hasCachedForwardRates(ForwardRateTenor tenor) {
     return trinomial_tree_.tree_[0][0].forward_rate_cache.cache.contains(tenor);

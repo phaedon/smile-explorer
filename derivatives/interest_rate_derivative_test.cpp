@@ -81,9 +81,10 @@ TEST(InterestRateDerivativeTest, EuropeanBondOption) {
 
   for (size_t i = 0; i < steps.size(); ++i) {
     double dt = 3.0 / steps[i];
-    HullWhitePropagator hwprop(mean_reversion_speed, sigma, dt);
-    TrinomialTree tree(11, dt);
-    ShortRateTreeCurve hullwhitecurve(hwprop, curve, std::move(tree));
+    ShortRateTreeCurve hullwhitecurve(
+        std::make_unique<HullWhitePropagator>(mean_reversion_speed, sigma, dt),
+        curve,
+        11.);
 
     // Sanity check to ensure that the short-rate tree fits the market
     // zeros correctly.
