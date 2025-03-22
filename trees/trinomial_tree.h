@@ -42,13 +42,13 @@ struct TrinomialNode {
                 BranchProbabilities probs)
       : arrow_debreu(0),
         state_value(state_val),
-        auxiliary_value(0),
+        // auxiliary_value(0),
         branch_style(style),
         branch_probs(probs) {}
 
   double arrow_debreu;
   double state_value;
-  double auxiliary_value;
+  // double auxiliary_value;
 
   TrinomialBranchStyle branch_style;
   BranchProbabilities branch_probs;
@@ -133,7 +133,7 @@ class TrinomialTree {
   void setZeroAfterIndex(int time_index) {
     for (size_t ti = time_index + 1; ti < tree_.size(); ++ti) {
       for (auto& node : tree_[ti]) {
-        node.auxiliary_value = 0;
+        node.state_value = 0;
       }
     }
   }
@@ -146,20 +146,32 @@ class TrinomialTree {
     }
   }
 
-  double auxiliaryValue(int time_index, int state_index) const {
-    return tree_[time_index][state_index].auxiliary_value;
+  const TrinomialNode& node(int time_index, int state_index) const {
+    return tree_[time_index][state_index];
   }
 
-  void setAuxiliaryValue(int time_index, int state_index, double value) {
-    tree_[time_index][state_index].auxiliary_value = value;
+  double nodeValue(int time_index, int state_index) const {
+    return node(time_index, state_index).state_value;
   }
+
+  void setNodeValue(int time_index, int state_index, double value) {
+    tree_[time_index][state_index].state_value = value;
+  }
+
+  // double auxiliaryValue(int time_index, int state_index) const {
+  //   return tree_[time_index][state_index].auxiliary_value;
+  // }
+
+  // void setAuxiliaryValue(int time_index, int state_index, double value) {
+  //   tree_[time_index][state_index].auxiliary_value = value;
+  // }
 
   // Useful for visualisation.
   bool isTreeEmptyAt(size_t time_index) const {
     // current assumption: if an entire timeslice is 0, nothing after it can be
     // populated.
     for (const auto& node : tree_[time_index]) {
-      if (node.auxiliary_value != 0.0) return false;
+      if (node.state_value != 0.0) return false;
     }
     return true;
   }

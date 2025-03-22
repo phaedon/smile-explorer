@@ -91,9 +91,9 @@ double VanillaOption::operator()(const TrinomialTree& deriv_tree,
 
   const auto& next = deriv_tree.getSuccessorNodes(curr_deriv_node, ti, i);
   double expected_next =
-      next.up.auxiliary_value * curr_deriv_node.branch_probs.pu +
-      next.mid.auxiliary_value * curr_deriv_node.branch_probs.pm +
-      next.down.auxiliary_value * curr_deriv_node.branch_probs.pd;
+      next.up.state_value * curr_deriv_node.branch_probs.pu +
+      next.mid.state_value * curr_deriv_node.branch_probs.pm +
+      next.down.state_value * curr_deriv_node.branch_probs.pd;
 
   const auto& short_rate_tree = underlying.shortRateModel().trinomialTree();
   double r = short_rate_tree.shortRate(ti, i);

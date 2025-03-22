@@ -20,7 +20,7 @@ class InterestRateDerivative : public Derivative {
 
   double price(const VanillaOption& vanilla_option, double expiry_years) {
     runBackwardInduction(vanilla_option, expiry_years);
-    return deriv_tree_.auxiliaryValue(0, 0);
+    return deriv_tree_.nodeValue(0, 0);
   }
 
   const TrinomialTree& tree() const { return deriv_tree_; }
@@ -47,7 +47,7 @@ class InterestRateDerivative : public Derivative {
       for (int i = 0; i < deriv_tree_.numStatesAt(ti); ++i) {
         const double deriv_value_at_node =
             option_evaluator(deriv_tree_, *bond_, ti, i, ti_final);
-        deriv_tree_.setAuxiliaryValue(ti, i, deriv_value_at_node);
+        deriv_tree_.setNodeValue(ti, i, deriv_value_at_node);
       }
     }
   }
