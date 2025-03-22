@@ -16,8 +16,7 @@ Because this is not intended for production use, some details are omitted. For e
 
 ### Roadmap / wish list
 
-* Implement short-rate models with calibration for interest-rate derivatives.
-* Add support for trinomial trees for easier calibration.
+* **Almost ready!** Short-rate models with trinomial trees for pricing interest-rate derivatives. Documentation coming by April 1, 2025.
 * Improve visualisation capabilities for vol surfaces and interest rate curves. 
 
 
