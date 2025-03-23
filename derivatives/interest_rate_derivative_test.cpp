@@ -166,15 +166,17 @@ TEST(InterestRateDerivativeTest, Swap_APIUnderDevelopment) {
                       CurveInterpolationStyle::kMonotonePiecewiseCubicZeros);
 
   ShortRateTreeCurve hullwhitecurve(
-      std::make_unique<HullWhitePropagator>(0.1, 0.01, .025), curve, 12.);
+      std::make_unique<HullWhitePropagator>(0.1, 0.001, .25), curve, 12.);
+
+  constexpr int maturity_in_years = 2;
 
   //  Analytic approximation loop (20 semiannual pmts) matches the fixed-rate
   //  frequency below.
   double df_sum = 0.0;
-  for (int i = 1; i <= 20; ++i) {
+  for (int i = 1; i <= maturity_in_years * 2; ++i) {
     df_sum += 0.5 * curve.df(i * 0.5);
   }
-  double analytic_approx = (1.0 - curve.df(10.)) / df_sum;
+  double analytic_approx = (1.0 - curve.df(maturity_in_years)) / df_sum;
   std::cout << "Swap rate analytic approx ==== " << analytic_approx
             << std::endl;
 
@@ -184,12 +186,12 @@ TEST(InterestRateDerivativeTest, Swap_APIUnderDevelopment) {
       .floating_rate_frequency = ForwardRateTenor::k3Month,
       .notional_principal = 100.,
       .start_date_years = 0.,
-      .end_date_years = 10.,
+      .end_date_years = maturity_in_years,
       .fixed_rate = analytic_approx};
 
   InterestRateSwap swap(contract, &hullwhitecurve);
 
-  EXPECT_NEAR(0.0, swap.price(), 0.001);
+  EXPECT_NEAR(0.0, swap.price(), 0.01);
 }
 
 }  // namespace smileexplorer

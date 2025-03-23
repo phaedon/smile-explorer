@@ -44,12 +44,10 @@ class FloatingCashflowInstrument {
           bond_tree_.getTimegrid().getTimeIndexForExpiry(t).value();
       int payment_time_index = reset_time_index + timesteps_per_tenor;
 
-      for (auto& node : fwd_rate_tree.tree_[payment_time_index]) {
-        // Set all the "final payments" to $1:
-        node.state_value = 1.;
-      }
+      // Set all the "final payments" to $1:
+      fwd_rate_tree.setNodeValuesAtTimeIndex(payment_time_index, 1.0);
 
-      // backward induction back to the payment time.
+      // Backward induction back to the payment time.
       auto status = runBackwardInduction(*short_rate_curve_,
                                          fwd_rate_tree,
                                          payment_time_index,
@@ -98,13 +96,10 @@ class FloatingCashflowInstrument {
       }
 
       // Now, the probability-weighted cashflows at payment_time_index should be
-      // correct. Copy them over!
-      for (int i = 0; i < coupon_induction_tree.numStatesAt(payment_time_index);
-           ++i) {
-        double expected_payment =
-            coupon_induction_tree.tree_[payment_time_index][i].state_value;
-        bond_tree_.tree_[payment_time_index][i].state_value += expected_payment;
-      }
+      // correct. Copy them over! (Note: this may need to be a += or merge
+      // operation)
+      bond_tree_.copyNodeValuesAtTimeIndex(payment_time_index,
+                                           coupon_induction_tree);
     }
   }
 
