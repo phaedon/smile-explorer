@@ -4,7 +4,6 @@
 
 #include "absl/log/log.h"
 #include "curve_calculators.h"
-#include "derivatives/forward_rate_agreement.h"
 #include "rates_curve.h"
 #include "time/time_enums.h"
 #include "trees/hull_white_propagator.h"
@@ -72,99 +71,11 @@ class ShortRateTreeCurve : public RatesCurve {
   const TrinomialTree& trinomialTree() const { return trinomial_tree_; }
   TrinomialTree& trinomialTree() { return trinomial_tree_; }
 
-  // // A single iteration of backward induction to precompute conditional
-  // forward
-  // // rates at a single timeslice.
-  // void precomputeForwardRatesForTenorAtTime(ForwardRateTenor tenor,
-  //                                           int ti_fwd) {
-  //   const int timesteps_in_tenor =
-  //       trinomial_tree_.timestepsPerForwardRateTenor(tenor);
-
-  //   for (int ti = ti_fwd + timesteps_in_tenor; ti >= ti_fwd; --ti) {
-  //     for (int j = 0; j < std::ssize(trinomial_tree_.tree_[ti]); ++j) {
-  //       auto& curr_node = trinomial_tree_.tree_[ti][j];
-  //       curr_node.auxiliary_value =
-  //           ForwardRateAgreement{1.0}(trinomial_tree_,
-  //                                     trinomial_tree_,
-  //                                     ti,
-  //                                     j,
-  //                                     ti_fwd + timesteps_in_tenor);
-  //     }
-  //   }
-  // }
-
-  // void precomputeForwardRatesForTenors(
-  //     const std::vector<ForwardRateTenor> tenors) {
-  //   for (const auto tenor : tenors) {
-  //     const int timesteps_in_tenor =
-  //         trinomial_tree_.timestepsPerForwardRateTenor(tenor);
-
-  //     // The outermost loop computes the forward rates starting at time
-  //     ti_fwd. for (int ti_fwd = 0;
-  //          ti_fwd < trinomial_tree_.getTimegrid().size() -
-  //          timesteps_in_tenor;
-  //          ++ti_fwd) {
-  //       precomputeForwardRatesForTenorAtTime(tenor, ti_fwd);
-
-  //       // Cache the conditional forwards just computed.
-  //       for (auto& node : trinomial_tree_.tree_[ti_fwd]) {
-  //         node.forward_rate_cache.cache[tenor] =
-  //             fwdRateByPeriod(1.0,
-  //                             node.auxiliary_value,
-  //                             timesteps_in_tenor * trinomial_tree_.dt_,
-  //                             CompoundingPeriod::kMonthly);
-  //       }
-  //     }
-  //   }
-  // }
-
   void forwardPropagate(const HullWhitePropagator& propagator,
                         const ZeroSpotCurve& market_curve) {
     firstStage(propagator);
     secondStage(propagator, market_curve);
   }
-
-  /**
-   * @brief Returns the forward rate beginning at `time_index`, conditional on
-   * reaching a particular state.
-   *
-   * This method is marked non-const because it populates the forward-rate cache
-   * the first time that a specific tenor is requested.
-   *
-   * @param tenor A ForwardRateTenor enum.
-   * @param time_index The zero-indexed time at which the forward rate is
-   * effective.
-   * @param state_index The zero-indexed state at the requested timeslice.
-   * @return double
-   */
-  // double conditionalForwardRate(ForwardRateTenor tenor,
-  //                               int time_index,
-  //                               int state_index) {
-  //   if (!hasCachedForwardRates(tenor)) {
-  //     precomputeForwardRatesForTenors({tenor});
-  //   }
-
-  //   // TODO: Don't allow arbitrarily high time_index, or return the last
-  //   one
-  //   // cached to avoid requiring the caller to do something like:
-  //   //
-  //   //  if (ti < tree_curve.trinomialTree().getTimegrid().size() -
-  //   //
-  //   tree_curve.trinomialTree().timestepsPerForwardRateTenor(ForwardRateTenor::k3Month))
-  //   return trinomial_tree_.tree_[time_index][state_index]
-  //       .forward_rate_cache(tenor)
-  //       .value();
-  // }
-
-  // double conditionalForwardRate(ForwardRateTenor tenor,
-  //                               const TrinomialNode& node) {
-  //   if (!hasCachedForwardRates(tenor)) {
-  //     precomputeForwardRatesForTenors({tenor});
-  //   }
-  //   // TODO: Similarly here, make this safe, perhaps by caching constant
-  //   // forwards after a certain time_index.
-  //   return node.forward_rate_cache(tenor).value();
-  // }
 
  private:
   TrinomialTree trinomial_tree_;

@@ -117,10 +117,8 @@ inline TreeRenderData getTreeRenderData(
   } else if (extraction == TrinomialValueExtractionType::kDerivValue) {
     return generateTreeRenderData(
         tree,
-        [&tree](size_t ti, size_t j) { return tree.auxiliaryValue(ti, j); },
-        [&](const TrinomialNode& node, size_t ti) {
-          return node.auxiliary_value;
-        },
+        [&tree](size_t ti, size_t j) { return tree.nodeValue(ti, j); },
+        [&](const TrinomialNode& node, size_t ti) { return node.state_value; },
         [&tree](size_t ti) { return tree.isTreeEmptyAt(ti); });
   } else {
     static_assert("Not supported!");

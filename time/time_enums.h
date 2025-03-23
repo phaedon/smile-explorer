@@ -6,7 +6,12 @@ namespace smileexplorer {
 constexpr int kNumMonthsPerYear = 12.;
 
 // Represents the tenor of a FRA (forward-rate agreement).
-enum class ForwardRateTenor : int { k3Month = 3, k6Month = 6, k12Month = 12 };
+enum class ForwardRateTenor : int {
+  k1Month = 1,
+  k3Month = 3,
+  k6Month = 6,
+  k12Month = 12
+};
 
 enum class CompoundingPeriod {
   kContinuous = 0,

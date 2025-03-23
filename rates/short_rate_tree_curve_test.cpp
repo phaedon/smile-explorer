@@ -54,44 +54,5 @@ TEST(ShortRateTreeCurveTest, TreeCalibrationMatchesMarketRates) {
   }
 }
 
-TEST(ShortRateTreeCurveTest, CheckPrecomputedForwardRates) {
-  constexpr double tolerance = 0.0001;
-  ZeroSpotCurve market_curve({1, 2, 5, 10}, {.03, .035, .04, .045});
-
-  // TODO: Move this back out to a factory method.
-  const double dt = 0.25 / 17;
-
-  // TODO: This test fails if we raise the volatility or tighten the tolerance.
-  // It may have to do with compounding or some other subtlety (off-by-one
-  // error)? Debugging to be continued, but for now this indicates a reasonable
-  // first approximation.
-  ShortRateTreeCurve tree_curve(
-      std::make_unique<HullWhitePropagator>(.1, 0.006, dt), market_curve, 3.0);
-
-  auto period = CompoundingPeriod::kMonthly;
-
-  for (int ti = 0;
-       ti < tree_curve.trinomialTree().getTimegrid().size() -
-                tree_curve.trinomialTree().timestepsPerForwardRateTenor(
-                    ForwardRateTenor::k3Month);
-       ++ti) {
-    const double t_start = ti * tree_curve.trinomialTree().dt_;
-    const double t_end = t_start + 0.25;  // 3 month tenor
-    const double mkt_fwd = market_curve.forwardRate(t_start, t_end, period);
-
-    double wtd_avg_fwd_rate = 0.0;
-
-    for (const auto& node : tree_curve.trinomialTree().tree_[ti]) {
-      double cached_fra = 0.0;
-      //          tree_curve.conditionalForwardRate(ForwardRateTenor::k3Month,
-      //          node);
-      wtd_avg_fwd_rate += node.arrow_debreu * cached_fra;  //.value();
-    }
-    wtd_avg_fwd_rate *=
-        1.0 / tree_curve.trinomialTree().arrowDebreuSumAtTimestep(ti);
-    EXPECT_NEAR(mkt_fwd, wtd_avg_fwd_rate, tolerance);
-  }
-}
-
 }  // namespace
 }  // namespace smileexplorer

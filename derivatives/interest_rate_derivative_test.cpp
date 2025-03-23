@@ -113,4 +113,83 @@ TEST(InterestRateDerivativeTest, EuropeanBondOption) {
   }
 }
 
+struct SwapContractDetails {
+  SwapDirection direction;
+  CompoundingPeriod fixed_rate_frequency;
+  ForwardRateTenor floating_rate_frequency;
+  double notional_principal;
+  double start_date_years;
+  double end_date_years;
+  double fixed_rate;
+};
+
+class InterestRateSwap {
+ public:
+  InterestRateSwap(SwapContractDetails contract,
+                   const ShortRateTreeCurve* curve)
+      : contract_(contract),
+        curve_(curve),
+        fixed_leg_(curve),
+        floating_leg_(curve) {
+    double fixed_rate_tenor =
+        1. / static_cast<int>(contract.fixed_rate_frequency);
+    for (double t = contract.start_date_years + fixed_rate_tenor;
+         t <= contract.end_date_years;
+         t += fixed_rate_tenor) {
+      Cashflow cashflow{
+          .time_years = t,
+          .amount = contract.fixed_rate * contract.notional_principal *
+                    fixed_rate_tenor * static_cast<int>(contract.direction)};
+      fixed_leg_.addCashflowToTree(cashflow);
+    }
+
+    floating_leg_.setCashflows(contract.notional_principal,
+                               contract.floating_rate_frequency,
+                               contract.direction,
+                               contract.start_date_years,
+                               contract.end_date_years);
+  }
+
+  double price() { return fixed_leg_.price() + floating_leg_.price(); }
+
+ private:
+  SwapContractDetails contract_;
+  const ShortRateTreeCurve* curve_;
+  FixedCashflowInstrument fixed_leg_;
+  FloatingCashflowInstrument floating_leg_;
+};
+
+TEST(InterestRateDerivativeTest, Swap_APIUnderDevelopment) {
+  ZeroSpotCurve curve({1, 2, 5, 10},
+                      {.03, .0325, .035, 0.04},
+                      CompoundingPeriod::kAnnual,
+                      CurveInterpolationStyle::kMonotonePiecewiseCubicZeros);
+
+  ShortRateTreeCurve hullwhitecurve(
+      std::make_unique<HullWhitePropagator>(0.1, 0.01, .025), curve, 12.);
+
+  //  Analytic approximation loop (20 semiannual pmts) matches the fixed-rate
+  //  frequency below.
+  double df_sum = 0.0;
+  for (int i = 1; i <= 20; ++i) {
+    df_sum += 0.5 * curve.df(i * 0.5);
+  }
+  double analytic_approx = (1.0 - curve.df(10.)) / df_sum;
+  std::cout << "Swap rate analytic approx ==== " << analytic_approx
+            << std::endl;
+
+  SwapContractDetails contract{
+      .direction = SwapDirection::kReceiver,
+      .fixed_rate_frequency = CompoundingPeriod::kSemi,
+      .floating_rate_frequency = ForwardRateTenor::k3Month,
+      .notional_principal = 100.,
+      .start_date_years = 0.,
+      .end_date_years = 10.,
+      .fixed_rate = analytic_approx};
+
+  InterestRateSwap swap(contract, &hullwhitecurve);
+
+  EXPECT_NEAR(0.0, swap.price(), 0.001);
+}
+
 }  // namespace smileexplorer
