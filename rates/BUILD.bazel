@@ -23,6 +23,7 @@ cc_library(
     deps = [
         ":short_rate_tree_curve",
         "//trees:trinomial_tree",
+        "//trees:trinomial_tree_operators",
         "@abseil-cpp//absl/log",
     ],
 )

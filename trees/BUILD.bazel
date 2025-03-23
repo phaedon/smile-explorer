@@ -87,3 +87,14 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "trinomial_tree_operators",
+    hdrs = ["trinomial_tree_operators.h"],
+    deps = [
+        ":trinomial_tree",
+        "//rates:short_rate_tree_curve",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+    ],
+)
