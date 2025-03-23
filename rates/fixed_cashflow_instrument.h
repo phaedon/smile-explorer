@@ -34,7 +34,6 @@ class FloatingCashflowInstrument {
 
     int timesteps_per_tenor = bond_tree_.timestepsPerForwardRateTenor(tenor);
     double tenor_in_years = timesteps_per_tenor * bond_tree_.dt_;
-    const auto& short_rate_tree = short_rate_curve_->trinomialTree();
 
     // TODO to avoid floating-point error skipping a coupon, compute instead the
     // total number of coupon payments and use that for the loop.
@@ -51,21 +50,13 @@ class FloatingCashflowInstrument {
       }
 
       // backward induction back to the payment time.
-      for (int ti = payment_time_index - 1; ti >= reset_time_index; --ti) {
-        for (int i = 0; i < fwd_rate_tree.numStatesAt(ti); ++i) {
-          auto& curr_node = fwd_rate_tree.tree_[ti][i];
-          const auto& next_nodes =
-              fwd_rate_tree.getSuccessorNodes(curr_node, ti, i);
-          double expected_next =
-              next_nodes.up.state_value * curr_node.branch_probs.pu +
-              next_nodes.mid.state_value * curr_node.branch_probs.pm +
-              next_nodes.down.state_value * curr_node.branch_probs.pd;
-
-          double r = short_rate_tree.shortRate(ti, i);
-          curr_node.state_value +=
-              std::exp(-r * short_rate_tree.getTimegrid().dt(ti)) *
-              expected_next;
-        }
+      auto status = runBackwardInduction(*short_rate_curve_,
+                                         fwd_rate_tree,
+                                         payment_time_index,
+                                         reset_time_index);
+      if (!status.ok()) {
+        LOG(ERROR) << status.message();
+        return;
       }
 
       auto coupon_induction_tree =
