@@ -130,6 +130,18 @@ class TrinomialTree {
 
   double arrowDebreuSumAtTimestep(int time_index) const;
 
+  void copyNodeValuesAtTimeIndex(int time_index, const TrinomialTree& other) {
+    for (size_t i = 0; i < tree_[time_index].size(); ++i) {
+      tree_[time_index][i].state_value = other.tree_[time_index][i].state_value;
+    }
+  }
+
+  void setNodeValuesAtTimeIndex(int time_index, double value) {
+    for (auto& node : tree_[time_index]) {
+      node.state_value = value;
+    }
+  }
+
   void setZeroAfterIndex(int time_index) {
     for (size_t ti = time_index + 1; ti < tree_.size(); ++ti) {
       for (auto& node : tree_[ti]) {
@@ -140,9 +152,7 @@ class TrinomialTree {
 
   void clearNodeValues() {
     for (size_t ti = 0; ti < tree_.size(); ++ti) {
-      for (auto& node : tree_[ti]) {
-        node.state_value = 0;
-      }
+      setNodeValuesAtTimeIndex(ti, 0.);
     }
   }
 
