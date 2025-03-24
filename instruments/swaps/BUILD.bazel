@@ -31,6 +31,7 @@ cc_test(
 
 cc_library(
     name = "floating_cashflow_instrument",
+    srcs = ["floating_cashflow_instrument.cpp"],
     hdrs = ["floating_cashflow_instrument.h"],
     deps = [
         ":contract",

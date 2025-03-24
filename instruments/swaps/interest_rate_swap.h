@@ -34,11 +34,7 @@ class InterestRateSwap {
       fixed_leg.addCashflowToTree(cashflow);
     }
 
-    floating_leg.setCashflows(contract.notional_principal,
-                              contract.floating_rate_frequency,
-                              contract.direction,
-                              contract.start_date_years,
-                              contract.end_date_years);
+    floating_leg.setCashflows(contract);
 
     return InterestRateSwap(std::move(fixed_leg), std::move(floating_leg));
   }

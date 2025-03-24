@@ -24,7 +24,11 @@ TEST(InterestRateSwapTest, FloatingRateNotePricesAtPar) {
   FloatingCashflowInstrument frn(&hullwhitecurve);
   // We set "payer" so that the floating-rate leg is positive (inflows).
   frn.setCashflows(
-      100, ForwardRateTenor::k12Month, SwapDirection::kPayer, 0, maturity);
+      SwapContractDetails{.direction = SwapDirection::kPayer,
+                          .floating_rate_frequency = ForwardRateTenor::k12Month,
+                          .notional_principal = 100,
+                          .start_date_years = 0,
+                          .end_date_years = maturity});
 
   FixedCashflowInstrument principal(&hullwhitecurve);
   principal.addCashflowToTree(Cashflow{.time_years = maturity, .amount = 100});
