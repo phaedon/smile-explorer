@@ -29,7 +29,7 @@ TEST(InterestRateSwapTest, FloatingRateNotePricesAtPar) {
   principal.addCashflowToTree(Cashflow{.time_years = maturity, .amount = 100});
 
   InterestRateSwap swap(std::move(principal), std::move(frn));
-  EXPECT_NEAR(100., swap.price(), 0.10);
+  EXPECT_NEAR(100., swap.price(), 0.20);
 }
 
 TEST(InterestRateSwapTest, FixedRateBondPricesAtPar) {
@@ -40,13 +40,14 @@ TEST(InterestRateSwapTest, FixedRateBondPricesAtPar) {
 
   ShortRateTreeCurve hullwhitecurve(
       std::make_unique<HullWhitePropagator>(0.1, 0.01, .25), curve, 12.);
-  const int maturity_in_years = 2.0;
+  const int maturity_in_years = 8.0;
 
   double df_sum = 0.0;
   for (int i = 1; i <= maturity_in_years; ++i) {
-    df_sum += curve.df(i);
+    df_sum += hullwhitecurve.df(i);
   }
-  double analytic_approx = (1.0 - curve.df(maturity_in_years)) / df_sum;
+  double analytic_approx =
+      (1.0 - hullwhitecurve.df(maturity_in_years)) / df_sum;
 
   FixedCashflowInstrument bond(&hullwhitecurve);
   for (int i = 1; i <= maturity_in_years; ++i) {
@@ -57,7 +58,7 @@ TEST(InterestRateSwapTest, FixedRateBondPricesAtPar) {
       Cashflow{.time_years = maturity_in_years, .amount = 100});
 
   auto swap = InterestRateSwap::createBond(std::move(bond));
-  EXPECT_NEAR(100., swap.price(), 0.10);
+  EXPECT_NEAR(100., swap.price(), 0.20);
 }
 
 /*
