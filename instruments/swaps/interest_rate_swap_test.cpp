@@ -61,27 +61,25 @@ TEST(InterestRateSwapTest, FixedRateBondPricesAtPar) {
   EXPECT_NEAR(100., swap.price(), 0.20);
 }
 
-/*
 TEST(InterestRateSwapTest, Swap_APIUnderDevelopment) {
   ZeroSpotCurve curve({1, 2, 5, 10},
                       {.03, .0325, .035, 0.04},
-                      CompoundingPeriod::kAnnual,
+                      CompoundingPeriod::kContinuous,
                       CurveInterpolationStyle::kMonotonePiecewiseCubicZeros);
 
   ShortRateTreeCurve hullwhitecurve(
-      std::make_unique<HullWhitePropagator>(0.1, 0.001, .25), curve, 12.);
+      std::make_unique<HullWhitePropagator>(0.1, 0.01, .25 / 17), curve, 12.);
 
-  constexpr int maturity_in_years = 2;
+  constexpr int maturity_in_years = 5;
 
-  //  Analytic approximation loop (20 semiannual pmts) matches the fixed-rate
+  //  Analytic approximation loop (semiannual pmts) matches the fixed-rate
   //  frequency below.
   double df_sum = 0.0;
   for (int i = 1; i <= maturity_in_years * 2; ++i) {
-    df_sum += 0.5 * curve.df(i * 0.5);
+    df_sum += 0.5 * hullwhitecurve.df(i * 0.5);
   }
-  double analytic_approx = (1.0 - curve.df(maturity_in_years)) / df_sum;
-  std::cout << "Swap rate analytic approx ==== " << analytic_approx
-            << std::endl;
+  double analytic_approx =
+      (1.0 - hullwhitecurve.df(maturity_in_years)) / df_sum;
 
   SwapContractDetails contract{
       .direction = SwapDirection::kReceiver,
@@ -94,9 +92,10 @@ TEST(InterestRateSwapTest, Swap_APIUnderDevelopment) {
 
   auto swap = InterestRateSwap::createFromContract(contract, &hullwhitecurve);
 
-  EXPECT_NEAR(0.0, swap.price(), 0.1);
+  // TODO: Continue to get this error threshold down. $150k on a $100mm contract
+  // over 5 years is just too high (on the order of ~5bps).
+  EXPECT_NEAR(0.0, swap.price(), 0.150);
 }
-  */
 
 }  // namespace
 }  // namespace smileexplorer

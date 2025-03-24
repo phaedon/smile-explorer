@@ -42,13 +42,11 @@ struct TrinomialNode {
                 BranchProbabilities probs)
       : arrow_debreu(0),
         state_value(state_val),
-        // auxiliary_value(0),
         branch_style(style),
         branch_probs(probs) {}
 
   double arrow_debreu;
   double state_value;
-  // double auxiliary_value;
 
   TrinomialBranchStyle branch_style;
   BranchProbabilities branch_probs;
@@ -179,14 +177,6 @@ class TrinomialTree {
         tree_[time_index][state_index].arrow_debreu / arrow_debreu_sum;
     tree_[time_index][state_index].state_value = value * probability;
   }
-
-  // double auxiliaryValue(int time_index, int state_index) const {
-  //   return tree_[time_index][state_index].auxiliary_value;
-  // }
-
-  // void setAuxiliaryValue(int time_index, int state_index, double value) {
-  //   tree_[time_index][state_index].auxiliary_value = value;
-  // }
 
   // Useful for visualisation.
   bool isTreeEmptyAt(size_t time_index) const {
