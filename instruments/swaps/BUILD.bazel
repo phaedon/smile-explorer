@@ -12,7 +12,6 @@ cc_library(
     name = "fixed_cashflow_instrument",
     hdrs = ["fixed_cashflow_instrument.h"],
     deps = [
-        ":contract",
         "//rates:short_rate_tree_curve",
         "//trees:trinomial_tree",
         "//trees:trinomial_tree_operators",
@@ -31,11 +30,34 @@ cc_test(
 )
 
 cc_library(
+    name = "floating_cashflow_instrument",
+    hdrs = ["floating_cashflow_instrument.h"],
+    deps = [
+        ":contract",
+        "//rates:short_rate_tree_curve",
+        "//trees:trinomial_tree",
+        "//trees:trinomial_tree_operators",
+        "@abseil-cpp//absl/log",
+    ],
+)
+
+cc_test(
+    name = "floating_cashflow_instrument_test",
+    srcs = ["floating_cashflow_instrument_test.cpp"],
+    deps = [
+        ":floating_cashflow_instrument",
+        "//rates:zero_curve",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "interest_rate_swap",
     hdrs = ["interest_rate_swap.h"],
     deps = [
         ":contract",
         ":fixed_cashflow_instrument",
+        ":floating_cashflow_instrument",
         "//rates:short_rate_tree_curve",
     ],
 )

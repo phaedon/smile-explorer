@@ -4,7 +4,8 @@
 #include <gtest/gtest.h>
 
 #include "contract.h"
-#include "fixed_cashflow_instrument.h"
+#include "instruments/swaps/fixed_cashflow_instrument.h"
+#include "instruments/swaps/floating_cashflow_instrument.h"
 #include "rates/zero_curve.h"
 
 namespace smileexplorer {
