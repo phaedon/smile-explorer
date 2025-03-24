@@ -168,6 +168,18 @@ class TrinomialTree {
     tree_[time_index][state_index].state_value = value;
   }
 
+  void setProbabilityWeightedNodeValue(int time_index,
+                                       int state_index,
+                                       double value) {
+    double arrow_debreu_sum = 0;
+    for (const auto& node : tree_[time_index]) {
+      arrow_debreu_sum += node.arrow_debreu;
+    }
+    double probability =
+        tree_[time_index][state_index].arrow_debreu / arrow_debreu_sum;
+    tree_[time_index][state_index].state_value = value * probability;
+  }
+
   // double auxiliaryValue(int time_index, int state_index) const {
   //   return tree_[time_index][state_index].auxiliary_value;
   // }

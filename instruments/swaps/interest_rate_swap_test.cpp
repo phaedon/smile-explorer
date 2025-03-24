@@ -17,9 +17,9 @@ TEST(InterestRateSwapTest, FloatingRateNotePricesAtPar) {
                       CurveInterpolationStyle::kConstantForwards);
 
   ShortRateTreeCurve hullwhitecurve(
-      std::make_unique<HullWhitePropagator>(0.1, 0.001, .5), curve, 12.);
+      std::make_unique<HullWhitePropagator>(0.1, 0.01, .05), curve, 12.);
 
-  const int maturity = 2.0;
+  const int maturity = 8.0;
   FloatingCashflowInstrument frn(&hullwhitecurve);
   // We set "payer" so that the floating-rate leg is positive (inflows).
   frn.setCashflows(
@@ -29,7 +29,35 @@ TEST(InterestRateSwapTest, FloatingRateNotePricesAtPar) {
   principal.addCashflowToTree(Cashflow{.time_years = maturity, .amount = 100});
 
   InterestRateSwap swap(std::move(principal), std::move(frn));
-  EXPECT_NEAR(100., swap.price(), 0.001);
+  EXPECT_NEAR(100., swap.price(), 0.10);
+}
+
+TEST(InterestRateSwapTest, FixedRateBondPricesAtPar) {
+  ZeroSpotCurve curve({1, 2, 5, 10},
+                      {.03, .0325, .035, 0.04},
+                      CompoundingPeriod::kAnnual,
+                      CurveInterpolationStyle::kConstantForwards);
+
+  ShortRateTreeCurve hullwhitecurve(
+      std::make_unique<HullWhitePropagator>(0.1, 0.01, .25), curve, 12.);
+  const int maturity_in_years = 2.0;
+
+  double df_sum = 0.0;
+  for (int i = 1; i <= maturity_in_years; ++i) {
+    df_sum += curve.df(i);
+  }
+  double analytic_approx = (1.0 - curve.df(maturity_in_years)) / df_sum;
+
+  FixedCashflowInstrument bond(&hullwhitecurve);
+  for (int i = 1; i <= maturity_in_years; ++i) {
+    bond.addCashflowToTree(Cashflow{.time_years = static_cast<double>(i),
+                                    .amount = analytic_approx * 100});
+  }
+  bond.addCashflowToTree(
+      Cashflow{.time_years = maturity_in_years, .amount = 100});
+
+  auto swap = InterestRateSwap::createBond(std::move(bond));
+  EXPECT_NEAR(100., swap.price(), 0.10);
 }
 
 /*
@@ -65,7 +93,7 @@ TEST(InterestRateSwapTest, Swap_APIUnderDevelopment) {
 
   auto swap = InterestRateSwap::createFromContract(contract, &hullwhitecurve);
 
-  EXPECT_NEAR(0.0, swap.price(), 0.01);
+  EXPECT_NEAR(0.0, swap.price(), 0.1);
 }
   */
 

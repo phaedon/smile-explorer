@@ -32,7 +32,7 @@ class FloatingCashflowInstrument {
         TrinomialTree::createFrom(short_rate_curve_->trinomialTree());
 
     int timesteps_per_tenor = bond_tree_.timestepsPerForwardRateTenor(tenor);
-    double tenor_in_years = timesteps_per_tenor * bond_tree_.dt_;
+    //    double tenor_in_years = timesteps_per_tenor * bond_tree_.dt_;
 
     // Only full cashflows are supported. (Partial period cashflows, such as a
     // 1y1m swap with quarterly payments, are not supported here.)
@@ -77,16 +77,17 @@ class FloatingCashflowInstrument {
         // payment directly.
         double conditional_fwd_rate =
             1. / fwd_rate_tree.tree_[reset_time_index][j].state_value - 1;
-        std::cout << "Conditional fwd rate at reset time: "
-                  << conditional_fwd_rate << std::endl;
+        // std::cout << "Conditional fwd rate at reset time: "
+        //           << conditional_fwd_rate << std::endl;
 
-        coupon_induction_tree.tree_[reset_time_index][j].state_value =
-            conditional_fwd_rate * principal *
-            (-1 * static_cast<int>(direction));
+        const double coupon_amount = conditional_fwd_rate * principal *
+                                     (-1 * static_cast<int>(direction));
+        coupon_induction_tree.setProbabilityWeightedNodeValue(
+            reset_time_index, j, coupon_amount);
 
-        std::cout << "Coupon computed at " << reset_time << " == "
-                  << coupon_induction_tree.nodeValue(reset_time_index, j)
-                  << std::endl;
+        // std::cout << "Coupon computed at " << reset_time << " == "
+        //           << coupon_induction_tree.nodeValue(reset_time_index, j)
+        //           << std::endl;
       }
 
       fwd_rate_tree.clearNodeValues();
@@ -98,8 +99,8 @@ class FloatingCashflowInstrument {
         for (int i = 0; i < coupon_induction_tree.numStatesAt(ti); ++i) {
           const auto& curr_node = coupon_induction_tree.tree_[ti][i];
 
-          std::cout << "Curr node coupon @ ti=" << ti << " i=" << i
-                    << "  == " << curr_node.state_value << std::endl;
+          // std::cout << "Curr node coupon @ ti=" << ti << " i=" << i
+          //           << "  == " << curr_node.state_value << std::endl;
 
           NodeTriplet<TrinomialNode> next_nodes =
               coupon_induction_tree.getSuccessorNodes(curr_node, ti, i);
@@ -118,17 +119,18 @@ class FloatingCashflowInstrument {
       for (auto& pmt_node : coupon_induction_tree.tree_[payment_time_index]) {
         ad_sum += pmt_node.arrow_debreu;
       }
-      std::cout << " ad sum at payment_time_index =" << payment_time_index
-                << "   === " << ad_sum << std::endl;
+      // std::cout << " ad sum at payment_time_index =" << payment_time_index
+      //           << "   === " << ad_sum << std::endl;
       for (auto& pmt_node : coupon_induction_tree.tree_[payment_time_index]) {
-        std::cout << "   ... before scaling: Payment node coupon @ state == "
-                  << pmt_node.state_value
-                  << " with arrow_deb@node=" << pmt_node.arrow_debreu
-                  << std::endl;
+        // std::cout << "   ... before scaling: Payment node coupon @ state == "
+        //           << pmt_node.state_value
+        //           << " with arrow_deb@node=" << pmt_node.arrow_debreu
+        //           << std::endl;
         pmt_node.state_value /= (pmt_node.arrow_debreu / ad_sum);
 
-        std::cout << "Payment node coupon @ state == " << pmt_node.state_value
-                  << std::endl;
+        // std::cout << "Payment node coupon @ state == " <<
+        // pmt_node.state_value
+        //           << std::endl;
       }
 
       // Now, the probability-weighted cashflows at payment_time_index should be
