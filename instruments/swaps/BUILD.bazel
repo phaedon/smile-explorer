@@ -1,0 +1,52 @@
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "contract",
+    hdrs = ["contract.h"],
+    deps = [
+        "//time:time_enums",
+    ],
+)
+
+cc_library(
+    name = "fixed_cashflow_instrument",
+    hdrs = ["fixed_cashflow_instrument.h"],
+    deps = [
+        ":contract",
+        "//rates:short_rate_tree_curve",
+        "//trees:trinomial_tree",
+        "//trees:trinomial_tree_operators",
+        "@abseil-cpp//absl/log",
+    ],
+)
+
+cc_test(
+    name = "fixed_cashflow_instrument_test",
+    srcs = ["fixed_cashflow_instrument_test.cpp"],
+    deps = [
+        ":fixed_cashflow_instrument",
+        "//rates:zero_curve",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "interest_rate_swap",
+    hdrs = ["interest_rate_swap.h"],
+    deps = [
+        ":contract",
+        ":fixed_cashflow_instrument",
+        "//rates:short_rate_tree_curve",
+    ],
+)
+
+cc_test(
+    name = "interest_rate_swap_test",
+    srcs = ["interest_rate_swap_test.cpp"],
+    deps = [
+        ":fixed_cashflow_instrument",
+        ":interest_rate_swap",
+        "//rates:zero_curve",
+        "@googletest//:gtest_main",
+    ],
+)

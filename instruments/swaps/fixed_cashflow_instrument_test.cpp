@@ -3,9 +3,8 @@
 
 #include <gtest/gtest.h>
 
+#include "rates/short_rate_tree_curve.h"
 #include "rates/zero_curve.h"
-#include "rates_curve.h"
-#include "short_rate_tree_curve.h"
 
 namespace smileexplorer {
 namespace {

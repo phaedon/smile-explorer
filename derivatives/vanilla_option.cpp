@@ -75,7 +75,7 @@ double VanillaOption::operator()(const BinomialTree& deriv_tree,
 }
 
 double VanillaOption::operator()(const TrinomialTree& deriv_tree,
-                                 const FixedCashflowInstrument& underlying,
+                                 const InterestRateSwap& underlying,
                                  int ti,
                                  int i,
                                  int ti_final) const {

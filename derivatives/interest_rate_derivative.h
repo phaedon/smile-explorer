@@ -4,7 +4,7 @@
 
 #include "absl/log/log.h"
 #include "derivative.h"
-#include "rates/fixed_cashflow_instrument.h"
+#include "instruments/swaps/interest_rate_swap.h"
 #include "rates/short_rate_tree_curve.h"
 #include "vanilla_option.h"
 
@@ -13,10 +13,10 @@ namespace smileexplorer {
 class InterestRateDerivative : public Derivative {
  public:
   InterestRateDerivative(const ShortRateTreeCurve* short_rate_curve,
-                         const FixedCashflowInstrument* bond)
+                         const InterestRateSwap* swap)
       : short_rate_curve_(short_rate_curve),
-        bond_(bond),
-        deriv_tree_(TrinomialTree::createFrom(bond_->trinomialTree())) {}
+        swap_(swap),
+        deriv_tree_(TrinomialTree::createFrom(swap_->trinomialTree())) {}
 
   double price(const VanillaOption& vanilla_option, double expiry_years) {
     runBackwardInduction(vanilla_option, expiry_years);
@@ -27,7 +27,7 @@ class InterestRateDerivative : public Derivative {
 
  private:
   const ShortRateTreeCurve* short_rate_curve_;
-  const FixedCashflowInstrument* bond_;
+  const InterestRateSwap* swap_;
   TrinomialTree deriv_tree_;
 
   template <typename OptionEvaluatorT>
@@ -46,7 +46,7 @@ class InterestRateDerivative : public Derivative {
     for (int ti = ti_final; ti >= 0; --ti) {
       for (int i = 0; i < deriv_tree_.numStatesAt(ti); ++i) {
         const double deriv_value_at_node =
-            option_evaluator(deriv_tree_, *bond_, ti, i, ti_final);
+            option_evaluator(deriv_tree_, *swap_, ti, i, ti_final);
         deriv_tree_.setNodeValue(ti, i, deriv_value_at_node);
       }
     }

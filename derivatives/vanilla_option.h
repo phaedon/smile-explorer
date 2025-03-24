@@ -1,7 +1,7 @@
 #ifndef SMILEEXPLORER_DERIVATIVES_VANILLA_OPTION_H_
 #define SMILEEXPLORER_DERIVATIVES_VANILLA_OPTION_H_
 
-#include "rates/fixed_cashflow_instrument.h"
+#include "instruments/swaps/interest_rate_swap.h"
 #include "trees/binomial_tree.h"
 #include "trees/trinomial_tree.h"
 
@@ -59,7 +59,7 @@ struct VanillaOption {
                     double fwd_df) const;
 
   double operator()(const TrinomialTree& deriv_tree,
-                    const FixedCashflowInstrument& underlying,
+                    const InterestRateSwap& underlying,
                     int ti,
                     int i,
                     int ti_final) const;

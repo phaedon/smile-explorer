@@ -5,10 +5,9 @@
 #include <vector>
 
 #include "derivative.h"
-#include "rates/fixed_cashflow_instrument.h"
+#include "instruments/swaps/fixed_cashflow_instrument.h"
+#include "instruments/swaps/interest_rate_swap.h"
 #include "rates/rates_curve.h"
-#include "trees/propagators.h"
-#include "trees/stochastic_tree_model.h"
 #include "vanilla_option.h"
 
 namespace smileexplorer {
@@ -98,7 +97,9 @@ TEST(InterestRateDerivativeTest, EuropeanBondOption) {
     bond.setCashflows({Cashflow{.time_years = 9.0, .amount = 100.}});
     EXPECT_NEAR(100 * std::exp(-.073979 * 9), bond.price(), 0.10);
 
-    InterestRateDerivative bond_option(&hullwhitecurve, &bond);
+    auto swap = InterestRateSwap::createBond(std::move(bond));
+
+    InterestRateDerivative bond_option(&hullwhitecurve, &swap);
     double bond_option_price =
         bond_option.price(VanillaOption(63., OptionPayoff::Put), 3.0);
 
@@ -111,87 +112,6 @@ TEST(InterestRateDerivativeTest, EuropeanBondOption) {
                 bond_option_price,
                 expected_max_tree_error * 2.4);  // TODO get this down to 1
   }
-}
-
-struct SwapContractDetails {
-  SwapDirection direction;
-  CompoundingPeriod fixed_rate_frequency;
-  ForwardRateTenor floating_rate_frequency;
-  double notional_principal;
-  double start_date_years;
-  double end_date_years;
-  double fixed_rate;
-};
-
-class InterestRateSwap {
- public:
-  InterestRateSwap(SwapContractDetails contract,
-                   const ShortRateTreeCurve* curve)
-      : contract_(contract),
-        curve_(curve),
-        fixed_leg_(curve),
-        floating_leg_(curve) {
-    double fixed_rate_tenor =
-        1. / static_cast<int>(contract.fixed_rate_frequency);
-    for (double t = contract.start_date_years + fixed_rate_tenor;
-         t <= contract.end_date_years;
-         t += fixed_rate_tenor) {
-      Cashflow cashflow{
-          .time_years = t,
-          .amount = contract.fixed_rate * contract.notional_principal *
-                    fixed_rate_tenor * static_cast<int>(contract.direction)};
-      fixed_leg_.addCashflowToTree(cashflow);
-    }
-
-    floating_leg_.setCashflows(contract.notional_principal,
-                               contract.floating_rate_frequency,
-                               contract.direction,
-                               contract.start_date_years,
-                               contract.end_date_years);
-  }
-
-  double price() { return fixed_leg_.price() + floating_leg_.price(); }
-
- private:
-  SwapContractDetails contract_;
-  const ShortRateTreeCurve* curve_;
-  FixedCashflowInstrument fixed_leg_;
-  FloatingCashflowInstrument floating_leg_;
-};
-
-TEST(InterestRateDerivativeTest, Swap_APIUnderDevelopment) {
-  ZeroSpotCurve curve({1, 2, 5, 10},
-                      {.03, .0325, .035, 0.04},
-                      CompoundingPeriod::kAnnual,
-                      CurveInterpolationStyle::kMonotonePiecewiseCubicZeros);
-
-  ShortRateTreeCurve hullwhitecurve(
-      std::make_unique<HullWhitePropagator>(0.1, 0.001, .25), curve, 12.);
-
-  constexpr int maturity_in_years = 2;
-
-  //  Analytic approximation loop (20 semiannual pmts) matches the fixed-rate
-  //  frequency below.
-  double df_sum = 0.0;
-  for (int i = 1; i <= maturity_in_years * 2; ++i) {
-    df_sum += 0.5 * curve.df(i * 0.5);
-  }
-  double analytic_approx = (1.0 - curve.df(maturity_in_years)) / df_sum;
-  std::cout << "Swap rate analytic approx ==== " << analytic_approx
-            << std::endl;
-
-  SwapContractDetails contract{
-      .direction = SwapDirection::kReceiver,
-      .fixed_rate_frequency = CompoundingPeriod::kSemi,
-      .floating_rate_frequency = ForwardRateTenor::k3Month,
-      .notional_principal = 100.,
-      .start_date_years = 0.,
-      .end_date_years = maturity_in_years,
-      .fixed_rate = analytic_approx};
-
-  InterestRateSwap swap(contract, &hullwhitecurve);
-
-  EXPECT_NEAR(0.0, swap.price(), 0.01);
 }
 
 }  // namespace smileexplorer
