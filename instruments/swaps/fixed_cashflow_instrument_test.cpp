@@ -9,7 +9,7 @@
 namespace smileexplorer {
 namespace {
 
-TEST(FixedIncomeInstrumentTest, ZeroCouponBond_FlatYieldCurve) {
+TEST(FixedCashflowInstrumentTest, ZeroCouponBond_FlatYieldCurve) {
   ZeroSpotCurve market_curve(
       {1, 2, 5, 10}, {.06, .06, .06, .06}, CompoundingPeriod::kAnnual);
 
@@ -29,7 +29,7 @@ TEST(FixedIncomeInstrumentTest, ZeroCouponBond_FlatYieldCurve) {
   EXPECT_NEAR(market_curve.df(5) * 100, bond.price(), 0.1);
 }
 
-TEST(FixedIncomeInstrumentTest, CouponBond_FlatYieldCurve) {
+TEST(FixedCashflowInstrumentTest, CouponBond_FlatYieldCurve) {
   ZeroSpotCurve market_curve(
       {1, 2, 5, 10}, {.06, .06, .06, .06}, CompoundingPeriod::kAnnual);
 

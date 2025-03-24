@@ -54,8 +54,6 @@ class InterestRateSwap {
   }
 
  private:
-  // SwapContractDetails contract_;
-  // const ShortRateTreeCurve* curve_;
   FixedCashflowInstrument fixed_leg_;
   FloatingCashflowInstrument floating_leg_;
 

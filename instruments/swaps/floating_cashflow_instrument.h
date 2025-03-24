@@ -17,13 +17,9 @@ class FloatingCashflowInstrument {
 
   void setCashflows(SwapContractDetails contract);
 
-  const ShortRateTreeCurve& shortRateModel() const {
-    return *short_rate_curve_;
-  }
-
   double price() {
     auto status = runBackwardInduction(
-        shortRateModel(), bond_tree_, bond_tree_.tree_.size() - 1, 0);
+        *short_rate_curve_, bond_tree_, bond_tree_.tree_.size() - 1, 0);
     if (!status.ok()) {
       LOG(ERROR) << status.message();
       return 0.0;
@@ -43,4 +39,5 @@ class FloatingCashflowInstrument {
 };
 
 }  // namespace smileexplorer
+
 #endif  // SMILEEXPLORER_RATES_FLOATING_CASHFLOW_INSTRUMENT_H_
