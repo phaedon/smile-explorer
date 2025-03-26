@@ -1,4 +1,5 @@
 [![Bazel CI](https://github.com/phaedon/smile-explorer/actions/workflows/presubmit.yml/badge.svg)](https://github.com/phaedon/smile-explorer/actions/workflows/presubmit.yml)
+[![Coverage Status](https://coveralls.io/repos/github/phaedon/smile-explorer/badge.svg?branch=main)](https://coveralls.io/github/phaedon/smile-explorer?branch=main)
 
 ## Overview
 
