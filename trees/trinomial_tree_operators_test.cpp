@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include "rates/short_rate_tree_curve.h"
 #include "trinomial_tree.h"
 
 namespace smileexplorer {
@@ -21,6 +22,27 @@ TEST(TrinomialTreeOperatorsTest, MatchingTrees) {
 
   EXPECT_TRUE(treesHaveMatchingStructure(a, TrinomialTree::createFrom(a)));
   EXPECT_TRUE(treesHaveMatchingStructure(b, TrinomialTree::createFrom(b)));
+}
+
+TEST(TrinomialTreeOperatorsTest, HullWhiteParamsMayCauseTreeMismatches) {
+  const double dt = 0.25;
+  ZeroSpotCurve market_curve({1, 2, 5, 10}, {3, 4, 5, 6});
+
+  // Changing the mean reversion param changes the number of states in some of
+  // the timeslices. Therefore, the trees do not match.
+  ShortRateTreeCurve a(
+      std::make_unique<HullWhitePropagator>(.1, .01, dt), market_curve, 10);
+  ShortRateTreeCurve b(
+      std::make_unique<HullWhitePropagator>(.15, .01, dt), market_curve, 10);
+
+  EXPECT_FALSE(
+      treesHaveMatchingStructure(a.trinomialTree(), b.trinomialTree()));
+
+  // However, simply bumping up the volatility doesn't change the underlying
+  // structure.
+  ShortRateTreeCurve c(
+      std::make_unique<HullWhitePropagator>(.15, .02, dt), market_curve, 10);
+  EXPECT_TRUE(treesHaveMatchingStructure(b.trinomialTree(), c.trinomialTree()));
 }
 
 }  // namespace
