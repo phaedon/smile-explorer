@@ -40,3 +40,13 @@ jobs:
       - name: Run Tests with Bazel
         run: |
           bazel test //... ${{ (runner.os == 'macOS') && '--repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1' || '' }}
+
+      - name: Create coverage report (Ubuntu only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install lcov
+          bazel coverage combined_report=lcov ...
+          genhtml --branch-coverage --output coverage "$(bazel info output_path)/_coverage/_coverage_report.dat"
+
+      - name: Coveralls
+        uses: coverallsapp/github-action@v2
