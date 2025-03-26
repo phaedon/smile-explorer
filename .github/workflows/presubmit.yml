@@ -45,8 +45,9 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get install lcov
-          bazel coverage combined_report=lcov ...
+          bazel coverage --combined_report=lcov ...
           genhtml --branch-coverage --output coverage "$(bazel info output_path)/_coverage/_coverage_report.dat"
 
       - name: Coveralls
+        if: runner.os == 'Linux'
         uses: coverallsapp/github-action@v2
