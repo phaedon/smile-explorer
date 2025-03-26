@@ -7,11 +7,8 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+  build_coverage_linux:
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -27,28 +24,41 @@ jobs:
           # Share repository cache between workflows.
           repository-cache: true
 
-      - name: Configure C++ environment (Ubuntu only)
-        if: runner.os == 'Linux'
+      - name: Configure C++ environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential xorg-dev libgl1-mesa-dev
+          sudo apt-get install -y build-essential xorg-dev libgl1-mesa-dev lcov
 
-      - name: Build with Bazel
+      - name: Build, Test, and Generate Coverage
         run: |
-          bazel build //... ${{ (runner.os == 'macOS') && '--repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1' || '' }}
-
-      - name: Run Tests with Bazel
-        run: |
-          bazel test //... ${{ (runner.os == 'macOS') && '--repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1' || '' }}
-
-      - name: Create coverage report (Ubuntu only)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get install lcov
-          bazel coverage --combined_report=lcov ...
+          bazel coverage --combined_report=lcov //...
 
       - name: Coveralls
-        if: runner.os == 'Linux'
         uses: coverallsapp/github-action@v2
         with:
           file: "$(bazel info output_path)/_coverage/_coverage_report.dat"
+
+  build_macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Bazel
+        uses: bazel-contrib/setup-bazel@0.14.0
+        with:
+          # Avoid downloading Bazel every time.
+          bazelisk-cache: true
+          # Store build cache per workflow.
+          disk-cache: ${{ github.workflow }}
+          # Share repository cache between workflows.
+          repository-cache: true
+
+      - name: Build with Bazel
+        run: |
+          bazel build //... --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+
+      - name: Run Tests with Bazel
+        run: |
+          bazel test //... --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
