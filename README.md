@@ -1,6 +1,21 @@
 [![Bazel CI](https://github.com/phaedon/smile-explorer/actions/workflows/presubmit.yml/badge.svg)](https://github.com/phaedon/smile-explorer/actions/workflows/presubmit.yml)
 [![Coverage Status](https://coveralls.io/repos/github/phaedon/smile-explorer/badge.svg?branch=main)](https://coveralls.io/github/phaedon/smile-explorer?branch=main)
 
+- [Overview](#overview)
+  - [Features](#features)
+  - [Roadmap / wish list](#roadmap--wish-list)
+  - [Getting started](#getting-started)
+- [Binomial trees: A guided tour](#binomial-trees-a-guided-tour)
+  - [Yield curves](#yield-curves)
+  - [Options](#options)
+  - [Currency options and risk-neutral probabilities: A full example](#currency-options-and-risk-neutral-probabilities-a-full-example)
+- [Interest rate models with trinomial trees](#interest-rate-models-with-trinomial-trees)
+  - [Tree fitting and calibration](#tree-fitting-and-calibration)
+  - [Swaps](#swaps)
+  - [Options](#options-1)
+- [Why?](#why)
+- [Sources \& attributions](#sources--attributions)
+
 ## Overview
 
 This library is intended to enable to build effective tools for developing deeper intuition into the details of tree-based construction and pricing of derivative securities, and is suitable for both seasoned professionals and students of quantitative finance.
@@ -10,6 +25,7 @@ Because this is not intended for production use, some details are omitted. For e
 ### Features
 
 * **Tree-based models:** Implements binomial trees for accurate derivative pricing.
+* **Trinomial trees:** Short-rate tree models based on the Hull-White tree construction method.
 * **Volatility Modeling:** Supports constant, term structure, and local volatility surfaces.
 * **Option Pricing:** Prices European and American options on assets and currencies.
 * **Visualisation:** Provides tools for visualising tree structures and probability distributions.
@@ -17,7 +33,7 @@ Because this is not intended for production use, some details are omitted. For e
 
 ### Roadmap / wish list
 
-* **Almost ready!** Short-rate models with trinomial trees for pricing interest-rate derivatives. Documentation coming by April 1, 2025.
+* Pricing and volatility calibration to interest-rate derivatives (caps/floors/swaptions).
 * Improve visualisation capabilities for vol surfaces and interest rate curves. 
 
 
@@ -38,7 +54,7 @@ This library, and the `explorer` binary, works on MacOS and Linux. On Ubuntu, yo
 (The explorer is not yet supported on Windows, because it uses GLFW, which was recently added to the BCR without Windows support. See the [Bazel build rule here](https://github.com/bazelbuild/bazel-central-registry/blob/main/modules/glfw/3.3.9/patches/add_build_file.patch) for context.)
 
 
-## A guided tour
+## Binomial trees: A guided tour
 
 Let's begin with an asset, such as a (zero-dividend) stock. We can immediately build a binomial tree using a constant lognormal volatility as follows:
 
@@ -91,12 +107,12 @@ Finally, the library supports trees with a non-constant term structure. This gen
 ![TSM vol tree](documentation/assets/term_structure_vol.png)
 
 
-### Rates
+### Yield curves
 
 We take a slight detour into discounting. 
 
-Because this library doesn't yet have short-rate / term-structure models, an initial approximation is provided in the class `ZeroSpotCurve`. You specify a vector of maturities (in years), a matching vector of zero-coupon bond yields, and a
-compounding convention, and a yield curve assuming constant forwards is provided. 
+Because this library doesn't yet have short-rate / term-structure models, an initial approximation is provided in the class `ZeroSpotCurve`. Specify a vector of maturities (in years), a matching vector of zero-coupon bond yields, and a
+compounding convention. A yield curve is generated, assuming either constant forward rates or an interpolated cubic spline on the zero-coupon rates.
 
 You can then look up a discount factor or forward rate spanning any time period on this curve:
 
@@ -104,7 +120,9 @@ You can then look up a discount factor or forward rate spanning any time period 
 ZeroSpotCurve zeros(
     {1, 2, 3, 5, 7, 10}, // maturities (in years)
     {0.02, 0.025, 0.03, 0.04, 0.045, 0.048}, // zero rates
-    CompoundingPeriod::kAnnual);
+    CompoundingPeriod::kAnnual,
+    // Or set CurveInterpolationStyle::kMonotonePiecewiseCubicZeros
+    CurveInterpolationStyle::kConstantForwards);
 
 // In 1 year for 2 years:
 double rate_1x3 = zeros.forwardRate(1.0, 3.0);
@@ -130,7 +148,7 @@ Here's the (backward-induction) tree for the 25-delta call, using a flat discoun
 
 
 
-### A full example: Currency options and risk-neutral probabilities
+### Currency options and risk-neutral probabilities: A full example
 
 We can model an option on USD-ISK (the Icelandic króna) and look at the implied probability distribution of possible outcomes:
 
@@ -156,6 +174,79 @@ With spot at 140 and an interest-rate differential of around 4%, you can see tha
 
 For the full experience, launch the viewer, and change the rates and the other parameters to see the probability histogram update in real time!
 
+## Interest rate models with trinomial trees 
+
+The `TrinomialTree` class is used to build short-rate models. These are essential for pricing interest-rate derivatives such as caps/floors and swaptions.
+
+### Tree fitting and calibration
+
+In the initial implementation, we provide one such model, encapsulated in the `HullWhitePropagator`. This builds a trinomial tree and calibrates it to the yield curve provided:
+
+```c++
+auto hullwhitecurve = std::make_unique<ShortRateTreeCurve>(
+  std::make_unique<HullWhitePropagator>(
+    /* mean reversion speed = */ 0.1, 
+    /* normal volatility = */ 0.01, 
+    /* timestep size */ .25 * 0.1), // 10 timesteps per quarter
+  *zero_curve,
+  /* tree duration in years */ 12.);
+```
+This is an example of an input yield curve. The green and orange forward curves are exactly aligned, indicating that the tree representation is correctly fitted to the input rates:
+
+![Zero curve](documentation/assets/zero_curve.png)
+
+And this shows the resulting trinomial tree:
+
+![Hull-White curve](documentation/assets/hullwhite_curve.png)
+
+This image visualises the constructed trinomial tree. The y-axis represents possible short-rate values at each time step. Each node branches forward to three possible values in the next timestep, representing the stochastic evolution of interest rates.
+
+Note that the Hull-White model is based on a normally distributed short-rate process, so rates can go negative. In this screenshot, the timestep is rather large (3 months) for visual clarity, and the input volatility is set quite low so that the tree reflects the contours of the input forwards.
+
+Notice also that the tree stops expanding around year 2. This is a function of the mean-reversion parameter, which "clamps" the width of the tree past a certain point.
+
+### Swaps 
+
+Basic support for single-currency interest rate swaps is provided. A swap is represented internally
+as a set of future fixed and expected floating-rate cashflows (conditional on the underlying short-rate process).
+
+```c++
+SwapContractDetails contract{
+    .direction = SwapDirection::kReceiver,
+    .fixed_rate_frequency = CompoundingPeriod::kSemi,
+    .floating_rate_frequency = ForwardRateTenor::k3Month,
+    .notional_principal = 100.,
+    .start_date_years = 0.,
+    .end_date_years = 10.0,
+    .fixed_rate = .0401};
+
+// Initialise the swap, represented on a matching underlying trinomial tree:
+auto swap =
+  InterestRateSwap::createFromContract(contract, hullwhitecurve.get());
+
+// Price the expected cashflows on the tree:
+swap.price();
+```
+
+### Options
+
+An example of a European option on a zero-coupon bond is provided below, adapted from the unit tests:
+
+```c++
+// Define a 9-year zero-coupon bond.
+FixedCashflowInstrument bond(&hullwhitecurve);
+bond.setCashflows({Cashflow{.time_years = 9.0, .amount = 100.}});
+
+// Wrap it in a "swap" for ease of pricing.
+auto swap = InterestRateSwap::createBond(std::move(bond));
+
+// Price a 3-year put option struct at 63.
+InterestRateDerivative bond_option(&hullwhitecurve, &swap);
+bond_option.price(
+    VanillaOption(/* strike = */ 63., OptionPayoff::Put), 
+    /* option expiry = */ 3.0);
+```
+
 ## Why?
 
 While reviewing techniques for building binomial trees to price options and other derivatives, with extensions for time-dependent vol and skew/smile surfaces, I came across Andrej Karpathy's [Yes you should understand backprop](https://karpathy.medium.com/yes-you-should-understand-backprop-e2f06eab496b) (for neural networks) and was inspired to do something similar for tree-based pricing methods.
@@ -163,10 +254,12 @@ While reviewing techniques for building binomial trees to price options and othe
 Or, according to the quote commonly attributed to Richard Feynman: "What I cannot create, I do not understand."
 
 
-### Sources & attributions
+## Sources & attributions
 
-Many of the formulas and implementations are adapted from a close reading of 
-* Emanuel Derman, **The Volatility Smile**. [Wiley Link](https://www.wiley.com/en-be/The+Volatility+Smile-p-9781118959169) 
+The primary sources for formulas and techniques are:
+* Emanuel Derman, **The Volatility Smile**. [Wiley link](https://www.wiley.com/en-be/The+Volatility+Smile-p-9781118959169) 
+* John Hull, **Options, Futures, and Other Derivatives** (11th ed.) [Amazon link](https://www.amazon.com/Options-Futures-Other-Derivatives-Global/dp/1292410655)
 
-and many of the unit tests are based on the examples and end-of-chapter exercises in this text and others.
+Much of the section on binomial trees and local volatility is based on Derman, and the section on trinomial trees and short rates is based on Hull.
 
+In addition, a number of unit tests are built on the examples and end-of-chapter exercises in these texts. Where this is the case, I have provided references inline in the code.
