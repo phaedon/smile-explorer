@@ -31,7 +31,11 @@ class InterestRateSwap {
           .time_years = t,
           .amount = contract.fixed_rate * contract.notional_principal *
                     fixed_rate_tenor * static_cast<int>(contract.direction)};
-      fixed_leg.addCashflowToTree(cashflow);
+      auto status = fixed_leg.addCashflowToTree(cashflow);
+      if (!status.ok()) {
+        // TODO: Maybe just return a StatusOr<InterestRateSwap> instead.
+        LOG(ERROR) << status.message();
+      }
     }
 
     floating_leg.setCashflows(contract);

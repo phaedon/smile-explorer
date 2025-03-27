@@ -16,6 +16,7 @@ cc_library(
         "//trees:trinomial_tree",
         "//trees:trinomial_tree_operators",
         "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/status",
     ],
 )
 

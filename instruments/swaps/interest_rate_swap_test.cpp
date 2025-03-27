@@ -42,7 +42,9 @@ TEST_F(InterestRateSwapTest, FloatingRateNotePricesAtPar) {
                           .end_date_years = maturity});
 
   FixedCashflowInstrument principal(hullwhitecurve.get());
-  principal.addCashflowToTree(Cashflow{.time_years = maturity, .amount = 100});
+  ASSERT_EQ(absl::OkStatus(),
+            principal.addCashflowToTree(
+                Cashflow{.time_years = maturity, .amount = 100}));
 
   InterestRateSwap swap(std::move(principal), std::move(frn));
   EXPECT_NEAR(100., swap.price(), 0.15);
@@ -60,11 +62,14 @@ TEST_F(InterestRateSwapTest, FixedRateBondPricesAtPar) {
 
   FixedCashflowInstrument bond(hullwhitecurve.get());
   for (int i = 1; i <= maturity_in_years; ++i) {
-    bond.addCashflowToTree(Cashflow{.time_years = static_cast<double>(i),
-                                    .amount = analytic_approx * 100});
+    ASSERT_EQ(
+        absl::OkStatus(),
+        bond.addCashflowToTree(Cashflow{.time_years = static_cast<double>(i),
+                                        .amount = analytic_approx * 100}));
   }
-  bond.addCashflowToTree(
-      Cashflow{.time_years = maturity_in_years, .amount = 100});
+  ASSERT_EQ(absl::OkStatus(),
+            bond.addCashflowToTree(
+                Cashflow{.time_years = maturity_in_years, .amount = 100}));
 
   auto swap = InterestRateSwap::createBond(std::move(bond));
   EXPECT_NEAR(100., swap.price(), 0.15);
