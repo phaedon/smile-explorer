@@ -98,3 +98,13 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
     ],
 )
+
+cc_test(
+    name = "trinomial_tree_operators_test",
+    srcs = ["trinomial_tree_operators_test.cpp"],
+    deps = [
+        ":trinomial_tree_operators",
+        "//rates:short_rate_tree_curve",
+        "@googletest//:gtest_main",
+    ],
+)
