@@ -1,0 +1,37 @@
+name: hdoc-presubmit
+
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+    
+jobs:
+  hdoc-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl tar
+
+      - name: Download hdoc binary
+        run: |
+          curl -L https://app.hdoc.io/releases/download_release/13/ -o hdoc-online-1.4.1
+          chmod +x hdoc-online-1.4.1
+          mv hdoc-online-1.4.1 hdoc-online
+
+      - name: Download and install bazel-compile-commands
+        run: |
+          curl -LO https://github.com/kiron1/bazel-compile-commands/releases/download/v0.17.1/bazel-compile-commands_0.17.1-jammy_amd64.deb
+          sudo apt-get install ./bazel-compile-commands_0.17.1-jammy_amd64.deb
+
+      - name: Run hdoc-online and bazel-compile-commands
+        run: |
+          bazel-compile-commands > compile_commands.json
+          ./hdoc-online --verbose .
