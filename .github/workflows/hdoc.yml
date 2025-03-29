@@ -1,0 +1,42 @@
+name: hdoc-presubmit
+
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+    
+jobs:
+  hdoc-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl tar
+
+      - name: Download hdoc release
+        run: |
+          curl -L https://github.com/hdoc/hdoc/archive/refs/tags/1.4.1.tar.gz -o hdoc-1.4.1.tar.gz
+          tar -xzf hdoc-1.4.1.tar.gz
+          mv hdoc-1.4.1/hdoc-online hdoc-online
+          chmod +x hdoc-online
+          rm -rf hdoc-1.4.1 hdoc-1.4.1.tar.gz
+
+      - name: Download and build bazel-compile-commands
+        run: |
+          git clone https://github.com/kiron1/bazel-compile-commands.git bazel-compile-commands
+          cd bazel-compile-commands
+          bazel build --config=gnu //bcc:bazel-compile-commands
+          cd ..
+          mv bazel-compile-commands/bazel-bin/bcc/bazel-compile-commands ./bazel-compile-commands-bin
+
+      - name: Run hdoc-online and bazel-compile-commands
+        run: |
+          ./bazel-compile-commands-bin > compile_commands.json
+          ./hdoc-online --verbose .

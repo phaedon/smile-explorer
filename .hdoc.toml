@@ -1,0 +1,11 @@
+[project]
+name = "smile-explorer"
+version = "0.1.0"
+
+# Optional, adding this will enable direct links from the documentation
+# to your source code.
+git_repo_url = "https://github.com/phaedon/smile-explorer/"
+git_default_branch = "main"
+
+[paths]
+compile_commands = "compile_commands.json"
