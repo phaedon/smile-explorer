@@ -35,12 +35,10 @@ TEST(ShortRateTreeCurveTest, Hull_SecondStage) {
 }
 
 TEST(ShortRateTreeCurveTest, TreeCalibrationMatchesMarketRates) {
-  constexpr double tolerance = 0.0001;
+  constexpr double tolerance = 0.00001;
   ZeroSpotCurve market_curve({1, 2, 5, 10}, {.03, .035, .04, .045});
 
-  // TODO: See if it is possible to increase the grid spacing while still
-  // getting within a 1bps tolerance of market rate fitting.
-  constexpr double dt = 1. / 80;
+  constexpr double dt = 1. / 16.;
   ShortRateTreeCurve tree_curve(
       std::make_unique<HullWhitePropagator>(0.1, 0.05, dt), market_curve, 10.0);
 

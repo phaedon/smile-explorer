@@ -87,15 +87,14 @@ TEST(InterestRateDerivativeTest, EuropeanBondOption) {
 
     // Sanity check to ensure that the short-rate tree fits the market
     // zeros correctly.
-    // TODO: Get this down to a tenth of a bp.
     EXPECT_NEAR(
         .0694816,
         hullwhitecurve.forwardRate(0, 5.0, CompoundingPeriod::kContinuous),
-        kOneBP * 0.7);
+        kOneBP * 0.1);
 
     FixedCashflowInstrument bond(&hullwhitecurve);
     bond.setCashflows({Cashflow{.time_years = 9.0, .amount = 100.}});
-    EXPECT_NEAR(100 * std::exp(-.073979 * 9), bond.price(), 0.10);
+    EXPECT_NEAR(100 * std::exp(-.073979 * 9), bond.price(), 0.01);
 
     auto swap = InterestRateSwap::createBond(std::move(bond));
 
@@ -104,13 +103,13 @@ TEST(InterestRateDerivativeTest, EuropeanBondOption) {
         bond_option.price(VanillaOption(63., OptionPayoff::Put), 3.0);
 
     // TODO get this tolerance down to 0.0001
-    EXPECT_NEAR(expected_tree_values[i], bond_option_price, 0.05);
+    EXPECT_NEAR(expected_tree_values[i], bond_option_price, 0.02);
 
     // Slightly bigger margin of error relative to Hull's calculation of the
     // analytic option value.
     EXPECT_NEAR(analytic_bond_option_value,
                 bond_option_price,
-                expected_max_tree_error * 2.4);  // TODO get this down to 1
+                expected_max_tree_error * 2.0);  // TODO get this down to 1
   }
 }
 

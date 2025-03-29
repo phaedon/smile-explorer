@@ -132,7 +132,7 @@ class ShortRateTreeCurve : public RatesCurve {
       }
 
       trinomial_tree_.alphas_[ti + 1] =
-          std::log(trinomial_tree_.arrowDebreuSumAtTimestep(ti + 1) /
+          std::log(trinomial_tree_.weightedArrowDebreuSumAtTimestep(ti + 1) /
                    market_curve.df(dt * (ti + 2))) /
           dt;
     }

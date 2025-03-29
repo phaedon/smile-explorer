@@ -36,7 +36,7 @@ TEST_F(InterestRateSwapTest, FloatingRateNotePricesAtPar) {
   // We set "payer" so that the floating-rate leg is positive (inflows).
   frn.setCashflows(
       SwapContractDetails{.direction = SwapDirection::kPayer,
-                          .floating_rate_frequency = ForwardRateTenor::k12Month,
+                          .floating_rate_frequency = ForwardRateTenor::k6Month,
                           .notional_principal = 100,
                           .start_date_years = 0,
                           .end_date_years = maturity});
@@ -47,7 +47,8 @@ TEST_F(InterestRateSwapTest, FloatingRateNotePricesAtPar) {
                 Cashflow{.time_years = maturity, .amount = 100}));
 
   InterestRateSwap swap(std::move(principal), std::move(frn));
-  EXPECT_NEAR(100., swap.price(), 0.15);
+  // TODO: continue to get this tolerance down towards zero.
+  EXPECT_NEAR(100., swap.price(), 0.09);
 }
 
 TEST_F(InterestRateSwapTest, FixedRateBondPricesAtPar) {
@@ -72,7 +73,7 @@ TEST_F(InterestRateSwapTest, FixedRateBondPricesAtPar) {
                 Cashflow{.time_years = maturity_in_years, .amount = 100}));
 
   auto swap = InterestRateSwap::createBond(std::move(bond));
-  EXPECT_NEAR(100., swap.price(), 0.15);
+  EXPECT_NEAR(100., swap.price(), 0.02);
 }
 
 TEST_F(InterestRateSwapTest, OrdinaryFixedFloatingSwap) {
@@ -99,9 +100,7 @@ TEST_F(InterestRateSwapTest, OrdinaryFixedFloatingSwap) {
   auto swap =
       InterestRateSwap::createFromContract(contract, hullwhitecurve.get());
 
-  // TODO: Continue to get this error threshold down. $150k on a $100mm contract
-  // over 5 years is just too high (on the order of ~5bps).
-  EXPECT_NEAR(0.0, swap.price(), 0.150);
+  EXPECT_NEAR(0.0, swap.price(), 0.02);
 }
 
 }  // namespace

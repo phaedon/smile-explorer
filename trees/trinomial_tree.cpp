@@ -62,14 +62,25 @@ void TrinomialTree::updateSuccessorNodes(const TrinomialNode& curr_node,
   next.down.arrow_debreu += arrow_deb_down * curr_node.arrow_debreu;
 }
 
+double TrinomialTree::weightedArrowDebreuSumAtTimestep(int time_index) const {
+  const auto& timeslice = tree_[time_index];
+  return std::accumulate(
+      timeslice.begin(),
+      timeslice.end(),
+      0.0,
+      [&](double ad_sum, const TrinomialNode& node) {
+        return ad_sum + node.arrow_debreu * std::exp(-node.state_value *
+                                                     timegrid_.dt(time_index));
+      });
+}
+
 double TrinomialTree::arrowDebreuSumAtTimestep(int time_index) const {
   const auto& timeslice = tree_[time_index];
   return std::accumulate(timeslice.begin(),
                          timeslice.end(),
                          0.0,
                          [](double ad_sum, const TrinomialNode& node) {
-                           return ad_sum + node.arrow_debreu *
-                                               std::exp(-node.state_value);
+                           return ad_sum + node.arrow_debreu;
                          });
 }
 

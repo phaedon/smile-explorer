@@ -28,10 +28,7 @@ TEST(FixedCashflowInstrumentTest, ZeroCouponBond_FlatYieldCurve) {
   }});
 
   ASSERT_EQ(status, absl::OkStatus());
-
-  // TODO: This is not a very precise test -- the abs_error is rather high.
-  // Investigate.
-  EXPECT_NEAR(market_curve.df(5) * 100, bond.price(), 0.1);
+  EXPECT_NEAR(market_curve.df(5) * 100, bond.price(), 0.001);
 }
 
 TEST(FixedCashflowInstrumentTest, CouponBond_FlatYieldCurve) {
@@ -61,10 +58,7 @@ TEST(FixedCashflowInstrumentTest, CouponBond_FlatYieldCurve) {
                                    }});
 
   ASSERT_EQ(status, absl::OkStatus());
-
-  // TODO: Figure out why this isn't exactly 100.
-  // This should price to par on a flat yield curve.
-  EXPECT_NEAR(100, bond.price(), 0.05);
+  EXPECT_NEAR(100, bond.price(), 0.001);
 }
 
 TEST(FixedCashflowInstrumentTest, BadCashflowDates) {

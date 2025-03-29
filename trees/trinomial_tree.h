@@ -126,6 +126,7 @@ class TrinomialTree {
 
   const Timegrid& getTimegrid() const { return timegrid_; }
 
+  double weightedArrowDebreuSumAtTimestep(int time_index) const;
   double arrowDebreuSumAtTimestep(int time_index) const;
 
   void copyNodeValuesAtTimeIndex(int time_index, const TrinomialTree& other) {
