@@ -26,15 +26,12 @@ jobs:
           chmod +x hdoc-online-1.4.1
           mv hdoc-online-1.4.1 hdoc-online
 
-      - name: Download and build bazel-compile-commands
+      - name: Download and install bazel-compile-commands
         run: |
-          git clone https://github.com/kiron1/bazel-compile-commands.git bazel-compile-commands
-          cd bazel-compile-commands
-          bazel build --config=gnu //bcc:bazel-compile-commands
-          cd ..
-          mv bazel-compile-commands/bazel-bin/bcc/bazel-compile-commands ./bazel-compile-commands-bin
+          curl -LO https://github.com/kiron1/bazel-compile-commands/releases/download/v0.17.1/bazel-compile-commands_0.17.1-jammy_amd64.deb
+          sudo apt-get install ./bazel-compile-commands_0.17.1-jammy_amd64.deb
 
       - name: Run hdoc-online and bazel-compile-commands
         run: |
-          ./bazel-compile-commands-bin > compile_commands.json
+          bazel-compile-commands > compile_commands.json
           ./hdoc-online --verbose .
