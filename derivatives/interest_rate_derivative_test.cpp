@@ -93,7 +93,8 @@ TEST(InterestRateDerivativeTest, EuropeanBondOption) {
         kOneBP * 0.1);
 
     FixedCashflowInstrument bond(&hullwhitecurve);
-    bond.setCashflows({Cashflow{.time_years = 9.0, .amount = 100.}});
+    ASSERT_TRUE(
+        bond.setCashflows({Cashflow{.time_years = 9.0, .amount = 100.}}).ok());
     EXPECT_NEAR(100 * std::exp(-.073979 * 9), bond.price(), 0.01);
 
     auto swap = InterestRateSwap::createBond(std::move(bond));
