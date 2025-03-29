@@ -20,13 +20,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y curl tar
 
-      - name: Download hdoc release
+      - name: Download hdoc binary
         run: |
-          curl -L https://github.com/hdoc/hdoc/archive/refs/tags/1.4.1.tar.gz -o hdoc-1.4.1.tar.gz
-          tar -xzf hdoc-1.4.1.tar.gz
-          mv hdoc-1.4.1/hdoc-online hdoc-online
-          chmod +x hdoc-online
-          rm -rf hdoc-1.4.1 hdoc-1.4.1.tar.gz
+          curl -L https://app.hdoc.io/releases/download_release/13/ -o hdoc-online-1.4.1
+          chmod +x hdoc-online-1.4.1
+          mv hdoc-online-1.4.1 hdoc-online
 
       - name: Download and build bazel-compile-commands
         run: |
