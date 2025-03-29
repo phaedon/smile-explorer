@@ -23,6 +23,7 @@ jobs:
       - name: Download hdoc binary
         run: |
           wget https://github.com/phaedon/hdoc-binary/releases/download/1.4.1/hdoc-online
+          chmod +x hdoc-online
 
       - name: Download and install bazel-compile-commands
         run: |
