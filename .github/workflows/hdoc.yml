@@ -8,7 +8,7 @@ on:
     branches: [ "main" ]
     
 jobs:
-  hdoc-check:
+  hdoc-generate:
     runs-on: ubuntu-latest
 
     steps:
@@ -29,6 +29,9 @@ jobs:
         run: |
           curl -LO https://github.com/kiron1/bazel-compile-commands/releases/download/v0.17.1/bazel-compile-commands_0.17.1-jammy_amd64.deb
           sudo apt-get install ./bazel-compile-commands_0.17.1-jammy_amd64.deb
+
+      - name: Build with Bazel
+        run: bazel build //...
 
       - name: Run hdoc-online and bazel-compile-commands
         run: |
