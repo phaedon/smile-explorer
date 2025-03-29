@@ -18,7 +18,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl tar
+          sudo apt-get install -y curl build-essential xorg-dev libgl1-mesa-dev
 
       - name: Download hdoc binary
         run: |
