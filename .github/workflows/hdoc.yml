@@ -33,4 +33,4 @@ jobs:
       - name: Run hdoc-online and bazel-compile-commands
         run: |
           bazel-compile-commands > compile_commands.json
-          ./hdoc-online --verbose .
+          HDOC_PROJECT_API_KEY=${{ secrets.HDOC_PROJECT_API_KEY }} ./hdoc-online --verbose
