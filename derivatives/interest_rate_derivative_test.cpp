@@ -114,4 +114,30 @@ TEST(InterestRateDerivativeTest, EuropeanBondOption) {
   }
 }
 
+/**
+ * @brief This test replicates the results in Hull, practice question 32.8 on
+ * page 753. The solutions manual uses the analytical formula (32.10) but the
+ * tree-based library reproduces the provided answer very closely.
+ */
+TEST(InterestRateDerivativeTest, CouponBondOption) {
+  ZeroSpotCurve curve({0.25, 5},
+                      {.06, .06},
+                      CompoundingPeriod::kSemi,
+                      CurveInterpolationStyle::kConstantForwards);
+
+  ShortRateTreeCurve hullwhitecurve(
+      std::make_unique<HullWhitePropagator>(.05, .015, 0.05), curve, 5.);
+
+  FixedCashflowInstrument bond(&hullwhitecurve);
+  ASSERT_TRUE(bond.setCashflows({Cashflow{.time_years = 3.0, .amount = 102.5},
+                                 Cashflow{.time_years = 2.5, .amount = 2.5}})
+                  .ok());
+  bond.price();
+  auto swap = InterestRateSwap::createBond(std::move(bond));
+  InterestRateDerivative bond_option(&hullwhitecurve, &swap);
+  double bond_option_price =
+      bond_option.price(VanillaOption(99., OptionPayoff::Call), 2.1);
+  EXPECT_NEAR(0.944596, bond_option_price, 0.0005);
+}
+
 }  // namespace smileexplorer
