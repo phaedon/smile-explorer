@@ -3,14 +3,13 @@
 #define SMILEEXPLORER_EXPLORER_RATE_CURVE_VISUALISER_
 
 #include <algorithm>
+#include <magic_enum/magic_enum.hpp>
 
 #include "absl/log/log.h"
-#include "derivatives/interest_rate_derivative.h"
 #include "explorer_params.h"
 #include "gui_widgets.h"
 #include "imgui/imgui.h"
 #include "implot.h"
-#include "magic_enum.hpp"
 #include "rates/short_rate_tree_curve.h"
 #include "tree_render.h"
 #include "trees/trinomial_tree.h"

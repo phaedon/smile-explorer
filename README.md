@@ -157,8 +157,10 @@ We can model an option on USD-ISK (the Icelandic króna) and look at the implied
 // See "A Guide to FX Options Quoting Conventions" (Reiswich & Wystup, 2010)
 CurrencyDerivative deriv(&usd_isk_tree, &isk_curve, &usd_curve);
 double option = deriv.price(
-        VanillaOption(/* strike= */ 160, OptionPayoff::Call),
-        0.5); // Expiry (in years)
+        VanillaOption(
+          160, // strike
+          OptionPayoff::Call),
+        0.5);  // Expiry (in years)
 
 // To grab the probabilities:
 const auto states = asset.binomialTree().statesAtTimeIndex(time_index);
@@ -185,11 +187,11 @@ In the initial implementation, we provide one such model, encapsulated in the `H
 ```c++
 auto hullwhitecurve = std::make_unique<ShortRateTreeCurve>(
   std::make_unique<HullWhitePropagator>(
-    /* mean reversion speed = */ 0.1, 
-    /* normal volatility = */ 0.01, 
-    /* timestep size */ .25 * 0.1), // 10 timesteps per quarter
-  *zero_curve,
-  /* tree duration in years */ 12.);
+    0.1,          // mean reversion speed
+    0.01,         // normal volatility 
+    0.25 * 0.1),  // timestep size == 10 timesteps per quarter
+    *zero_curve,
+    12.);         // tree duration in years
 ```
 This is an example of an input yield curve. The green and orange forward curves are exactly aligned, indicating that the tree representation is correctly fitted to the input rates:
 
@@ -243,8 +245,10 @@ auto swap = InterestRateSwap::createBond(std::move(bond));
 // Price a 3-year put option struct at 63.
 InterestRateDerivative bond_option(&hullwhitecurve, &swap);
 bond_option.price(
-    VanillaOption(/* strike = */ 63., OptionPayoff::Put), 
-    /* option expiry = */ 3.0);
+    VanillaOption(
+      63., // strike
+      OptionPayoff::Put), 
+    3.0);  // option expiry
 ```
 
 ## Why?

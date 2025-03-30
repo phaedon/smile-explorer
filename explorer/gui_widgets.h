@@ -1,10 +1,11 @@
 #ifndef SMILEEXPLORER_EXPLORER_GUI_WIDGETS_
 #define SMILEEXPLORER_EXPLORER_GUI_WIDGETS_
 
+#include <magic_enum/magic_enum.hpp>
+
 #include "explorer_params.h"
 #include "global_rates.h"
 #include "imgui/imgui.h"
-#include "magic_enum.hpp"
 
 namespace smileexplorer {
 

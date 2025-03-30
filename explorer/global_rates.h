@@ -1,13 +1,13 @@
 #ifndef SMILEEXPLORER_EXPLORER_GLOBAL_RATES_
 #define SMILEEXPLORER_EXPLORER_GLOBAL_RATES_
 
+#include <magic_enum/magic_enum.hpp>
 #include <optional>
 #include <unordered_map>
 #include <utility>
 
 #include "absl/log/log.h"
 #include "csv.hpp"
-#include "magic_enum.hpp"
 #include "rates/rates_curve.h"
 #include "rates/zero_curve.h"
 

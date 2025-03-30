@@ -90,7 +90,6 @@ cc_library(
     deps = [
         ":explorer_params",
         ":gui_widgets",
-        "//derivatives:interest_rate_derivative",
         "//rates:rates_curve",
         "//rates:short_rate_tree_curve",
         "@imgui",
