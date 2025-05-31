@@ -2,10 +2,10 @@ module(
     name = "smile-explorer",
 )
 
-bazel_dep(name = "abseil-cpp", version = "20250127.0")
+bazel_dep(name = "abseil-cpp", version = "20250512.0")
 
 # Required for GLFW support on MacOS.
-bazel_dep(name = "apple_support", version = "1.20.0")
+bazel_dep(name = "apple_support", version = "1.22.0")
 
 bazel_dep(name = "boost.math", version = "1.87.0")
 bazel_dep(name = "ceres-solver", version = "2.2.0")
