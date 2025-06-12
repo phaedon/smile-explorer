@@ -1,0 +1,31 @@
+cc_library(
+    name = "prototype",
+    srcs = [],
+    hdrs = ["prototype.h"],
+    deps = [
+        "@abseil-cpp//absl/random",
+        "@eigen",
+    ],
+)
+
+cc_test(
+    name = "prototype_test",
+    deps = [
+        ":prototype",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_binary(
+    name = "explorer",
+    srcs = ["explorer.cpp"],
+    deps = [
+        ":prototype",
+        "@abseil-cpp//absl/random",
+        "@glfw",
+        "@imgui",
+        "@imgui//backends:platform-glfw",
+        "@imgui//backends:renderer-opengl3",
+        "@implot",
+    ],
+)
