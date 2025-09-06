@@ -5,6 +5,7 @@
 
 #include "absl/log/log.h"
 #include "absl/random/random.h"
+#include "rates/rates_curve.h"
 
 // Pricing model for Target Redemption Forward (TARF)
 
@@ -36,6 +37,8 @@ class TargetRedemptionForward {
   double path(double spot,
               double sigma,
               double dt,
+              const RatesCurve& foreign_rates,
+              const RatesCurve& domestic_rates,
               absl::BitGen& bitgen) const {
     // Each path should return not just the NPV, but also
     // - the distribution of payments (right?)
@@ -43,10 +46,6 @@ class TargetRedemptionForward {
 
     double cumulative_profit = 0.;
     double npv = 0.;
-
-    // Temporary placeholder: hardcode the rates.
-    double r_f = 0.04;
-    double r_d = 0.08;
 
     if (dt > settlement_date_frequency_) {
       // This ensures that dt is (at most) the maximum sensible value. It
@@ -67,9 +66,11 @@ class TargetRedemptionForward {
     double timesteps_taken = 0;
     bool trigger_reached = false;
     while (t < end_date_years_ && !trigger_reached) {
-      double z = absl::Gaussian<double>(bitgen, 0, 1);
-      double stoch_term = sigma * std::sqrt(dt) * z;
-      double drift_term = (r_d - r_f - 0.5 * sigma * sigma) * dt;
+      const double z = absl::Gaussian<double>(bitgen, 0, 1);
+      const double stoch_term = sigma * std::sqrt(dt) * z;
+      double r_d = domestic_rates.forwardRate(t, t + dt);
+      double r_f = foreign_rates.forwardRate(t, t + dt);
+      const double drift_term = (r_d - r_f - 0.5 * sigma * sigma) * dt;
 
       t += dt;
       ++timesteps_taken;
@@ -91,12 +92,8 @@ class TargetRedemptionForward {
         }
 
         // Discount the payment amount on the domestic curve.
-        double discounted_pmt = payment_amount * std::exp(-r_d * t);
+        const double discounted_pmt = payment_amount * domestic_rates.df(t);
         npv += discounted_pmt;
-
-        // LOG(INFO) << " t:" << t << "  fx:" << fx
-        //           << "   pmt amt:" << payment_amount
-        //           << "   discounted:" << discounted_pmt;
 
         // Reset to the next period.
         timesteps_taken = 0;
@@ -105,13 +102,20 @@ class TargetRedemptionForward {
     return npv;
   }
 
-  double price(double spot, double sigma, double dt, size_t num_paths) const {
+  double price(double spot,
+               double sigma,
+               double dt,
+               size_t num_paths,
+               // Convention: fx rate is quoted as FOR-DOM:
+               const RatesCurve& foreign_rates,
+               const RatesCurve& domestic_rates) const {
     absl::BitGen bitgen;
     if (num_paths == 0) return 0.;
 
     double mean_npv = 0.;
     for (size_t i = 1; i <= num_paths; ++i) {
-      double path_npv = path(spot, sigma, dt, bitgen);
+      double path_npv =
+          path(spot, sigma, dt, foreign_rates, domestic_rates, bitgen);
       // Compute the online mean at each step for numerical stability.
       mean_npv += (path_npv - mean_npv) / static_cast<double>(i);
     }

@@ -74,6 +74,7 @@ cc_library(
     name = "target_redemption_forward",
     hdrs = ["target_redemption_forward.h"],
     deps = [
+        "//rates:zero_curve",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/random",
     ],

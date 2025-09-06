@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include "rates/zero_curve.h"
+
 namespace smileexplorer {
 namespace {
 
@@ -23,13 +25,19 @@ TEST(TargetRedemptionForwardTest, AtmForward) {
   strip of forwards. For reference, the accumulated profit of the profitable
   forwards would be 48mm ISK.
   */
+  ZeroSpotCurve domestic_curve(
+      {1, 3}, {0.08, 0.08}, CompoundingPeriod::kContinuous);
+  ZeroSpotCurve foreign_curve(
+      {1, 3}, {0.04, 0.04}, CompoundingPeriod::kContinuous);
+
   const double expected_npv = 0.;
   const double error_threshold = 20000;
 
   TargetRedemptionForward tarf(1e6, 100e6, 135.657, 4.0, 0.25);
 
   for (int i = 0; i < 5; ++i) {
-    double npv = tarf.price(125., 0.0004, 0.1, 10000);
+    double npv =
+        tarf.price(125., 0.0004, 0.1, 10000, foreign_curve, domestic_curve);
     EXPECT_LT(std::abs(npv - expected_npv), error_threshold);
   }
 }
@@ -44,12 +52,51 @@ TEST(TargetRedemptionForwardTest, OtmForward) {
   in an NPV of almost exactly 50mm ISK.
   */
 
+  ZeroSpotCurve domestic_curve(
+      {1, 3}, {0.08, 0.08}, CompoundingPeriod::kContinuous);
+  ZeroSpotCurve foreign_curve(
+      {1, 3}, {0.04, 0.04}, CompoundingPeriod::kContinuous);
+
   const double expected_npv = 50e6;
   const double error_threshold = 20000;
 
   TargetRedemptionForward tarf(1e6, 100e6, 131.9686, 4.0, 0.25);
   for (int i = 0; i < 5; ++i) {
-    double npv = tarf.price(125., 0.0004, 0.1, 10000);
+    double npv =
+        tarf.price(125., 0.0004, 0.1, 10000, foreign_curve, domestic_curve);
+
+    EXPECT_LT(std::abs(npv - expected_npv), error_threshold);
+  }
+}
+
+TEST(TargetRedemptionForwardTest, KnockoutAlmostDeterministic) {
+  /*
+  Similar to the AtmForward case above, but with a 6mm ISK cumulative profit
+  target. At a very low vol, this is almost certain to happen at year 2.75 (with
+  positive payments at t=[2.25, 2.5, 2.75]).
+
+  The expected NPV is very negative here, because we are using the ATM fwd as
+  the strike, yet we have a fairly low profit target and a large interest-rate
+  differential. Therefore, there are large accumulated losses in the first 2
+  years (around -39mm ISK, not discounted) and only +6mm ISK worth of profits
+  due to the fixed target.
+  */
+
+  ZeroSpotCurve domestic_curve(
+      {1, 3}, {0.08, 0.08}, CompoundingPeriod::kContinuous);
+  ZeroSpotCurve foreign_curve(
+      {1, 3}, {0.04, 0.04}, CompoundingPeriod::kContinuous);
+
+  // This is the discounted amount of the approx. -33mm in total losses (-39mm +
+  // 6mm):
+  const double expected_npv = -31.75e6;
+  const double error_threshold = 20000;
+
+  TargetRedemptionForward tarf(1e6, 6e6, 135.657, 4.0, 0.25);
+
+  for (int i = 0; i < 5; ++i) {
+    double npv =
+        tarf.price(125., 0.0004, 0.1, 10000, foreign_curve, domestic_curve);
     EXPECT_LT(std::abs(npv - expected_npv), error_threshold);
   }
 }
