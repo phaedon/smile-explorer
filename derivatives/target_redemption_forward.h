@@ -3,6 +3,7 @@
 
 #include <cmath>
 
+#include "absl/log/log.h"
 #include "absl/random/random.h"
 
 // Pricing model for Target Redemption Forward (TARF)
@@ -44,8 +45,8 @@ class TargetRedemptionForward {
     double npv = 0.;
 
     // Temporary placeholder: hardcode the rates.
-    double r_d = 0.04;
-    double r_f = 0.08;
+    double r_f = 0.04;
+    double r_d = 0.08;
 
     if (dt > settlement_date_frequency_) {
       // This ensures that dt is (at most) the maximum sensible value. It
@@ -90,7 +91,12 @@ class TargetRedemptionForward {
         }
 
         // Discount the payment amount on the domestic curve.
-        npv += payment_amount * std::exp(-r_d * t);
+        double discounted_pmt = payment_amount * std::exp(-r_d * t);
+        npv += discounted_pmt;
+
+        // LOG(INFO) << " t:" << t << "  fx:" << fx
+        //           << "   pmt amt:" << payment_amount
+        //           << "   discounted:" << discounted_pmt;
 
         // Reset to the next period.
         timesteps_taken = 0;
