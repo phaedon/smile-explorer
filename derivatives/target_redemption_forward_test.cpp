@@ -46,7 +46,8 @@ TEST_F(TargetRedemptionForwardTest, AtmForward) {
   const double expected_npv = 0.;
   const double error_threshold = 20000;
 
-  TargetRedemptionForward tarf(1e6, 100e6, 135.657, 4.0, 0.25);
+  TargetRedemptionForward tarf(
+      1e6, 100e6, 135.657, 4.0, 0.25, FxTradeDirection::kLong);
 
   for (int i = 0; i < 5; ++i) {
     double npv =
@@ -68,7 +69,8 @@ TEST_F(TargetRedemptionForwardTest, OtmForward) {
   const double expected_npv = 50e6;
   const double error_threshold = 20000;
 
-  TargetRedemptionForward tarf(1e6, 100e6, 131.9686, 4.0, 0.25);
+  TargetRedemptionForward tarf(
+      1e6, 100e6, 131.9686, 4.0, 0.25, FxTradeDirection::kLong);
   for (int i = 0; i < 5; ++i) {
     double npv =
         tarf.price(125., 0.0002, 0.1, 10000, *foreign_curve_, *domestic_curve_);
@@ -95,7 +97,8 @@ TEST_F(TargetRedemptionForwardTest, KnockoutAlmostDeterministic) {
   const double expected_npv = -31.75e6;
   const double error_threshold = 20000;
 
-  TargetRedemptionForward tarf(1e6, 6e6, 135.657, 4.0, 0.25);
+  TargetRedemptionForward tarf(
+      1e6, 6e6, 135.657, 4.0, 0.25, FxTradeDirection::kLong);
 
   for (int i = 0; i < 5; ++i) {
     double npv =
