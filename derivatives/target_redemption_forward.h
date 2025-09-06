@@ -64,11 +64,15 @@ class TargetRedemptionForward {
     double t = 0;
     double timesteps_taken = 0;
     bool trigger_reached = false;
+
+    double r_d = domestic_rates.forwardRate(t, t + settlement_date_frequency_);
+    double r_f = foreign_rates.forwardRate(t, t + settlement_date_frequency_);
+
     while (t < end_date_years_ && !trigger_reached) {
       const double z = absl::Gaussian<double>(bitgen_, 0, 1);
       const double stoch_term = sigma * std::sqrt(dt) * z;
-      double r_d = domestic_rates.forwardRate(t, t + dt);
-      double r_f = foreign_rates.forwardRate(t, t + dt);
+      //   double r_d = domestic_rates.forwardRate(t, t + dt);
+      //   double r_f = foreign_rates.forwardRate(t, t + dt);
       const double drift_term = (r_d - r_f - 0.5 * sigma * sigma) * dt;
 
       t += dt;
@@ -96,6 +100,12 @@ class TargetRedemptionForward {
 
         // Reset to the next period.
         timesteps_taken = 0;
+
+        // And look up the forward interest rates for the next simulation
+        // period (we don't do this at each time step to avoid computing these
+        // excessively, in case dt is very small).
+        r_d = domestic_rates.forwardRate(t, t + settlement_date_frequency_);
+        r_f = foreign_rates.forwardRate(t, t + settlement_date_frequency_);
       }
     }
     return npv;
