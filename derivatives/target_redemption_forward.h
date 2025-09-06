@@ -38,8 +38,7 @@ class TargetRedemptionForward {
               double sigma,
               double dt,
               const RatesCurve& foreign_rates,
-              const RatesCurve& domestic_rates,
-              absl::BitGen& bitgen) const {
+              const RatesCurve& domestic_rates) const {
     // Each path should return not just the NPV, but also
     // - the distribution of payments (right?)
     // - whether it got knocked out, and when
@@ -66,7 +65,7 @@ class TargetRedemptionForward {
     double timesteps_taken = 0;
     bool trigger_reached = false;
     while (t < end_date_years_ && !trigger_reached) {
-      const double z = absl::Gaussian<double>(bitgen, 0, 1);
+      const double z = absl::Gaussian<double>(bitgen_, 0, 1);
       const double stoch_term = sigma * std::sqrt(dt) * z;
       double r_d = domestic_rates.forwardRate(t, t + dt);
       double r_f = foreign_rates.forwardRate(t, t + dt);
@@ -109,13 +108,11 @@ class TargetRedemptionForward {
                // Convention: fx rate is quoted as FOR-DOM:
                const RatesCurve& foreign_rates,
                const RatesCurve& domestic_rates) const {
-    absl::BitGen bitgen;
     if (num_paths == 0) return 0.;
 
     double mean_npv = 0.;
     for (size_t i = 1; i <= num_paths; ++i) {
-      double path_npv =
-          path(spot, sigma, dt, foreign_rates, domestic_rates, bitgen);
+      double path_npv = path(spot, sigma, dt, foreign_rates, domestic_rates);
       // Compute the online mean at each step for numerical stability.
       mean_npv += (path_npv - mean_npv) / static_cast<double>(i);
     }
@@ -128,6 +125,12 @@ class TargetRedemptionForward {
   float strike_;
   double end_date_years_;
   double settlement_date_frequency_;
+
+  // This is set to "mutable" to enable the pricing methods to retain their
+  // const annotation, while still being able to access the random number
+  // generator (whose internal state is updated every time a random number is
+  // invoked).
+  mutable absl::BitGen bitgen_;
 };
 
 }  // namespace smileexplorer
