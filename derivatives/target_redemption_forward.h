@@ -17,18 +17,22 @@ struct TarfPathInfo {
   double npv;
 };
 
+enum class FxTradeDirection { kLong, kShort };
+
 class TargetRedemptionForward {
  public:
-  TargetRedemptionForward(float notional,
-                          float target,
-                          float strike,
+  TargetRedemptionForward(double notional,
+                          double target,
+                          double strike,
                           double end_date_years,
-                          double settlement_date_frequency)
+                          double settlement_date_frequency,
+                          FxTradeDirection direction)
       : notional_(notional),
         target_(target),
         strike_(strike),
         end_date_years_(end_date_years),
-        settlement_date_frequency_(settlement_date_frequency) {}
+        settlement_date_frequency_(settlement_date_frequency),
+        direction_(direction) {}
 
   // Initial implementation: given a flat volatility and a specified forward,
   // price the scenarios using the provided discount curve. (It is up to the
@@ -42,6 +46,9 @@ class TargetRedemptionForward {
     // Each path should return not just the NPV, but also
     // - the distribution of payments (right?)
     // - whether it got knocked out, and when
+
+    const double direction_multiplier =
+        (direction_ == FxTradeDirection::kLong) ? 1.0 : -1.0;
 
     double cumulative_profit = 0.;
     double npv = 0.;
@@ -80,7 +87,8 @@ class TargetRedemptionForward {
       fx *= std::exp(drift_term + stoch_term);
 
       if (timesteps_taken == num_timesteps_in_period) {
-        float payment_amount = notional_ * (fx - strike_);
+        double payment_amount =
+            direction_multiplier * notional_ * (fx - strike_);
 
         // If we reach the target on this payment date, then the current
         // payment is truncated to deliver the exact amount remaining
@@ -130,11 +138,12 @@ class TargetRedemptionForward {
   }
 
  private:
-  float notional_;
-  float target_;
-  float strike_;
+  double notional_;
+  double target_;
+  double strike_;
   double end_date_years_;
   double settlement_date_frequency_;
+  FxTradeDirection direction_;
 
   // This is set to "mutable" to enable the pricing methods to retain their
   // const annotation, while still being able to access the random number
