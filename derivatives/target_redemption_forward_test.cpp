@@ -107,5 +107,56 @@ TEST_F(TargetRedemptionForwardTest, KnockoutAlmostDeterministic) {
   }
 }
 
+TEST_F(TargetRedemptionForwardTest, VegaIsNegative) {
+  TargetRedemptionForward tarf(
+      1e6, 6e6, 131., 4.0, 0.25, FxTradeDirection::kLong);
+
+  double vol_low = 0.05;
+  double npv_vol_lower =
+      tarf.price(125., vol_low, 0.1, 10000, *foreign_curve_, *domestic_curve_);
+  double npv_vol_higher = tarf.price(
+      125., vol_low + 0.01, 0.1, 10000, *foreign_curve_, *domestic_curve_);
+
+  EXPECT_GT(npv_vol_lower, npv_vol_higher);
+}
+
+TEST_F(TargetRedemptionForwardTest, FindZeroNPVStrike) {
+  const double strike = findZeroNPVStrike(1e6,
+                                          100e6,
+                                          4,
+                                          0.25,
+                                          FxTradeDirection::kLong,
+                                          125,
+                                          0.0001,
+                                          *foreign_curve_,
+                                          *domestic_curve_);
+
+  EXPECT_NEAR(135.657, strike, 0.002);
+}
+
+TEST_F(TargetRedemptionForwardTest, LoweringTargetReducesLongStrike) {
+  const double strike_6mm = findZeroNPVStrike(1e6,
+                                              6e6,
+                                              4,
+                                              0.25,
+                                              FxTradeDirection::kLong,
+                                              125,
+                                              0.05,
+                                              *foreign_curve_,
+                                              *domestic_curve_);
+
+  const double strike_5mm = findZeroNPVStrike(1e6,
+                                              5e6,
+                                              4,
+                                              0.25,
+                                              FxTradeDirection::kLong,
+                                              125,
+                                              0.05,
+                                              *foreign_curve_,
+                                              *domestic_curve_);
+
+  EXPECT_LT(strike_5mm, strike_6mm);
+}
+
 }  // namespace
 }  // namespace smileexplorer

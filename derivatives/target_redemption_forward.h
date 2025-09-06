@@ -78,8 +78,6 @@ class TargetRedemptionForward {
     while (t < end_date_years_ && !trigger_reached) {
       const double z = absl::Gaussian<double>(bitgen_, 0, 1);
       const double stoch_term = sigma * std::sqrt(dt) * z;
-      //   double r_d = domestic_rates.forwardRate(t, t + dt);
-      //   double r_f = foreign_rates.forwardRate(t, t + dt);
       const double drift_term = (r_d - r_f - 0.5 * sigma * sigma) * dt;
 
       t += dt;
@@ -151,6 +149,50 @@ class TargetRedemptionForward {
   // invoked).
   mutable absl::BitGen bitgen_;
 };
+
+inline double findZeroNPVStrike(double notional,
+                                double target,
+                                double end_date_years,
+                                double settlement_date_frequency,
+                                FxTradeDirection direction,
+                                double spot,
+                                double sigma,
+                                const RatesCurve& foreign_rates,
+                                const RatesCurve& domestic_rates) {
+  // TODO: compute the forward for a more intelligent starting guess.
+  // AND ALSO then verify that the value of one is positive and the other is
+  // negative.
+  double k_low = spot * 0.5;
+  double k_high = spot * 2;
+  double k_mid = 0.5 * (k_low + k_high);
+
+  double tolerance_pct =
+      0.0001;  // 0.01% difference for starters. Do not hard-code!
+
+  // TODO is there ever a need to have this be smaller than the period?
+  double dt = settlement_date_frequency * 0.5;
+
+  // Initial method: bisection.
+  while (std::abs(k_high / k_low - 1) > tolerance_pct) {
+    TargetRedemptionForward tarf_mid(notional,
+                                     target,
+                                     k_mid,
+                                     end_date_years,
+                                     settlement_date_frequency,
+                                     direction);
+
+    double npv_mid =
+        tarf_mid.price(spot, sigma, dt, 4000, foreign_rates, domestic_rates);
+
+    if (npv_mid > 0) {
+      k_low = k_mid;
+    } else if (npv_mid < 0) {
+      k_high = k_mid;
+    }
+    k_mid = 0.5 * (k_low + k_high);
+  }
+  return k_mid;
+}
 
 }  // namespace smileexplorer
 
