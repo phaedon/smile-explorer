@@ -71,6 +71,23 @@ cc_test(
 )
 
 cc_library(
+    name = "target_redemption_forward",
+    hdrs = ["target_redemption_forward.h"],
+    deps = [
+        "@abseil-cpp//absl/random",
+    ],
+)
+
+cc_test(
+    name = "target_redemption_forward_test",
+    srcs = ["target_redemption_forward_test.cpp"],
+    deps = [
+        ":target_redemption_forward",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "vanilla_option",
     srcs = ["vanilla_option.cpp"],
     hdrs = ["vanilla_option.h"],
