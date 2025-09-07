@@ -27,6 +27,11 @@ struct TarfPathInfo {
 
 enum class FxTradeDirection { kLong, kShort };
 
+struct TarfPricingResult {
+  double mean_npv;
+  std::vector<double> path_npvs;
+};
+
 class TargetRedemptionForward {
  public:
   TargetRedemptionForward(double notional,
@@ -49,13 +54,13 @@ class TargetRedemptionForward {
               const RatesCurve& foreign_rates,
               const RatesCurve& domestic_rates) const;
 
-  double price(double spot,
-               double sigma,
-               double dt,
-               size_t num_paths,
-               // Convention: fx rate is quoted as FOR-DOM:
-               const RatesCurve& foreign_rates,
-               const RatesCurve& domestic_rates) const;
+  TarfPricingResult price(double spot,
+                        double sigma,
+                        double dt,
+                        size_t num_paths,
+                        // Convention: fx rate is quoted as FOR-DOM:
+                        const RatesCurve& foreign_rates,
+                        const RatesCurve& domestic_rates) const;
 
  private:
   double notional_;
@@ -108,8 +113,7 @@ inline double findZeroNPVStrike(double notional,
                                      settlement_date_frequency,
                                      direction);
 
-    double npv_mid =
-        tarf_mid.price(spot, sigma, dt, num_paths, foreign_rates, domestic_rates);
+    double npv_mid = tarf_mid.price(spot, sigma, dt, num_paths, foreign_rates, domestic_rates).mean_npv;
 
     if (npv_mid > 0) {
       k_low = k_mid;

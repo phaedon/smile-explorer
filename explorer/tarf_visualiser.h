@@ -2,10 +2,12 @@
 #define SMILEEXPLORER_EXPLORER_TARF_VISUALISER_H_
 
 #include <cmath>
+#include <algorithm>
 #include "derivatives/target_redemption_forward.h"
 #include "explorer/explorer_params.h"
 #include "explorer/gui_widgets.h"
 #include "imgui.h"
+#include "implot.h"
 
 namespace smileexplorer {
 
@@ -31,7 +33,7 @@ inline void plotTarfVisualiser(ExplorerParams& params) {
   static size_t foreign_idx = 0;
   static size_t domestic_idx = 1;
   static double avg_fwd = 0.0;
-  static double price = 0.0;
+  static TarfPricingResult pricing_result;
   static double zero_npv_strike = 0.0;
   static double strike = 0.0;
   static bool initialized = false;
@@ -61,7 +63,7 @@ inline void plotTarfVisualiser(ExplorerParams& params) {
                                  settlement_frequency,
                                  FxTradeDirection::kLong);
 
-    price = tarf.price(params.spot_price, volatility,
+    pricing_result = tarf.price(params.spot_price, volatility,
                               settlement_frequency / 4, num_paths,
                               foreign_curve, domestic_curve);
     initialized = true;
@@ -70,7 +72,21 @@ inline void plotTarfVisualiser(ExplorerParams& params) {
   displayValueAsReadOnlyText("Avg Fwd", avg_fwd);
   displayValueAsReadOnlyText("Zero NPV Strike", zero_npv_strike);
   ImGui::InputDouble("Strike", &strike);
-  displayValueAsReadOnlyText("NPV (DOM)", price);
+  displayValueAsReadOnlyText("NPV (DOM)", pricing_result.mean_npv);
+
+  if (ImPlot::BeginPlot("NPV Distribution")) {
+    if (!pricing_result.path_npvs.empty()) {
+        auto [min_it, max_it] = std::minmax_element(pricing_result.path_npvs.begin(), pricing_result.path_npvs.end());
+        double min_val = *min_it;
+        double max_val = *max_it;
+        double padding = (max_val - min_val) * 0.1;
+        ImPlot::SetupAxisLimits(ImAxis_X1, min_val - padding, max_val + padding, ImPlotCond_Always);
+    }
+    ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(0, 0, 0, 1));
+    ImPlot::PlotHistogram("NPV", pricing_result.path_npvs.data(), pricing_result.path_npvs.size(), 50);
+    ImPlot::PopStyleColor();
+    ImPlot::EndPlot();
+  }
 
   ImGui::End();
 }

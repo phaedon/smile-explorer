@@ -120,7 +120,7 @@ double TargetRedemptionForward::path(double spot,
   return npv;
 }
 
-double TargetRedemptionForward::price(
+TarfPricingResult TargetRedemptionForward::price(
     double spot,
     double sigma,
     double dt,
@@ -128,15 +128,18 @@ double TargetRedemptionForward::price(
     // Convention: fx rate is quoted as FOR-DOM:
     const RatesCurve& foreign_rates,
     const RatesCurve& domestic_rates) const {
-  if (num_paths == 0) return 0.;
+  TarfPricingResult result;
+  if (num_paths == 0) return result;
 
-  double mean_npv = 0.;
+  result.path_npvs.reserve(num_paths);
+  result.mean_npv = 0.;
   for (size_t i = 1; i <= num_paths; ++i) {
     double path_npv = path(spot, sigma, dt, foreign_rates, domestic_rates);
+    result.path_npvs.push_back(path_npv);
     // Compute the online mean at each step for numerical stability.
-    mean_npv += (path_npv - mean_npv) / static_cast<double>(i);
+    result.mean_npv += (path_npv - result.mean_npv) / static_cast<double>(i);
   }
-  return mean_npv;
+  return result;
 }
 
 }  // namespace smileexplorer

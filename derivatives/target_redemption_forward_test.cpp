@@ -66,8 +66,7 @@ TEST_F(TargetRedemptionForwardTest, AtmForwardHasZeroNPV) {
       1e6, 100e6, atm_fwd_strike, 4.0, 0.25, FxTradeDirection::kLong);
 
   for (int i = 0; i < 5; ++i) {
-    double npv =
-        tarf.price(125., 0.0002, 0.1, 10000, *foreign_curve_, *domestic_curve_);
+    double npv = tarf.price(125., 0.0002, 0.1, 10000, *foreign_curve_, *domestic_curve_).mean_npv;
     EXPECT_LT(std::abs(npv - expected_npv), error_threshold);
   }
 }
@@ -89,8 +88,7 @@ TEST_F(TargetRedemptionForwardTest, OtmForward) {
   TargetRedemptionForward tarf(
       1e6, 100e6, 131.9686, 4.0, 0.25, FxTradeDirection::kLong);
   for (int i = 0; i < 5; ++i) {
-    double npv =
-        tarf.price(125., 0.0002, 0.1, 10000, *foreign_curve_, *domestic_curve_);
+    double npv = tarf.price(125., 0.0002, 0.1, 10000, *foreign_curve_, *domestic_curve_).mean_npv;
 
     EXPECT_LT(std::abs(npv - expected_npv), error_threshold);
   }
@@ -118,8 +116,7 @@ TEST_F(TargetRedemptionForwardTest, KnockoutAlmostDeterministic) {
       1e6, 6e6, 135.657, 4.0, 0.25, FxTradeDirection::kLong);
 
   for (int i = 0; i < 5; ++i) {
-    double npv =
-        tarf.price(125., 0.0002, 0.1, 10000, *foreign_curve_, *domestic_curve_);
+    double npv = tarf.price(125., 0.0002, 0.1, 10000, *foreign_curve_, *domestic_curve_).mean_npv;
     EXPECT_LT(std::abs(npv - expected_npv), error_threshold);
   }
 }
@@ -129,10 +126,8 @@ TEST_F(TargetRedemptionForwardTest, VegaIsNegative) {
       1e6, 6e6, 131., 4.0, 0.25, FxTradeDirection::kLong);
 
   double vol_low = 0.05;
-  double npv_vol_lower =
-      tarf.price(125., vol_low, 0.1, 10000, *foreign_curve_, *domestic_curve_);
-  double npv_vol_higher = tarf.price(
-      125., vol_low + 0.01, 0.1, 10000, *foreign_curve_, *domestic_curve_);
+  double npv_vol_lower = tarf.price(125., vol_low, 0.1, 10000, *foreign_curve_, *domestic_curve_).mean_npv;
+  double npv_vol_higher = tarf.price(125., vol_low + 0.01, 0.1, 10000, *foreign_curve_, *domestic_curve_).mean_npv;
 
   EXPECT_GT(npv_vol_lower, npv_vol_higher);
 }
