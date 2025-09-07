@@ -52,34 +52,37 @@ double TargetRedemptionForward::path(double spot,
   // - whether it got knocked out, and when
 
   const double direction_multiplier =
-      (direction_ == FxTradeDirection::kLong) ? 1.0 : -1.0;
+      (specs_.direction == FxTradeDirection::kLong) ? 1.0 : -1.0;
 
   double cumulative_profit = 0.;
   double npv = 0.;
 
-  if (dt > settlement_date_frequency_) {
+  if (dt > specs_.settlement_date_frequency) {
     // This ensures that dt is (at most) the maximum sensible value. It
     // shouldn't be larger than the periodic settlements. For example if the
     // settlements are quarterly (0.25) then dt <= 0.25.
-    dt = settlement_date_frequency_;
+    dt = specs_.settlement_date_frequency;
   }
 
   // Ensure that dt is an integer fraction of the settlement date frequency
   // so that it aligns precisely. Note that in a production system, we would
   // use a real calendar which would cause these settlement periods to vary
   // slightly due to weekends, holidays, and variable month lengths.
-  auto num_timesteps_in_period = std::round(settlement_date_frequency_ / dt);
-  dt = settlement_date_frequency_ / num_timesteps_in_period;
+  auto num_timesteps_in_period =
+      std::round(specs_.settlement_date_frequency / dt);
+  dt = specs_.settlement_date_frequency / num_timesteps_in_period;
 
   double fx = spot;
   double t = 0;
   double timesteps_taken = 0;
   bool trigger_reached = false;
 
-  double r_d = domestic_rates.forwardRate(t, t + settlement_date_frequency_);
-  double r_f = foreign_rates.forwardRate(t, t + settlement_date_frequency_);
+  double r_d =
+      domestic_rates.forwardRate(t, t + specs_.settlement_date_frequency);
+  double r_f =
+      foreign_rates.forwardRate(t, t + specs_.settlement_date_frequency);
 
-  while (t < end_date_years_ && !trigger_reached) {
+  while (t < specs_.end_date_years && !trigger_reached) {
     const double z = absl::Gaussian<double>(bitgen_, 0, 1);
     const double stoch_term = sigma * std::sqrt(dt) * z;
     const double drift_term = (r_d - r_f - 0.5 * sigma * sigma) * dt;
@@ -89,14 +92,15 @@ double TargetRedemptionForward::path(double spot,
     fx *= std::exp(drift_term + stoch_term);
 
     if (timesteps_taken == num_timesteps_in_period) {
-      double payment_amount = direction_multiplier * notional_ * (fx - strike_);
+      double payment_amount =
+          direction_multiplier * specs_.notional * (fx - specs_.strike);
 
       // If we reach the target on this payment date, then the current
       // payment is truncated to deliver the exact amount remaining
       // to hit the target.
-      if (cumulative_profit + payment_amount > target_) {
+      if (cumulative_profit + payment_amount > specs_.target) {
         trigger_reached = true;
-        payment_amount = target_ - cumulative_profit;
+        payment_amount = specs_.target - cumulative_profit;
       }
 
       if (payment_amount > 0) {
@@ -113,8 +117,8 @@ double TargetRedemptionForward::path(double spot,
       // And look up the forward interest rates for the next simulation
       // period (we don't do this at each time step to avoid computing these
       // excessively, in case dt is very small).
-      r_d = domestic_rates.forwardRate(t, t + settlement_date_frequency_);
-      r_f = foreign_rates.forwardRate(t, t + settlement_date_frequency_);
+      r_d = domestic_rates.forwardRate(t, t + specs_.settlement_date_frequency);
+      r_f = foreign_rates.forwardRate(t, t + specs_.settlement_date_frequency);
     }
   }
   return npv;

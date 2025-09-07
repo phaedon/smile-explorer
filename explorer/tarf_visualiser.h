@@ -53,15 +53,22 @@ inline void plotTarfVisualiser(ExplorerParams& params) {
     avg_fwd = weightedAvgForward(
         params.spot_price, end_date_years, settlement_frequency, foreign_curve, domestic_curve);
 
-    zero_npv_strike = findZeroNPVStrike(notional, target, end_date_years, settlement_frequency, FxTradeDirection::kLong, params.spot_price, volatility, foreign_curve, domestic_curve, num_paths);
+    TarfContractSpecs specs = {
+        .notional = notional,
+        .target = target,
+        .strike = strike,
+        .end_date_years = end_date_years,
+        .settlement_date_frequency = settlement_frequency,
+        .direction = FxTradeDirection::kLong};
+
+    zero_npv_strike = findZeroNPVStrike(specs, params.spot_price, volatility, foreign_curve, domestic_curve, num_paths);
 
     if (!initialized) {
         strike = zero_npv_strike;
+        specs.strike = strike;
     }
 
-    TargetRedemptionForward tarf(notional, target, strike, end_date_years,
-                                 settlement_frequency,
-                                 FxTradeDirection::kLong);
+    TargetRedemptionForward tarf(specs);
 
     pricing_result = tarf.price(params.spot_price, volatility,
                               settlement_frequency / 4, num_paths,
