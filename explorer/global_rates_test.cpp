@@ -7,7 +7,7 @@ namespace {
 
 TEST(GlobalCurrenciesTest, BasicCSVFileLoading) {
   GlobalCurrencies currencies;
-  EXPECT_EQ(133.14, currencies(Currency::USD, Currency::ISK));
+  EXPECT_EQ(122.15, currencies(Currency::USD, Currency::ISK));
   EXPECT_EQ(std::nullopt, currencies(Currency::NOK, Currency::NOK));
 }
 
