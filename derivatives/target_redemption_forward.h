@@ -80,9 +80,17 @@ class TargetRedemptionForward {
     double current_time = 0.0;
     size_t timesteps_since_last_settlement = 0;
     bool trigger_reached = false;
+    double fwd_int_rate_foreign = 0.0;
+    double fwd_int_rate_domestic = 0.0;
   };
+
   void processSettlement(PathState& state,
+                         const RatesCurve& foreign_rates,
                          const RatesCurve& domestic_rates) const;
+
+  double directionFactor() const {
+    return specs_.direction == FxTradeDirection::kLong ? 1.0 : -1.0;
+  }
 };
 
 // Returns the weighted average of the forward FX rate, weighted by the

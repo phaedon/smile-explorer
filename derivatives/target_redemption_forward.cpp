@@ -42,14 +42,48 @@ double weightedAvgForward(double spot,
   return sumproduct / df_sum;
 }
 
+void TargetRedemptionForward::processSettlement(
+    PathState& state,
+    const RatesCurve& foreign_rates,
+    const RatesCurve& domestic_rates) const {
+  double payment_amount =
+      directionFactor() * specs_.notional * (state.current_fx - specs_.strike);
+
+  // If we reach the target on this payment date, then the current payment is
+  // truncated to deliver the exact amount remaining to hit the target.
+  if (state.cumulative_profit + payment_amount > specs_.target) {
+    state.trigger_reached = true;
+    payment_amount = specs_.target - state.cumulative_profit;
+  }
+
+  if (payment_amount > 0) {
+    state.cumulative_profit += payment_amount;
+  }
+
+  // Discount the payment amount on the domestic curve.
+  const double discounted_pmt =
+      payment_amount * domestic_rates.df(state.current_time);
+  state.npv += discounted_pmt;
+
+  // Reset to the next period.
+  state.timesteps_since_last_settlement = 0;
+
+  // And look up the forward interest rates for the next simulation period (we
+  // don't do this at each time step to avoid computing these excessively, in
+  // case dt is very small).
+  state.fwd_int_rate_domestic = domestic_rates.forwardRate(
+      state.current_time,
+      state.current_time + specs_.settlement_date_frequency);
+  state.fwd_int_rate_foreign = foreign_rates.forwardRate(
+      state.current_time,
+      state.current_time + specs_.settlement_date_frequency);
+}
+
 double TargetRedemptionForward::path(double spot,
                                      double sigma,
                                      double dt,
                                      const RatesCurve& foreign_rates,
                                      const RatesCurve& domestic_rates) const {
-  const double direction_multiplier =
-      (specs_.direction == FxTradeDirection::kLong) ? 1.0 : -1.0;
-
   PathState state;
   state.current_fx = spot;
 
@@ -68,55 +102,27 @@ double TargetRedemptionForward::path(double spot,
       std::round(specs_.settlement_date_frequency / dt);
   dt = specs_.settlement_date_frequency / num_timesteps_in_period;
 
-  double r_d = domestic_rates.forwardRate(
+  state.fwd_int_rate_domestic = domestic_rates.forwardRate(
       state.current_time,
       state.current_time + specs_.settlement_date_frequency);
-  double r_f = foreign_rates.forwardRate(
+  state.fwd_int_rate_foreign = foreign_rates.forwardRate(
       state.current_time,
       state.current_time + specs_.settlement_date_frequency);
 
   while (state.current_time < specs_.end_date_years && !state.trigger_reached) {
     const double z = absl::Gaussian<double>(bitgen_, 0, 1);
     const double stoch_term = sigma * std::sqrt(dt) * z;
-    const double drift_term = (r_d - r_f - 0.5 * sigma * sigma) * dt;
+    const double drift_term =
+        (state.fwd_int_rate_domestic - state.fwd_int_rate_foreign -
+         0.5 * sigma * sigma) *
+        dt;
 
     state.current_time += dt;
     ++state.timesteps_since_last_settlement;
     state.current_fx *= std::exp(drift_term + stoch_term);
 
     if (state.timesteps_since_last_settlement == num_timesteps_in_period) {
-      double payment_amount = direction_multiplier * specs_.notional *
-                              (state.current_fx - specs_.strike);
-
-      // If we reach the target on this payment date, then the current
-      // payment is truncated to deliver the exact amount remaining
-      // to hit the target.
-      if (state.cumulative_profit + payment_amount > specs_.target) {
-        state.trigger_reached = true;
-        payment_amount = specs_.target - state.cumulative_profit;
-      }
-
-      if (payment_amount > 0) {
-        state.cumulative_profit += payment_amount;
-      }
-
-      // Discount the payment amount on the domestic curve.
-      const double discounted_pmt =
-          payment_amount * domestic_rates.df(state.current_time);
-      state.npv += discounted_pmt;
-
-      // Reset to the next period.
-      state.timesteps_since_last_settlement = 0;
-
-      // And look up the forward interest rates for the next simulation
-      // period (we don't do this at each time step to avoid computing these
-      // excessively, in case dt is very small).
-      r_d = domestic_rates.forwardRate(
-          state.current_time,
-          state.current_time + specs_.settlement_date_frequency);
-      r_f = foreign_rates.forwardRate(
-          state.current_time,
-          state.current_time + specs_.settlement_date_frequency);
+      processSettlement(state, foreign_rates, domestic_rates);
     }
   }
   return state.npv;
