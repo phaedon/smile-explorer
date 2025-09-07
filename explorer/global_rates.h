@@ -69,7 +69,7 @@ struct GlobalRates {
 struct GlobalCurrencies {
   // TODO: Move this into a config file.
   GlobalCurrencies() {
-    csv::CSVReader reader("explorer/market_data/currency_pairs_20250318.csv");
+    csv::CSVReader reader("explorer/market_data/currency_pairs_20250907.csv");
 
     for (csv::CSVRow& row : reader) {
       // The first column contains the "foreign" currency in the FOR-DOM
