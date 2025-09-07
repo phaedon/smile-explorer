@@ -156,8 +156,11 @@ double findZeroNPVStrike(const TarfContractSpecs& specs,
                          const RatesCurve& foreign_rates,
                          const RatesCurve& domestic_rates,
                          size_t num_paths) {
-  // TODO: ALSO then verify that the value of one is positive and the other is
-  // negative.
+  // TODO: This implementation is more of a placeholder for a more generic
+  // bisection strategy that is not tightly coupled to a specific product. As
+  // such, this has some hard-coded values (tolerances, etc) which actually need
+  // to be made robust. The focus in this initial sprint was on getting the
+  // mechanics and pricing of TARF to be correct.
   double atm_fwd = weightedAvgForward(spot,
                                       specs.end_date_years,
                                       specs.settlement_date_frequency,
