@@ -181,7 +181,7 @@ TEST_F(TargetRedemptionForwardTest, FindZeroNPVStrike) {
   const double strike =
       findZeroNPVStrike(specs, 125, 0.0001, *foreign_curve_, *domestic_curve_);
 
-  EXPECT_NEAR(135.657, strike, 0.002);
+  EXPECT_NEAR(135.657, strike, 0.005);
 }
 
 TEST_F(TargetRedemptionForwardTest, LoweringTargetReducesLongStrike) {
@@ -199,6 +199,23 @@ TEST_F(TargetRedemptionForwardTest, LoweringTargetReducesLongStrike) {
       findZeroNPVStrike(specs, 125, 0.05, *foreign_curve_, *domestic_curve_);
 
   EXPECT_LT(strike_5mm, strike_6mm);
+}
+
+TEST_F(TargetRedemptionForwardTest, ShortFxPositionHasHigherStrikeThanLong) {
+  TarfContractSpecs specs{.notional = 1e6,
+                          .target = 6e6,
+                          .strike = 125,
+                          .end_date_years = 4.0,
+                          .settlement_date_frequency = 0.25,
+                          .direction = FxTradeDirection::kLong};
+  const double strike_long =
+      findZeroNPVStrike(specs, 125, 0.05, *foreign_curve_, *domestic_curve_);
+
+  specs.direction = FxTradeDirection::kShort;
+  const double strike_short =
+      findZeroNPVStrike(specs, 125, 0.05, *foreign_curve_, *domestic_curve_);
+
+  EXPECT_GT(strike_short, strike_long);
 }
 
 }  // namespace

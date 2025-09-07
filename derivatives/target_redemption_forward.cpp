@@ -47,15 +47,11 @@ double TargetRedemptionForward::path(double spot,
                                      double dt,
                                      const RatesCurve& foreign_rates,
                                      const RatesCurve& domestic_rates) const {
-  // Each path should return not just the NPV, but also
-  // - the distribution of payments (right?)
-  // - whether it got knocked out, and when
-
   const double direction_multiplier =
       (specs_.direction == FxTradeDirection::kLong) ? 1.0 : -1.0;
 
-  double cumulative_profit = 0.;
-  double npv = 0.;
+  PathState state;
+  state.current_fx = spot;
 
   if (dt > specs_.settlement_date_frequency) {
     // This ensures that dt is (at most) the maximum sensible value. It
@@ -72,56 +68,58 @@ double TargetRedemptionForward::path(double spot,
       std::round(specs_.settlement_date_frequency / dt);
   dt = specs_.settlement_date_frequency / num_timesteps_in_period;
 
-  double fx = spot;
-  double t = 0;
-  double timesteps_taken = 0;
-  bool trigger_reached = false;
+  double r_d = domestic_rates.forwardRate(
+      state.current_time,
+      state.current_time + specs_.settlement_date_frequency);
+  double r_f = foreign_rates.forwardRate(
+      state.current_time,
+      state.current_time + specs_.settlement_date_frequency);
 
-  double r_d =
-      domestic_rates.forwardRate(t, t + specs_.settlement_date_frequency);
-  double r_f =
-      foreign_rates.forwardRate(t, t + specs_.settlement_date_frequency);
-
-  while (t < specs_.end_date_years && !trigger_reached) {
+  while (state.current_time < specs_.end_date_years && !state.trigger_reached) {
     const double z = absl::Gaussian<double>(bitgen_, 0, 1);
     const double stoch_term = sigma * std::sqrt(dt) * z;
     const double drift_term = (r_d - r_f - 0.5 * sigma * sigma) * dt;
 
-    t += dt;
-    ++timesteps_taken;
-    fx *= std::exp(drift_term + stoch_term);
+    state.current_time += dt;
+    ++state.timesteps_since_last_settlement;
+    state.current_fx *= std::exp(drift_term + stoch_term);
 
-    if (timesteps_taken == num_timesteps_in_period) {
-      double payment_amount =
-          direction_multiplier * specs_.notional * (fx - specs_.strike);
+    if (state.timesteps_since_last_settlement == num_timesteps_in_period) {
+      double payment_amount = direction_multiplier * specs_.notional *
+                              (state.current_fx - specs_.strike);
 
       // If we reach the target on this payment date, then the current
       // payment is truncated to deliver the exact amount remaining
       // to hit the target.
-      if (cumulative_profit + payment_amount > specs_.target) {
-        trigger_reached = true;
-        payment_amount = specs_.target - cumulative_profit;
+      if (state.cumulative_profit + payment_amount > specs_.target) {
+        state.trigger_reached = true;
+        payment_amount = specs_.target - state.cumulative_profit;
       }
 
       if (payment_amount > 0) {
-        cumulative_profit += payment_amount;
+        state.cumulative_profit += payment_amount;
       }
 
       // Discount the payment amount on the domestic curve.
-      const double discounted_pmt = payment_amount * domestic_rates.df(t);
-      npv += discounted_pmt;
+      const double discounted_pmt =
+          payment_amount * domestic_rates.df(state.current_time);
+      state.npv += discounted_pmt;
 
       // Reset to the next period.
-      timesteps_taken = 0;
+      state.timesteps_since_last_settlement = 0;
 
       // And look up the forward interest rates for the next simulation
       // period (we don't do this at each time step to avoid computing these
       // excessively, in case dt is very small).
-      r_d = domestic_rates.forwardRate(t, t + specs_.settlement_date_frequency);
-      r_f = foreign_rates.forwardRate(t, t + specs_.settlement_date_frequency);
+      r_d = domestic_rates.forwardRate(
+          state.current_time,
+          state.current_time + specs_.settlement_date_frequency);
+      r_f = foreign_rates.forwardRate(
+          state.current_time,
+          state.current_time + specs_.settlement_date_frequency);
     }
   }
-  return npv;
+  return state.npv;
 }
 
 TarfPricingResult TargetRedemptionForward::price(
@@ -144,6 +142,58 @@ TarfPricingResult TargetRedemptionForward::price(
     result.mean_npv += (path_npv - result.mean_npv) / static_cast<double>(i);
   }
   return result;
+}
+
+double findZeroNPVStrike(const TarfContractSpecs& specs,
+                         double spot,
+                         double sigma,
+                         const RatesCurve& foreign_rates,
+                         const RatesCurve& domestic_rates,
+                         size_t num_paths) {
+  // TODO: ALSO then verify that the value of one is positive and the other is
+  // negative.
+  double atm_fwd = weightedAvgForward(spot,
+                                      specs.end_date_years,
+                                      specs.settlement_date_frequency,
+                                      foreign_rates,
+                                      domestic_rates);
+  double k_low = atm_fwd * 0.5;
+  double k_high = atm_fwd * 1.5;
+
+  TarfContractSpecs k_mid_specs = specs;
+  k_mid_specs.strike = 0.5 * (k_low + k_high);
+
+  double tolerance_pct =
+      0.0001;  // 0.01% difference for starters. Do not hard-code!
+
+  // Relatively coarse timesteps.
+  double dt = specs.settlement_date_frequency * 0.2;
+
+  // Initial method: bisection.
+  while (std::abs(k_high / k_low - 1) > tolerance_pct) {
+    TargetRedemptionForward tarf_mid(k_mid_specs);
+
+    double npv_mid =
+        tarf_mid
+            .price(spot, sigma, dt, num_paths, foreign_rates, domestic_rates)
+            .mean_npv;
+
+    if (specs.direction == FxTradeDirection::kLong) {
+      if (npv_mid > 0) {
+        k_low = k_mid_specs.strike;
+      } else {
+        k_high = k_mid_specs.strike;
+      }
+    } else {  // FxTradeDirection::kShort
+      if (npv_mid > 0) {
+        k_high = k_mid_specs.strike;
+      } else {
+        k_low = k_mid_specs.strike;
+      }
+    }
+    k_mid_specs.strike = 0.5 * (k_low + k_high);
+  }
+  return k_mid_specs.strike;
 }
 
 }  // namespace smileexplorer

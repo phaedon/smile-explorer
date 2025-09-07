@@ -71,6 +71,18 @@ class TargetRedemptionForward {
   // generator (whose internal state is updated every time a random number is
   // invoked).
   mutable absl::BitGen bitgen_;
+
+  // Stores the internal state of a single MC simulation path.
+  struct PathState {
+    double cumulative_profit = 0.0;
+    double npv = 0.0;
+    double current_fx = 0.0;
+    double current_time = 0.0;
+    size_t timesteps_since_last_settlement = 0;
+    bool trigger_reached = false;
+  };
+  void processSettlement(PathState& state,
+                         const RatesCurve& domestic_rates) const;
 };
 
 // Returns the weighted average of the forward FX rate, weighted by the
@@ -81,49 +93,17 @@ double weightedAvgForward(double spot,
                           const RatesCurve& foreign_rates,
                           const RatesCurve& domestic_rates);
 
-inline double findZeroNPVStrike(const TarfContractSpecs& specs,
-                                double spot,
-                                double sigma,
-                                const RatesCurve& foreign_rates,
-                                const RatesCurve& domestic_rates,
-                                size_t num_paths = 2000) {
-  // TODO: ALSO then verify that the value of one is positive and the other is
-  // negative.
-  double atm_fwd = weightedAvgForward(spot,
-                                      specs.end_date_years,
-                                      specs.settlement_date_frequency,
-                                      foreign_rates,
-                                      domestic_rates);
-  double k_low = atm_fwd * 0.5;
-  double k_high = atm_fwd * 1.1;
-
-  TarfContractSpecs k_mid_specs = specs;
-  k_mid_specs.strike = 0.5 * (k_low + k_high);
-
-  double tolerance_pct =
-      0.0001;  // 0.01% difference for starters. Do not hard-code!
-
-  // Relatively coarse timesteps.
-  double dt = specs.settlement_date_frequency * 0.2;
-
-  // Initial method: bisection.
-  while (std::abs(k_high / k_low - 1) > tolerance_pct) {
-    TargetRedemptionForward tarf_mid(k_mid_specs);
-
-    double npv_mid =
-        tarf_mid
-            .price(spot, sigma, dt, num_paths, foreign_rates, domestic_rates)
-            .mean_npv;
-
-    if (npv_mid > 0) {
-      k_low = k_mid_specs.strike;
-    } else if (npv_mid < 0) {
-      k_high = k_mid_specs.strike;
-    }
-    k_mid_specs.strike = 0.5 * (k_low + k_high);
-  }
-  return k_mid_specs.strike;
-}
+// Returns the (estimated) strike at which the TARF contract would have
+// a zero NPV at the time of the trade.
+//
+// Note that `specs.strike` is ignored, since the goal is to discover the
+// appropriate strike.
+double findZeroNPVStrike(const TarfContractSpecs& specs,
+                         double spot,
+                         double sigma,
+                         const RatesCurve& foreign_rates,
+                         const RatesCurve& domestic_rates,
+                         size_t num_paths = 4000);
 
 }  // namespace smileexplorer
 
