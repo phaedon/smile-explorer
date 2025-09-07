@@ -24,7 +24,7 @@ class TargetRedemptionForwardTest : public ::testing::Test {
   std::unique_ptr<ZeroSpotCurve> domestic_curve_;
 };
 
-TEST_F(TargetRedemptionForwardTest, AtmForward) {
+TEST_F(TargetRedemptionForwardTest, DeterministicForwardWithoutTarget) {
   /*
   Verified in a spreadsheet:
    - expiry: 4 years
@@ -33,10 +33,25 @@ TEST_F(TargetRedemptionForwardTest, AtmForward) {
    - spot fx rate: 125.0
    - USD (foreign) rate: 4%
    - ISK (domestic) rate: 8%
-   - notional: $1,000,000
 
-   At this interest rate differential, the discount-weighted average of the
+  Rates are flat and continuously compounded.
+
+  At this interest rate differential, the discount-weighted average of the
   forwards is 135.657.
+  */
+
+  TargetRedemptionForward tarf(
+      100, 100, 125, 4.0, 0.25, FxTradeDirection::kLong);
+
+  EXPECT_NEAR(135.6570005,
+              tarf.weightedAvgForward(125, *foreign_curve_, *domestic_curve_),
+              1e-6);
+}
+
+TEST_F(TargetRedemptionForwardTest, AtmForwardHasZeroNPV) {
+  /*
+  This test uses the parameters described in DeterministicForwardWithoutTarget
+  above.
 
   With a high-enough target (here, 100mm ISK) and a very low vol, this is just a
   strip of forwards. For reference, the accumulated profit of the profitable
@@ -46,8 +61,14 @@ TEST_F(TargetRedemptionForwardTest, AtmForward) {
   const double expected_npv = 0.;
   const double error_threshold = 20000;
 
+  // This step is just to discover the appropriate strike.
+  TargetRedemptionForward placeholder_tarf(
+      100, 100, 125, 4.0, 0.25, FxTradeDirection::kLong);
+  double atm_fwd_strike = placeholder_tarf.weightedAvgForward(
+      125, *foreign_curve_, *domestic_curve_);
+
   TargetRedemptionForward tarf(
-      1e6, 100e6, 135.657, 4.0, 0.25, FxTradeDirection::kLong);
+      1e6, 100e6, atm_fwd_strike, 4.0, 0.25, FxTradeDirection::kLong);
 
   for (int i = 0; i < 5; ++i) {
     double npv =
@@ -63,7 +84,8 @@ TEST_F(TargetRedemptionForwardTest, OtmForward) {
   of the NPV computations is correct.
 
   At a strike of 131.9686 and the other params kept the same, this should result
-  in an NPV of almost exactly 50mm ISK.
+  in an NPV of almost exactly 50mm ISK. This was verified / computed in a
+  spreadsheet.
   */
 
   const double expected_npv = 50e6;

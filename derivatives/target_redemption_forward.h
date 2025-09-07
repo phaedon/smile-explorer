@@ -34,6 +34,47 @@ class TargetRedemptionForward {
         settlement_date_frequency_(settlement_date_frequency),
         direction_(direction) {}
 
+  /* Returns the weighted average of the forward FX rate, weighted by the
+     discount factors.
+
+    As a simple example, suppose spot is at 100 and there are 3 periods of
+    interest, with the following forward FX rates and the following discount
+    factors from the `domestic_rates` curve:
+
+    t (yrs)   fwd     df
+    -------   ---     ---
+      1       102     0.95
+      2       104     0.90
+      3       106     0.85
+
+    Then this function would return ~103.9259
+    or in spreadsheet pseudocode:
+        = sumproduct(fwd, df)/sum(df)
+  */
+  double weightedAvgForward(double spot,
+                            const RatesCurve& foreign_rates,
+                            const RatesCurve& domestic_rates) const {
+    double sumproduct = 0.;
+    double fx = spot;
+    double df_sum = 0.;
+
+    int num_payments = std::round(end_date_years_ / settlement_date_frequency_);
+    for (int i = 1; i <= num_payments; ++i) {
+      double t_init = (i - 1) * settlement_date_frequency_;
+      double t_final = i * settlement_date_frequency_;
+      double rd = domestic_rates.forwardRate(t_init, t_final);
+      double rf = foreign_rates.forwardRate(t_init, t_final);
+      fx *= std::exp((rd - rf) * settlement_date_frequency_);
+      sumproduct += fx * domestic_rates.df(t_final);
+      df_sum += domestic_rates.df(t_final);
+    }
+
+    // Sanity check in case of degenerate case.
+    if (df_sum <= 0.) return 0.;
+
+    return sumproduct / df_sum;
+  }
+
   // Initial implementation: given a flat volatility and a specified forward,
   // price the scenarios using the provided discount curve. (It is up to the
   // client to ensure that the current discount curve is provided, otherwise a
@@ -162,15 +203,23 @@ inline double findZeroNPVStrike(double notional,
   // TODO: compute the forward for a more intelligent starting guess.
   // AND ALSO then verify that the value of one is positive and the other is
   // negative.
-  double k_low = spot * 0.5;
-  double k_high = spot * 2;
+  TargetRedemptionForward tarf_forward(notional,
+                                       target,
+                                       spot,
+                                       end_date_years,
+                                       settlement_date_frequency,
+                                       direction);
+  double atm_fwd =
+      tarf_forward.weightedAvgForward(spot, foreign_rates, domestic_rates);
+  double k_low = atm_fwd * 0.5;
+  double k_high = atm_fwd * 1.1;
   double k_mid = 0.5 * (k_low + k_high);
 
   double tolerance_pct =
       0.0001;  // 0.01% difference for starters. Do not hard-code!
 
-  // TODO is there ever a need to have this be smaller than the period?
-  double dt = settlement_date_frequency * 0.5;
+  // Relatively coarse timesteps.
+  double dt = settlement_date_frequency * 0.2;
 
   // Initial method: bisection.
   while (std::abs(k_high / k_low - 1) > tolerance_pct) {
@@ -182,7 +231,7 @@ inline double findZeroNPVStrike(double notional,
                                      direction);
 
     double npv_mid =
-        tarf_mid.price(spot, sigma, dt, 4000, foreign_rates, domestic_rates);
+        tarf_mid.price(spot, sigma, dt, 5000, foreign_rates, domestic_rates);
 
     if (npv_mid > 0) {
       k_low = k_mid;
