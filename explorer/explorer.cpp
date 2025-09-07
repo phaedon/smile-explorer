@@ -9,6 +9,7 @@
 #include "implot.h"
 #include "implot3d.h"
 #include "rate_curve_visualiser.h"
+#include "tarf_visualiser.h"
 #include "time/time_enums.h"
 #include "trees/propagators.h"
 #include "volatility/volatility.h"
@@ -103,6 +104,7 @@ int main(int, char**) {
                                                &global_currencies);
   smileexplorer::ExplorerParams localvol_prop_params(&global_rates,
                                                      &global_currencies);
+  smileexplorer::ExplorerParams tarf_params(&global_rates, &global_currencies);
 
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
@@ -119,6 +121,8 @@ int main(int, char**) {
     ImGui::SetNextWindowSize(
         ImVec2(display_size.x * 0.45, display_size.y * 0.95));
     smileexplorer::plotForwardRateCurves(crr_prop_params);
+
+    smileexplorer::plotTarfVisualiser(tarf_params);
 
     ImGui::SetNextWindowPos(ImVec2(10, window_spacing));
     smileexplorer::displayPairedAssetDerivativePanel<

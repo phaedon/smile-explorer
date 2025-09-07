@@ -80,7 +80,8 @@ inline double findZeroNPVStrike(double notional,
                                 double spot,
                                 double sigma,
                                 const RatesCurve& foreign_rates,
-                                const RatesCurve& domestic_rates) {
+                                const RatesCurve& domestic_rates,
+                                size_t num_paths = 2000) {
   // TODO: ALSO then verify that the value of one is positive and the other is
   // negative.
   double atm_fwd = weightedAvgForward(spot,
@@ -108,7 +109,7 @@ inline double findZeroNPVStrike(double notional,
                                      direction);
 
     double npv_mid =
-        tarf_mid.price(spot, sigma, dt, 5000, foreign_rates, domestic_rates);
+        tarf_mid.price(spot, sigma, dt, num_paths, foreign_rates, domestic_rates);
 
     if (npv_mid > 0) {
       k_low = k_mid;

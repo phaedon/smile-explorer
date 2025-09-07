@@ -30,6 +30,7 @@ cc_binary(
         ":asset_visualiser",
         ":global_rates",
         ":rate_curve_visualiser",
+        ":tarf_visualiser",
         ":vol_surface_factories",
         "//trees:propagators",
         "//volatility",
@@ -94,6 +95,17 @@ cc_library(
         "//rates:short_rate_tree_curve",
         "@imgui",
         "@implot",
+    ],
+)
+
+cc_library(
+    name = "tarf_visualiser",
+    hdrs = ["tarf_visualiser.h"],
+    deps = [
+        ":explorer_params",
+        ":gui_widgets",
+        "//derivatives:target_redemption_forward",
+        "@imgui",
     ],
 )
 
