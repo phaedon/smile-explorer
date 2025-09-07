@@ -72,6 +72,7 @@ cc_test(
 
 cc_library(
     name = "target_redemption_forward",
+    srcs = ["target_redemption_forward.cpp"],
     hdrs = ["target_redemption_forward.h"],
     deps = [
         "//rates:zero_curve",

@@ -40,12 +40,10 @@ TEST_F(TargetRedemptionForwardTest, DeterministicForwardWithoutTarget) {
   forwards is 135.657.
   */
 
-  TargetRedemptionForward tarf(
-      100, 100, 125, 4.0, 0.25, FxTradeDirection::kLong);
-
-  EXPECT_NEAR(135.6570005,
-              tarf.weightedAvgForward(125, *foreign_curve_, *domestic_curve_),
-              1e-6);
+  EXPECT_NEAR(
+      135.6570005,
+      weightedAvgForward(125, 4.0, 0.25, *foreign_curve_, *domestic_curve_),
+      1e-6);
 }
 
 TEST_F(TargetRedemptionForwardTest, AtmForwardHasZeroNPV) {
@@ -61,11 +59,8 @@ TEST_F(TargetRedemptionForwardTest, AtmForwardHasZeroNPV) {
   const double expected_npv = 0.;
   const double error_threshold = 20000;
 
-  // This step is just to discover the appropriate strike.
-  TargetRedemptionForward placeholder_tarf(
-      100, 100, 125, 4.0, 0.25, FxTradeDirection::kLong);
-  double atm_fwd_strike = placeholder_tarf.weightedAvgForward(
-      125, *foreign_curve_, *domestic_curve_);
+  double atm_fwd_strike =
+      weightedAvgForward(125, 4.0, 0.25, *foreign_curve_, *domestic_curve_);
 
   TargetRedemptionForward tarf(
       1e6, 100e6, atm_fwd_strike, 4.0, 0.25, FxTradeDirection::kLong);
