@@ -2,19 +2,19 @@ module(
     name = "smile-explorer",
 )
 
-bazel_dep(name = "abseil-cpp", version = "20250814.0")
+bazel_dep(name = "abseil-cpp", version = "20250814.2")
 
 # Required for GLFW support on MacOS.
-bazel_dep(name = "apple_support", version = "1.23.1")
+bazel_dep(name = "apple_support", version = "2.3.0")
 
 bazel_dep(name = "boost.math", version = "1.89.0")
 bazel_dep(name = "ceres-solver", version = "2.2.0")
 bazel_dep(name = "csv-parser", version = "2.3.0")
 bazel_dep(name = "eigen", version = "3.4.0.bcr.3")
-bazel_dep(name = "glfw", version = "3.3.9")
-bazel_dep(name = "google_benchmark", version = "1.9.4")
-bazel_dep(name = "googletest", version = "1.17.0")
-bazel_dep(name = "imgui", version = "1.91.8")
+bazel_dep(name = "glfw", version = "3.4.0.bcr.3")
+bazel_dep(name = "google_benchmark", version = "1.9.5")
+bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
+bazel_dep(name = "imgui", version = "1.91.8.bcr.1")
 bazel_dep(name = "implot", version = "0.16")
 bazel_dep(name = "implot3d", version = "0.2")
-bazel_dep(name = "magic_enum", version = "0.9.7")
+bazel_dep(name = "magic_enum", version = "0.9.8")
