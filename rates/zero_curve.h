@@ -5,6 +5,7 @@
 #include <boost/math/interpolators/pchip.hpp>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <vector>
 
 #include "absl/log/log.h"

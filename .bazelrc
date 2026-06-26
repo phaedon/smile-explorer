@@ -2,4 +2,8 @@
 #query --registry=https://raw.githubusercontent.com/phaedon/bazel-central-registry/implot3d
 #build --registry=https://raw.githubusercontent.com/phaedon/bazel-central-registry/implot3d
 build --cxxopt=-std=c++20 --cxxopt=-Werror=return-type --copt=-Wsign-compare
+# Required after Xcode reinstall: the old Command Line Tools SDK headers
+# have availability annotations that trip up abseil/std::variant/std::optional
+# without an explicit minimum OS target. macOS 26 is the actual host OS.
+build --macos_minimum_os=14.0
 test --test_output=errors
