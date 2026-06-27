@@ -3,6 +3,7 @@
 #define SMILEEXPLORER_EXPLORER_ASSET_VISUALISER_
 
 #include <algorithm>
+#include <optional>
 
 #include "derivatives/derivative.h"
 #include "explorer_params.h"
@@ -198,6 +199,34 @@ inline void displayBSMGreeks<CurrencyDerivative>(const VanillaOption& vanilla,
                                                        Greeks::Vega));
 }
 
+// Snapshot of the ExplorerParams fields that feed into tree construction and
+// forward propagation. Used to detect when a rebuild is actually needed.
+struct PanelParamsSnapshot {
+  float asset_tree_duration = 0.f;
+  float asset_tree_timestep = 0.f;
+  float spot_price = 0.f;
+  double jarrowrudd_expected_drift = 0.0;
+  float flat_vol = 0.f;
+  float sigmoid_vol_range = 0.f;
+  float sigmoid_vol_stretch = 0.f;
+  Currency currency = Currency::USD;
+  Currency foreign_currency = Currency::EUR;
+
+  bool operator==(const PanelParamsSnapshot&) const = default;
+
+  static PanelParamsSnapshot from(const ExplorerParams& p) {
+    return {p.asset_tree_duration,
+            p.asset_tree_timestep,
+            p.spot_price,
+            p.jarrowrudd_expected_drift,
+            p.flat_vol,
+            p.sigmoid_vol_range,
+            p.sigmoid_vol_stretch,
+            p.currency,
+            p.foreign_currency};
+  }
+};
+
 template <typename FwdPropT, typename VolFunctorT, typename DerivativeT>
 void displayPairedAssetDerivativePanel(std::string_view window_name,
                                        ExplorerParams& prop_params) {
@@ -207,16 +236,30 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
   ImGui::SetNextWindowSize(ImVec2(display_size.x * 0.48, 0));
   ImGui::Begin(window_name.data());
 
-  BinomialTree binomial_tree(prop_params.asset_tree_duration,
-                             prop_params.asset_tree_timestep);
-  StochasticTreeModel<FwdPropT> asset(
-      std::move(binomial_tree), createDefaultPropagator<FwdPropT>(prop_params));
+  // Cached model state — rebuilt only when parameters change.
+  // Because this is a function template, each instantiation
+  // <FwdPropT, VolFunctorT, DerivativeT> owns its own independent set of
+  // statics, so the five panels in main() do not interfere with each other.
+  static std::optional<StochasticTreeModel<FwdPropT>> s_asset;
+  static std::optional<Volatility<VolFunctorT>> s_vol_surface;
+  static std::optional<DerivativeT> s_deriv;
+  static PanelParamsSnapshot s_last_snapshot;
 
-  Volatility<VolFunctorT> vol_surface(prop_params);
-  asset.forwardPropagate(vol_surface);
-
-  auto deriv =
-      createDerivative<DerivativeT>(&asset.binomialTree(), prop_params);
+  const PanelParamsSnapshot current_snapshot =
+      PanelParamsSnapshot::from(prop_params);
+  if (!s_asset.has_value() || current_snapshot != s_last_snapshot) {
+    s_vol_surface.emplace(prop_params);
+    BinomialTree binomial_tree(prop_params.asset_tree_duration,
+                               prop_params.asset_tree_timestep);
+    s_asset.emplace(std::move(binomial_tree),
+                    createDefaultPropagator<FwdPropT>(prop_params));
+    s_asset->forwardPropagate(*s_vol_surface);
+    // s_deriv must be rebuilt immediately after s_asset so its internal
+    // pointer into s_asset->binomialTree() stays valid.
+    s_deriv =
+        createDerivative<DerivativeT>(&s_asset->binomialTree(), prop_params);
+    s_last_snapshot = current_snapshot;
+  }
 
   ImGui::SetNextItemOpen(true, ImGuiCond_Once);
   if (ImGui::TreeNode("Asset")) {
@@ -243,7 +286,6 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
                      200.0f,
                      "%.2f",
                      ImGuiSliderFlags_Logarithmic);
-    asset.updateSpot(prop_params.spot_price);
 
     ImGui::SliderFloat("Volatility",
                        //             ImVec2(30, 100),
@@ -254,9 +296,7 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
                        ImGuiSliderFlags_Logarithmic);
 
     displayAdditionalVolControls<VolFunctorT>(prop_params);
-    asset.forwardPropagate(vol_surface);
-
-    plotBinomialTree("Asset tree", asset.binomialTree());
+    plotBinomialTree("Asset tree", s_asset->binomialTree());
 
     ImGui::TreePop();
     ImGui::Spacing();
@@ -267,7 +307,7 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
     ImGui::SliderFloat("Expiry",
                        &prop_params.option_expiry,
                        0.0f,
-                       asset.binomialTree().treeDurationYears(),
+                       s_asset->binomialTree().treeDurationYears(),
                        "%.2f");
 
     ImGui::SliderFloat("Strike",
@@ -278,12 +318,13 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
                        ImGuiSliderFlags_Logarithmic);
 
     VanillaOption vanilla(prop_params.option_strike, OptionPayoff::Call);
-    displayValueAsReadOnlyText("European call",
-                               deriv.price(vanilla, prop_params.option_expiry));
+    displayValueAsReadOnlyText(
+        "European call",
+        s_deriv->price(vanilla, prop_params.option_expiry));
 
     displayBSMGreeks<DerivativeT>(vanilla, prop_params);
 
-    plotBinomialTree("Option tree", deriv.binomialTree());
+    plotBinomialTree("Option tree", s_deriv->binomialTree());
 
     ImGui::TreePop();
     ImGui::Spacing();
@@ -300,14 +341,14 @@ void displayPairedAssetDerivativePanel(std::string_view window_name,
                        "%.3f",
                        ImGuiSliderFlags_Logarithmic);
     int time_index =
-        asset.binomialTree()
+        s_asset->binomialTree()
             .getTimegrid()
             .getTimeIndexForExpiry(prop_params.time_for_displaying_probability)
-            .value_or(asset.binomialTree().numTimesteps());
+            .value_or(s_asset->binomialTree().numTimesteps());
 
     plotProbabilityDistribution("Arrow-Debreu prices",
-                                asset.binomialTree(),
-                                deriv.arrowDebreuTree(),
+                                s_asset->binomialTree(),
+                                s_deriv->arrowDebreuTree(),
                                 time_index);
 
     ImGui::TreePop();
