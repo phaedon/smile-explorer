@@ -1,10 +1,12 @@
 <script lang="ts">
   import BinomialEssay from './lib/BinomialEssay.svelte';
+  import FxEssay from './lib/FxEssay.svelte';
   import VolatilityEssay from './lib/VolatilityEssay.svelte';
 
   const pages = [
     {id: 'binomial', title: 'Binomial trees', component: BinomialEssay},
     {id: 'volatility', title: 'Volatility in the tree', component: VolatilityEssay},
+    {id: 'fx', title: 'Currency options', component: FxEssay},
   ];
 
   // Hash routing (#/binomial), so the site works as static files anywhere.
