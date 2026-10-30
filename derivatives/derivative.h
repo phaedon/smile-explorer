@@ -1,6 +1,8 @@
 #ifndef SMILEEXPLORER_DERIVATIVES_DERIVATIVE_H_
 #define SMILEEXPLORER_DERIVATIVES_DERIVATIVE_H_
 
+#include <limits>
+
 #include "absl/log/log.h"
 #include "rates/rates_curve.h"
 #include "trees/binomial_tree.h"
@@ -59,7 +61,7 @@ class SingleAssetDerivative : public Derivative {
   void updateArrowDebreuPrices() {
     arrow_debreu_tree_.setValue(0, 0, 1.0);
 
-    for (int ti = 1; ti < arrow_debreu_tree_.numTimesteps(); ++ti) {
+    for (int ti = 1; ti <= arrow_debreu_tree_.numTimesteps(); ++ti) {
       for (int i = 0; i <= ti; ++i) {
         double prev_down =
             i == 0 ? 0 : arrow_debreu_tree_.nodeValue(ti - 1, i - 1);
@@ -92,8 +94,16 @@ class SingleAssetDerivative : public Derivative {
 
     for (int ti = ti_final; ti >= 0; --ti) {
       for (int i = 0; i <= ti; ++i) {
-        const double up_prob = getUpProbAt(ti, i);
-        const double fwd_df = forwardDF(ti);
+        // At expiry, the value is the payoff: there is no next timestep, so no
+        // transition probability or discount factor (and ti_final may be the
+        // tree's last time index, where neither is defined).
+        const bool at_expiry = ti == ti_final;
+        const double up_prob = at_expiry
+                                   ? std::numeric_limits<double>::quiet_NaN()
+                                   : getUpProbAt(ti, i);
+        const double fwd_df = at_expiry
+                                  ? std::numeric_limits<double>::quiet_NaN()
+                                  : forwardDF(ti);
         const double deriv_value_at_node = option_evaluator(
             deriv_tree_, *asset_tree_, ti, i, ti_final, up_prob, fwd_df);
         deriv_tree_.setValue(ti, i, deriv_value_at_node);
