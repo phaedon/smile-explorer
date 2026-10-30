@@ -59,5 +59,15 @@ TEST(VanillaOptionTest, CurrencyOptions) {
       0.000005);
 }
 
+TEST(VanillaOptionTest, Payoff) {
+  VanillaOption call(100, OptionPayoff::Call);
+  EXPECT_DOUBLE_EQ(5.0, call.payoff(105));
+  EXPECT_DOUBLE_EQ(0.0, call.payoff(95));
+
+  VanillaOption put(100, OptionPayoff::Put, ExerciseStyle::American);
+  EXPECT_DOUBLE_EQ(0.0, put.payoff(105));
+  EXPECT_DOUBLE_EQ(5.0, put.payoff(95));
+}
+
 }  // namespace
 }  // namespace smileexplorer
