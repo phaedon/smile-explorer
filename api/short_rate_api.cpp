@@ -1,12 +1,18 @@
 #include "api/short_rate_api.h"
 
 #include <cmath>
+#include <limits>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "derivatives/hull_white_bond_option.h"
+#include "derivatives/interest_rate_derivative.h"
+#include "derivatives/vanilla_option.h"
 #include "instruments/swaps/fixed_cashflow_instrument.h"
+#include "instruments/swaps/interest_rate_swap.h"
 #include "rates/short_rate_tree_curve.h"
 #include "rates/zero_curve.h"
 #include "trees/hull_white_propagator.h"
@@ -17,6 +23,8 @@ namespace {
 
 constexpr int kMaxSteps = 500;
 constexpr int kMaxNodes = 200'000;
+
+constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 
 absl::Status validate(const HullWhiteTreeSpec& spec) {
   if (!(spec.mean_reversion > 0)) {
@@ -50,10 +58,8 @@ absl::Status validate(const HullWhiteTreeSpec& spec) {
   return evaluateCurve(spec.curve, {}).status();
 }
 
-}  // namespace
-
-absl::StatusOr<HullWhiteTreeResult> buildHullWhiteTree(
-    const HullWhiteTreeSpec& spec) {
+// Validates the spec and returns the number of steps in the tree.
+absl::StatusOr<int> numSteps(const HullWhiteTreeSpec& spec) {
   if (absl::Status status = validate(spec); !status.ok()) {
     return status;
   }
@@ -63,11 +69,11 @@ absl::StatusOr<HullWhiteTreeResult> buildHullWhiteTree(
   const int num_steps =
       static_cast<int>(std::ceil(spec.horizon_years / spec.dt_years - 1e-9));
 
-  auto propagator = std::make_unique<HullWhitePropagator>(
+  const HullWhitePropagator propagator(
       spec.mean_reversion, spec.sigma, spec.dt_years);
   long num_nodes = 0;
   for (int t = 0; t <= num_steps; ++t) {
-    num_nodes += propagator->numStatesAtTimeIndex(t);
+    num_nodes += propagator.numStatesAtTimeIndex(t);
   }
   if (num_nodes > kMaxNodes) {
     return absl::InvalidArgumentError(
@@ -75,32 +81,57 @@ absl::StatusOr<HullWhiteTreeResult> buildHullWhiteTree(
                      kMaxNodes,
                      " nodes; use fewer steps or faster mean reversion"));
   }
+  return num_steps;
+}
 
+// A Hull-White tree fitted to the market curve, with a zero-coupon bond
+// maturing at its end priced on it. Held by pointer: the bond refers to the
+// tree.
+struct FittedTree {
+  std::unique_ptr<ZeroSpotCurve> market_curve;
+  std::unique_ptr<ShortRateTreeCurve> tree_curve;
+  std::unique_ptr<FixedCashflowInstrument> bond;
   HullWhiteTreeResult result;
+};
+
+absl::StatusOr<FittedTree> fitTree(const HullWhiteTreeSpec& spec) {
+  const absl::StatusOr<int> num_steps_or = numSteps(spec);
+  if (!num_steps_or.ok()) {
+    return num_steps_or.status();
+  }
+  const int num_steps = *num_steps_or;
+
+  FittedTree fitted;
+  HullWhiteTreeResult& result = fitted.result;
+  auto propagator = std::make_unique<HullWhitePropagator>(
+      spec.mean_reversion, spec.sigma, spec.dt_years);
   result.j_max = propagator->jMax();
   result.dr = dR(spec.sigma, spec.dt_years);
 
-  const ZeroSpotCurve market_curve(spec.curve.maturities, spec.curve.rates);
+  fitted.market_curve =
+      std::make_unique<ZeroSpotCurve>(spec.curve.maturities, spec.curve.rates);
   // TrinomialTree rounds its duration up to a whole number of steps, so pass
   // slightly less than num_steps * dt to get exactly num_steps.
-  const ShortRateTreeCurve tree_curve(std::move(propagator),
-                                      market_curve,
-                                      num_steps * spec.dt_years * (1 - 1e-12));
-  const TrinomialTree& tree = tree_curve.trinomialTree();
+  fitted.tree_curve = std::make_unique<ShortRateTreeCurve>(
+      std::move(propagator),
+      *fitted.market_curve,
+      num_steps * spec.dt_years * (1 - 1e-12));
+  const TrinomialTree& tree = fitted.tree_curve->trinomialTree();
   if (std::ssize(tree.tree_) != num_steps + 1) {
     return absl::InternalError("unexpected number of time slices");
   }
 
-  FixedCashflowInstrument bond(&tree_curve);
+  fitted.bond =
+      std::make_unique<FixedCashflowInstrument>(fitted.tree_curve.get());
   const double maturity = tree.getTimegrid().time(num_steps);
-  if (absl::Status status = bond.setCashflows(
+  if (absl::Status status = fitted.bond->setCashflows(
           {Cashflow{.time_years = maturity, .amount = spec.bond_face}});
       !status.ok()) {
     return status;
   }
-  result.bond_price = bond.price();
-  result.market_bond_price = spec.bond_face * market_curve.df(maturity);
-  const TrinomialTree& bond_tree = bond.trinomialTree();
+  result.bond_price = fitted.bond->price();
+  result.market_bond_price = spec.bond_face * fitted.market_curve->df(maturity);
+  const TrinomialTree& bond_tree = fitted.bond->trinomialTree();
 
   result.slice_offsets.push_back(0);
   for (int t = 0; t <= num_steps; ++t) {
@@ -112,7 +143,7 @@ absl::StatusOr<HullWhiteTreeResult> buildHullWhiteTree(
     const double time = tree.getTimegrid().time(t);
     result.times.push_back(time);
     result.alphas.push_back(tree.alphas_[t]);
-    result.market_dfs.push_back(market_curve.df(time));
+    result.market_dfs.push_back(fitted.market_curve->df(time));
     result.tree_dfs.push_back(tree.arrowDebreuSumAtTimestep(t));
 
     const int num_states = tree.numStatesAt(t);
@@ -139,6 +170,97 @@ absl::StatusOr<HullWhiteTreeResult> buildHullWhiteTree(
       }
     }
   }
+  return fitted;
+}
+
+}  // namespace
+
+absl::StatusOr<HullWhiteTreeResult> buildHullWhiteTree(
+    const HullWhiteTreeSpec& spec) {
+  absl::StatusOr<FittedTree> fitted = fitTree(spec);
+  if (!fitted.ok()) {
+    return fitted.status();
+  }
+  return std::move(fitted->result);
+}
+
+absl::StatusOr<BondOptionResult> priceBondOption(
+    const BondOptionRequest& request) {
+  const BondOptionSpec& option_spec = request.option;
+  if (!(option_spec.strike > 0)) {
+    return absl::InvalidArgumentError("strike must be positive");
+  }
+  if (!(option_spec.expiry_years > 0)) {
+    return absl::InvalidArgumentError("expiry_years must be positive");
+  }
+  absl::StatusOr<FittedTree> fitted = fitTree(request.tree);
+  if (!fitted.ok()) {
+    return fitted.status();
+  }
+  const TrinomialTree& tree = fitted->tree_curve->trinomialTree();
+  const int num_steps = std::ssize(tree.tree_) - 1;
+  const std::optional<int> expiry_index =
+      tree.getTimegrid().getTimeIndexForExpiry(option_spec.expiry_years);
+  if (!expiry_index.has_value() || *expiry_index < 1 ||
+      *expiry_index >= num_steps) {
+    return absl::InvalidArgumentError(
+        "the option must expire at least one step after today and before "
+        "the bond matures");
+  }
+  const int ti_final = *expiry_index;
+  const double expiry = tree.getTimegrid().time(ti_final);
+
+  BondOptionResult result;
+  result.expiry_index = ti_final;
+  const HullWhiteTreeSpec& spec = request.tree;
+  const double maturity = tree.getTimegrid().time(num_steps);
+  result.analytic_price = hullWhiteZeroBondOption(*fitted->market_curve,
+                                                  spec.mean_reversion,
+                                                  spec.sigma,
+                                                  expiry,
+                                                  maturity,
+                                                  spec.bond_face,
+                                                  option_spec.strike,
+                                                  option_spec.is_call);
+
+  const InterestRateSwap bond = InterestRateSwap::createBond(*fitted->bond);
+  const OptionPayoff payoff =
+      option_spec.is_call ? OptionPayoff::Call : OptionPayoff::Put;
+  const VanillaOption option(option_spec.strike,
+                             payoff,
+                             option_spec.is_american ? ExerciseStyle::American
+                                                     : ExerciseStyle::European);
+  InterestRateDerivative deriv(fitted->tree_curve.get(), &bond);
+  result.price = deriv.price(option, expiry);
+  InterestRateDerivative european(fitted->tree_curve.get(), &bond);
+  result.european_price =
+      european.price(VanillaOption(option_spec.strike, payoff), expiry);
+
+  // Per-node values, up to expiry.
+  const HullWhiteTreeResult& nodes = fitted->result;
+  const int num_nodes = nodes.slice_offsets.back();
+  result.option_values.assign(num_nodes, kNaN);
+  result.exercise_values.assign(num_nodes, kNaN);
+  result.continuation_values.assign(num_nodes, kNaN);
+  for (int t = 0; t <= ti_final; ++t) {
+    for (int i = 0; i < tree.numStatesAt(t); ++i) {
+      const int n = nodes.slice_offsets[t] + i;
+      result.option_values[n] = deriv.tree().nodeValue(t, i);
+      result.exercise_values[n] = option.payoff(nodes.bond_values[n]);
+      if (t < ti_final) {
+        // The option's value at node index k of the next slice.
+        const auto next = [&](int k) {
+          return deriv.tree().nodeValue(t + 1, k - nodes.slice_offsets[t + 1]);
+        };
+        const int m = nodes.successor_mid[n];
+        result.continuation_values[n] =
+            std::exp(-nodes.short_rates[n] * spec.dt_years) *
+            (nodes.pu[n] * next(m + 1) + nodes.pm[n] * next(m) +
+             nodes.pd[n] * next(m - 1));
+      }
+    }
+  }
+  result.tree = std::move(fitted->result);
   return result;
 }
 

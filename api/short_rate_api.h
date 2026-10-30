@@ -76,6 +76,42 @@ struct HullWhiteTreeResult {
 absl::StatusOr<HullWhiteTreeResult> buildHullWhiteTree(
     const HullWhiteTreeSpec& spec);
 
+// An option on the zero-coupon bond that matures at the end of the tree.
+struct BondOptionSpec {
+  double strike = 100.0;
+  // Snapped to the nearest step; it must fall strictly between today and the
+  // bond's maturity.
+  double expiry_years = 1.0;
+  bool is_call = true;
+  bool is_american = false;
+};
+
+struct BondOptionRequest {
+  HullWhiteTreeSpec tree;
+  BondOptionSpec option;
+};
+
+struct BondOptionResult {
+  // The tree, including the bond's values.
+  HullWhiteTreeResult tree;
+  // The option's price on the tree, and its European counterpart's.
+  double price = 0.0;
+  double european_price = 0.0;
+  // The closed-form European price (Hull-White, on the market curve).
+  double analytic_price = 0.0;
+  // Time index of the (snapped) expiry.
+  int expiry_index = 0;
+  // Per node, as in HullWhiteTreeResult (NaN after expiry):
+  std::vector<double> option_values;
+  // Payoff if exercised at the node.
+  std::vector<double> exercise_values;
+  // Discounted expected value of holding. NaN at expiry.
+  std::vector<double> continuation_values;
+};
+
+absl::StatusOr<BondOptionResult> priceBondOption(
+    const BondOptionRequest& request);
+
 }  // namespace smileexplorer::api
 
 #endif  // SMILEEXPLORER_API_SHORT_RATE_API_H_

@@ -15,8 +15,11 @@ cc_library(
     ],
     deps = [
         "//derivatives:derivative",
+        "//derivatives:hull_white_bond_option",
+        "//derivatives:interest_rate_derivative",
         "//derivatives:vanilla_option",
         "//instruments/swaps:fixed_cashflow_instrument",
+        "//instruments/swaps:interest_rate_swap",
         "//rates:short_rate_tree_curve",
         "//rates:zero_curve",
         "//trees:binomial_tree",
