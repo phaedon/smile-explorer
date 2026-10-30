@@ -51,6 +51,25 @@ cc_library(
 )
 
 cc_library(
+    name = "hull_white_bond_option",
+    hdrs = ["hull_white_bond_option.h"],
+    deps = [
+        ":bsm",
+        "//rates:rates_curve",
+    ],
+)
+
+cc_test(
+    name = "hull_white_bond_option_test",
+    srcs = ["hull_white_bond_option_test.cpp"],
+    deps = [
+        ":hull_white_bond_option",
+        "//rates:zero_curve",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "interest_rate_derivative",
     hdrs = ["interest_rate_derivative.h"],
     deps = [
