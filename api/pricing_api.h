@@ -15,20 +15,51 @@
 
 namespace smileexplorer::api {
 
-enum class TreeModel { kCoxRossRubinstein, kJarrowRudd };
+enum class TreeModel {
+  kCoxRossRubinstein,
+  kJarrowRudd,
+  // Derman-Kani implied tree: node spacing follows a local volatility that
+  // depends on the asset price. Requires a flat or sigmoid-smile VolSpec.
+  kLocalVolatility,
+};
 
-// A recombining binomial tree for a single asset with flat vol, discounted on
-// a flat curve.
+enum class VolModel {
+  kFlat,
+  // Forward vols implied by a term structure of implied vols. Requires the
+  // Cox-Ross-Rubinstein or Jarrow-Rudd tree model.
+  kTermStructure,
+  // A local volatility skew in the asset price. Requires the local volatility
+  // tree model.
+  kSigmoidSmile,
+};
+
+// Annualised lognormal volatilities, as decimals (0.16 == 16%).
+struct VolSpec {
+  VolModel model = VolModel::kFlat;
+  // The flat volatility; for kSigmoidSmile, the level approached as the asset
+  // price rises well above spot.
+  double vol = 0.16;
+  // kTermStructure: implied vols at strictly increasing maturities (in years).
+  std::vector<double> term_maturities;
+  std::vector<double> term_vols;
+  // kSigmoidSmile:
+  //   sigma(S) = vol + smile_range / (1 + exp(smile_stretch * (S - spot)))
+  double smile_range = 0.0;
+  double smile_stretch = 0.0;
+};
+
+// A recombining binomial tree for a single asset, discounted on a flat curve.
 struct BinomialTreeSpec {
   TreeModel model = TreeModel::kCoxRossRubinstein;
   double spot = 100.0;
-  // Annualised lognormal volatility, as a decimal (0.16 == 16%).
-  double vol = 0.16;
+  VolSpec vol;
   // Flat, continuously-compounded discount rate, as a decimal.
   double rate = 0.04;
   // Expected drift of the asset (Jarrow-Rudd only), as a decimal.
   double drift = 0.1;
-  // Size of each timestep, in years.
+  // Size of each timestep, in years. With a term structure of vol, this is
+  // the first timestep; later ones shrink as vol rises (and grow as it falls)
+  // so that the tree recombines.
   double dt_years = 1 / 52.;
 };
 
@@ -57,6 +88,9 @@ struct VanillaPricingResult {
   // The closed-form (Black-Scholes) European price, for reference. For an
   // American option, this is the price of its European counterpart.
   double bsm_price = 0.0;
+  // The volatility used for bsm_price: the flat vol, the implied vol to
+  // expiry for a term structure, or the local vol at spot for a smile.
+  double bsm_vol = 0.0;
 
   // Time index of the expiry: the tree covers time indices 0..expiry_index.
   // The requested expiry is snapped to the nearest point on the timegrid.
@@ -88,6 +122,27 @@ struct VanillaPricingResult {
 
 absl::StatusOr<VanillaPricingResult> priceVanilla(
     const VanillaPricingRequest& request);
+
+// Evaluates the forward (kFlat, kTermStructure) or local (kSigmoidSmile)
+// volatility at each point in `xs`: times in years for a term structure, or
+// asset prices for a smile.
+absl::StatusOr<std::vector<double>> evaluateVol(const VolSpec& vol,
+                                                double spot,
+                                                const std::vector<double>& xs);
+
+struct ImpliedVolRequest {
+  double price = 0.0;
+  double spot = 100.0;
+  double strike = 100.0;
+  double expiry_years = 1.0;
+  // Flat, continuously-compounded discount rate, as a decimal.
+  double rate = 0.04;
+  bool is_call = true;
+};
+
+// The Black-Scholes implied volatility of a European option price. Fails if
+// the price is outside the no-arbitrage bounds.
+absl::StatusOr<double> impliedVolatility(const ImpliedVolRequest& request);
 
 }  // namespace smileexplorer::api
 
