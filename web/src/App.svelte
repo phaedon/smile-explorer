@@ -1,5 +1,6 @@
 <script lang="ts">
   import BinomialEssay from './lib/BinomialEssay.svelte';
+  import BondOptionEssay from './lib/BondOptionEssay.svelte';
   import FxEssay from './lib/FxEssay.svelte';
   import HullWhiteEssay from './lib/HullWhiteEssay.svelte';
   import VolatilityEssay from './lib/VolatilityEssay.svelte';
@@ -9,6 +10,7 @@
     {id: 'volatility', title: 'Volatility in the tree', component: VolatilityEssay},
     {id: 'fx', title: 'Currency options', component: FxEssay},
     {id: 'hull-white', title: 'Interest rate trees', component: HullWhiteEssay},
+    {id: 'bond-options', title: 'Options on bonds', component: BondOptionEssay},
   ];
 
   // Hash routing (#/binomial), so the site works as static files anywhere.

@@ -33,13 +33,13 @@ Actions tab). It needs Pages enabled once in the repository settings, with
 - `src/lib/engine.ts`: loads the engine; its types are generated from the C++
   structs in `api/pricing_api.h` via Embind.
 - `src/lib/params.svelte.ts`, `volParams.svelte.ts`, `fxParams.svelte.ts`,
-  `hwParams.svelte.ts`: each essay's shared, reactive parameters behind every
-  figure and draggable number.
+  `hwParams.svelte.ts`, `bondParams.svelte.ts`: each essay's shared, reactive
+  parameters behind every figure and draggable number.
 - `src/App.svelte`: navigation between essays (hash routes, e.g.
   `#/volatility`).
 - `src/lib/BinomialEssay.svelte`, `VolatilityEssay.svelte`, `FxEssay.svelte`,
-  `HullWhiteEssay.svelte`: the essays (`#/binomial`, `#/volatility`, `#/fx`,
-  `#/hull-white`).
+  `HullWhiteEssay.svelte`, `BondOptionEssay.svelte`: the essays (`#/binomial`,
+  `#/volatility`, `#/fx`, `#/hull-white`, `#/bond-options`).
 - `src/lib/smileWorker.ts`: computes implied-vol smiles in a Web Worker.
 - `src/lib/*.svelte`: reusable pieces (draggable numbers, binomial and
   trinomial tree views, step controls, node formula, line, distribution and
