@@ -38,14 +38,19 @@ Because this is not intended for production use, some details are omitted. For e
 
 
 ### Getting started
-Install [Bazel](https://bazel.build/install) and then run:
+Install [Bazel](https://bazel.build/install) (or [Bazelisk](https://github.com/bazelbuild/bazelisk), which picks up the pinned Bazel 9 version from `.bazelversion`) and then run:
 ```shell
 # Launch the interactive GUI!
 bazel run explorer
 
 # Or just run all the unit tests.
 bazel test ...
+
+# Build the pricing core as WebAssembly, for use in a browser or Node.
+bazel build //wasm:engine
 ```
+
+See [`wasm/README.md`](wasm/README.md) for the WebAssembly API and a small browser demo.
 
 This library, and the `explorer` binary, works on MacOS and Linux. On Ubuntu, you may need to install these graphics libraries because of the dependency on GLFW and OpenGL3:
 
