@@ -38,3 +38,19 @@ export function logTicks(lo: number, hi: number): number[] {
   const dense = ticks([1, 2, 5]);
   return dense.length <= 7 ? dense : ticks([1]);
 }
+
+// Formats axis ticks with as many decimals as the most precise tick needs
+// (ticks from niceTicks and logTicks are already rounded), so that labels
+// such as 1.05 and 1.10 stay distinct.
+export function tickFormat(ticks: number[]): (v: number) => string {
+  const decimals = Math.min(
+    6,
+    Math.max(0, ...ticks.map((v) => String(v).split('.')[1]?.length ?? 0)),
+  );
+  return (v) => v.toFixed(decimals);
+}
+
+// A level such as a strike, without trailing zeros: 100, 1.1, 0.6125.
+export function level(v: number): string {
+  return String(Number(v.toPrecision(6)));
+}
