@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 namespace smileexplorer {
 
 namespace {
@@ -111,6 +113,43 @@ TEST(VolatilityTest, Derman_VolSmile_13_6) {
   // This result suggests that the total number of timesteps matches Derman's
   // estimate.
   EXPECT_EQ(10 + 23 + 40 - 1, timegrid.size());
+}
+
+TEST(VolatilityTest, PiecewiseTermStructureVolMatchesDerman) {
+  // The term structure of Derman, The Volatility Smile, 13.6 (as in
+  // DermanExampleVol above), from its implied vols.
+  PiecewiseTermStructureVol term_structure({1, 2, 3}, {0.2, 0.255, 0.311});
+  DermanExampleVol derman;
+  for (double t : {0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0}) {
+    EXPECT_DOUBLE_EQ(derman(t), term_structure(t)) << "at t=" << t;
+  }
+  // Flat at the last forward vol beyond the last maturity.
+  EXPECT_DOUBLE_EQ(term_structure(3.0), term_structure(4.0));
+
+  // The implied vols are recovered at the maturities...
+  EXPECT_NEAR(0.2, term_structure.impliedVol(0.5), 1e-12);
+  EXPECT_NEAR(0.2, term_structure.impliedVol(1.0), 1e-12);
+  EXPECT_NEAR(0.255, term_structure.impliedVol(2.0), 1e-12);
+  EXPECT_NEAR(0.311, term_structure.impliedVol(3.0), 1e-12);
+  // ... and in between, total variance is linear in time.
+  EXPECT_NEAR(std::sqrt((0.2 * 0.2 + 0.5 * derman(1.5) * derman(1.5)) / 1.5),
+              term_structure.impliedVol(1.5),
+              1e-12);
+
+  // Same timegrid as DermanExampleVol.
+  const auto timegrid =
+      Volatility(term_structure).generateTimegrid(3.0, 0.1);
+  EXPECT_NEAR(0.044, timegrid.dt(30), 0.001);
+  EXPECT_NEAR(0.025, timegrid.dt(50), 0.001);
+}
+
+TEST(VolatilityTest, SigmoidSmileVol) {
+  SigmoidSmileVol smile{.base = 0.15, .range = 0.2, .stretch = 0.1,
+                        .center = 100};
+  EXPECT_DOUBLE_EQ(0.25, smile(100));
+  EXPECT_NEAR(0.35, smile(0), 1e-4);
+  EXPECT_NEAR(0.15, smile(200), 1e-4);
+  EXPECT_GT(smile(90), smile(110));
 }
 
 }  // namespace
