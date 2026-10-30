@@ -26,9 +26,9 @@ EMSCRIPTEN_DECLARE_VAL_TYPE(NumberArray);
 
 Float64Array toFloat64Array(const std::vector<double>& values) {
   // Constructing a Float64Array from a view copies it out of wasm memory.
-  return Float64Array(val::global("Float64Array")
-                          .new_(emscripten::typed_memory_view(values.size(),
-                                                              values.data())));
+  return Float64Array(
+      val::global("Float64Array")
+          .new_(emscripten::typed_memory_view(values.size(), values.data())));
 }
 
 std::vector<double> toVector(const NumberArray& values) {
@@ -80,6 +80,37 @@ struct JsVanillaPricingRequest {
   }
 };
 
+struct JsRateCurveSpec {
+  NumberArray maturities{val::array()};
+  NumberArray rates{val::array()};
+
+  RateCurveSpec toCpp() const {
+    return {.maturities = toVector(maturities), .rates = toVector(rates)};
+  }
+};
+
+struct JsFxTreeSpec {
+  double spot = 0.0;
+  double vol = 0.0;
+  JsRateCurveSpec domestic;
+  JsRateCurveSpec foreign;
+  double dt_years = 0.0;
+};
+
+struct JsFxVanillaPricingRequest {
+  JsFxTreeSpec tree;
+  VanillaOptionSpec option;
+
+  FxVanillaPricingRequest toCpp() const {
+    return {.tree = {.spot = tree.spot,
+                     .vol = tree.vol,
+                     .domestic = tree.domestic.toCpp(),
+                     .foreign = tree.foreign.toCpp(),
+                     .dt_years = tree.dt_years},
+            .option = option};
+  }
+};
+
 // The JS-facing counterpart of VanillaPricingResult.
 struct JsVanillaPricingResult {
   double price = 0.0;
@@ -88,6 +119,7 @@ struct JsVanillaPricingResult {
   int expiry_index = 0;
   Float64Array times{val::null()};
   Float64Array forward_dfs{val::null()};
+  Float64Array forward_growth{val::null()};
   Float64Array asset_values{val::null()};
   Float64Array option_values{val::null()};
   Float64Array exercise_values{val::null()};
@@ -104,6 +136,7 @@ JsVanillaPricingResult toJs(const VanillaPricingResult& result) {
       .expiry_index = result.expiry_index,
       .times = toFloat64Array(result.times),
       .forward_dfs = toFloat64Array(result.forward_dfs),
+      .forward_growth = toFloat64Array(result.forward_growth),
       .asset_values = toFloat64Array(result.asset_values),
       .option_values = toFloat64Array(result.option_values),
       .exercise_values = toFloat64Array(result.exercise_values),
@@ -130,6 +163,17 @@ auto valueOrThrow(absl::StatusOr<T> status_or, ConvertFn convert) {
 
 JsVanillaPricingResult jsPriceVanilla(const JsVanillaPricingRequest& request) {
   return valueOrThrow(priceVanilla(request.toCpp()), toJs);
+}
+
+JsVanillaPricingResult jsPriceFxVanilla(
+    const JsFxVanillaPricingRequest& request) {
+  return valueOrThrow(priceFxVanilla(request.toCpp()), toJs);
+}
+
+Float64Array jsEvaluateCurve(const JsRateCurveSpec& curve,
+                             const NumberArray& times) {
+  return valueOrThrow(evaluateCurve(curve.toCpp(), toVector(times)),
+                      toFloat64Array);
 }
 
 Float64Array jsEvaluateVol(const JsVolSpec& vol,
@@ -189,6 +233,21 @@ EMSCRIPTEN_BINDINGS(smileexplorer) {
       .field("tree", &JsVanillaPricingRequest::tree)
       .field("option", &JsVanillaPricingRequest::option);
 
+  em::value_object<JsRateCurveSpec>("RateCurveSpec")
+      .field("maturities", &JsRateCurveSpec::maturities)
+      .field("rates", &JsRateCurveSpec::rates);
+
+  em::value_object<JsFxTreeSpec>("FxTreeSpec")
+      .field("spot", &JsFxTreeSpec::spot)
+      .field("vol", &JsFxTreeSpec::vol)
+      .field("domestic", &JsFxTreeSpec::domestic)
+      .field("foreign", &JsFxTreeSpec::foreign)
+      .field("dtYears", &JsFxTreeSpec::dt_years);
+
+  em::value_object<JsFxVanillaPricingRequest>("FxVanillaPricingRequest")
+      .field("tree", &JsFxVanillaPricingRequest::tree)
+      .field("option", &JsFxVanillaPricingRequest::option);
+
   em::value_object<ImpliedVolRequest>("ImpliedVolRequest")
       .field("price", &ImpliedVolRequest::price)
       .field("spot", &ImpliedVolRequest::spot)
@@ -204,15 +263,17 @@ EMSCRIPTEN_BINDINGS(smileexplorer) {
       .field("expiryIndex", &JsVanillaPricingResult::expiry_index)
       .field("times", &JsVanillaPricingResult::times)
       .field("forwardDfs", &JsVanillaPricingResult::forward_dfs)
+      .field("forwardGrowth", &JsVanillaPricingResult::forward_growth)
       .field("assetValues", &JsVanillaPricingResult::asset_values)
       .field("optionValues", &JsVanillaPricingResult::option_values)
       .field("exerciseValues", &JsVanillaPricingResult::exercise_values)
-      .field("continuationValues",
-             &JsVanillaPricingResult::continuation_values)
+      .field("continuationValues", &JsVanillaPricingResult::continuation_values)
       .field("upProbs", &JsVanillaPricingResult::up_probs)
       .field("arrowDebreu", &JsVanillaPricingResult::arrow_debreu);
 
   em::function("priceVanilla", &jsPriceVanilla);
+  em::function("priceFxVanilla", &jsPriceFxVanilla);
+  em::function("evaluateCurve", &jsEvaluateCurve);
   em::function("evaluateVol", &jsEvaluateVol);
   em::function("impliedVolatility", &jsImpliedVolatility);
 }
