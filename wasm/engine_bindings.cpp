@@ -15,6 +15,7 @@
 
 #include "absl/status/statusor.h"
 #include "api/pricing_api.h"
+#include "api/short_rate_api.h"
 
 namespace smileexplorer::api {
 namespace {
@@ -22,12 +23,19 @@ namespace {
 using emscripten::val;
 
 EMSCRIPTEN_DECLARE_VAL_TYPE(Float64Array);
+EMSCRIPTEN_DECLARE_VAL_TYPE(Int32Array);
 EMSCRIPTEN_DECLARE_VAL_TYPE(NumberArray);
 
 Float64Array toFloat64Array(const std::vector<double>& values) {
   // Constructing a Float64Array from a view copies it out of wasm memory.
   return Float64Array(
       val::global("Float64Array")
+          .new_(emscripten::typed_memory_view(values.size(), values.data())));
+}
+
+Int32Array toInt32Array(const std::vector<int>& values) {
+  return Int32Array(
+      val::global("Int32Array")
           .new_(emscripten::typed_memory_view(values.size(), values.data())));
 }
 
@@ -146,6 +154,71 @@ JsVanillaPricingResult toJs(const VanillaPricingResult& result) {
   };
 }
 
+struct JsHullWhiteTreeSpec {
+  double mean_reversion = 0.0;
+  double sigma = 0.0;
+  double dt_years = 0.0;
+  double horizon_years = 0.0;
+  JsRateCurveSpec curve;
+  double bond_face = 0.0;
+
+  HullWhiteTreeSpec toCpp() const {
+    return {.mean_reversion = mean_reversion,
+            .sigma = sigma,
+            .dt_years = dt_years,
+            .horizon_years = horizon_years,
+            .curve = curve.toCpp(),
+            .bond_face = bond_face};
+  }
+};
+
+// The JS-facing counterpart of HullWhiteTreeResult.
+struct JsHullWhiteTreeResult {
+  double dr = 0.0;
+  int j_max = 0;
+  double bond_price = 0.0;
+  double market_bond_price = 0.0;
+  Float64Array times{val::null()};
+  Float64Array alphas{val::null()};
+  Float64Array market_dfs{val::null()};
+  Float64Array tree_dfs{val::null()};
+  Int32Array slice_offsets{val::null()};
+  Int32Array j{val::null()};
+  Float64Array x{val::null()};
+  Float64Array short_rates{val::null()};
+  Float64Array pu{val::null()};
+  Float64Array pm{val::null()};
+  Float64Array pd{val::null()};
+  Int32Array successor_mid{val::null()};
+  Int32Array branch_style{val::null()};
+  Float64Array arrow_debreu{val::null()};
+  Float64Array bond_values{val::null()};
+};
+
+JsHullWhiteTreeResult toJs(const HullWhiteTreeResult& r) {
+  return {
+      .dr = r.dr,
+      .j_max = r.j_max,
+      .bond_price = r.bond_price,
+      .market_bond_price = r.market_bond_price,
+      .times = toFloat64Array(r.times),
+      .alphas = toFloat64Array(r.alphas),
+      .market_dfs = toFloat64Array(r.market_dfs),
+      .tree_dfs = toFloat64Array(r.tree_dfs),
+      .slice_offsets = toInt32Array(r.slice_offsets),
+      .j = toInt32Array(r.j),
+      .x = toFloat64Array(r.x),
+      .short_rates = toFloat64Array(r.short_rates),
+      .pu = toFloat64Array(r.pu),
+      .pm = toFloat64Array(r.pm),
+      .pd = toFloat64Array(r.pd),
+      .successor_mid = toInt32Array(r.successor_mid),
+      .branch_style = toInt32Array(r.branch_style),
+      .arrow_debreu = toFloat64Array(r.arrow_debreu),
+      .bond_values = toFloat64Array(r.bond_values),
+  };
+}
+
 // Unwraps a StatusOr, converting its value with `convert`, or throws a JS
 // Error with the status message.
 template <typename T, typename ConvertFn>
@@ -162,12 +235,19 @@ auto valueOrThrow(absl::StatusOr<T> status_or, ConvertFn convert) {
 }
 
 JsVanillaPricingResult jsPriceVanilla(const JsVanillaPricingRequest& request) {
-  return valueOrThrow(priceVanilla(request.toCpp()), toJs);
+  return valueOrThrow(priceVanilla(request.toCpp()),
+                      [](const VanillaPricingResult& r) { return toJs(r); });
 }
 
 JsVanillaPricingResult jsPriceFxVanilla(
     const JsFxVanillaPricingRequest& request) {
-  return valueOrThrow(priceFxVanilla(request.toCpp()), toJs);
+  return valueOrThrow(priceFxVanilla(request.toCpp()),
+                      [](const VanillaPricingResult& r) { return toJs(r); });
+}
+
+JsHullWhiteTreeResult jsBuildHullWhiteTree(const JsHullWhiteTreeSpec& spec) {
+  return valueOrThrow(buildHullWhiteTree(spec.toCpp()),
+                      [](const HullWhiteTreeResult& r) { return toJs(r); });
 }
 
 Float64Array jsEvaluateCurve(const JsRateCurveSpec& curve,
@@ -195,6 +275,7 @@ EMSCRIPTEN_BINDINGS(smileexplorer) {
   namespace em = emscripten;
 
   em::register_type<Float64Array>("Float64Array");
+  em::register_type<Int32Array>("Int32Array");
   em::register_type<NumberArray>("number[]");
 
   em::enum_<TreeModel>("TreeModel")
@@ -271,7 +352,37 @@ EMSCRIPTEN_BINDINGS(smileexplorer) {
       .field("upProbs", &JsVanillaPricingResult::up_probs)
       .field("arrowDebreu", &JsVanillaPricingResult::arrow_debreu);
 
+  em::value_object<JsHullWhiteTreeSpec>("HullWhiteTreeSpec")
+      .field("meanReversion", &JsHullWhiteTreeSpec::mean_reversion)
+      .field("sigma", &JsHullWhiteTreeSpec::sigma)
+      .field("dtYears", &JsHullWhiteTreeSpec::dt_years)
+      .field("horizonYears", &JsHullWhiteTreeSpec::horizon_years)
+      .field("curve", &JsHullWhiteTreeSpec::curve)
+      .field("bondFace", &JsHullWhiteTreeSpec::bond_face);
+
+  em::value_object<JsHullWhiteTreeResult>("HullWhiteTreeResult")
+      .field("dr", &JsHullWhiteTreeResult::dr)
+      .field("jMax", &JsHullWhiteTreeResult::j_max)
+      .field("bondPrice", &JsHullWhiteTreeResult::bond_price)
+      .field("marketBondPrice", &JsHullWhiteTreeResult::market_bond_price)
+      .field("times", &JsHullWhiteTreeResult::times)
+      .field("alphas", &JsHullWhiteTreeResult::alphas)
+      .field("marketDfs", &JsHullWhiteTreeResult::market_dfs)
+      .field("treeDfs", &JsHullWhiteTreeResult::tree_dfs)
+      .field("sliceOffsets", &JsHullWhiteTreeResult::slice_offsets)
+      .field("j", &JsHullWhiteTreeResult::j)
+      .field("x", &JsHullWhiteTreeResult::x)
+      .field("shortRates", &JsHullWhiteTreeResult::short_rates)
+      .field("pu", &JsHullWhiteTreeResult::pu)
+      .field("pm", &JsHullWhiteTreeResult::pm)
+      .field("pd", &JsHullWhiteTreeResult::pd)
+      .field("successorMid", &JsHullWhiteTreeResult::successor_mid)
+      .field("branchStyle", &JsHullWhiteTreeResult::branch_style)
+      .field("arrowDebreu", &JsHullWhiteTreeResult::arrow_debreu)
+      .field("bondValues", &JsHullWhiteTreeResult::bond_values);
+
   em::function("priceVanilla", &jsPriceVanilla);
+  em::function("buildHullWhiteTree", &jsBuildHullWhiteTree);
   em::function("priceFxVanilla", &jsPriceFxVanilla);
   em::function("evaluateCurve", &jsEvaluateCurve);
   em::function("evaluateVol", &jsEvaluateVol);

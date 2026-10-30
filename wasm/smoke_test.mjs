@@ -147,6 +147,25 @@ assert.throws(
     () => engine.evaluateCurve({maturities: [2, 1], rates: [0, 0]}, [1]),
     /strictly increasing/);
 
+// A Hull-White trinomial tree fitted to a zero curve: Hull, "Options,
+// Futures...", section 32.6.
+const hw = engine.buildHullWhiteTree({
+  meanReversion: 0.1,
+  sigma: 0.01,
+  dtYears: 1,
+  horizonYears: 3,
+  curve: {
+    maturities: [0.5, 1, 1.5, 2, 2.5, 3],
+    rates: [.0343, .03824, .04183, .04512, .04812, .05086],
+  },
+  bondFace: 100,
+});
+assert.ok(hw.sliceOffsets instanceof Int32Array);
+assert.deepEqual([...hw.sliceOffsets], [0, 1, 4, 9, 14]);
+[0.03824, 0.05205, 0.06252].forEach(
+    (alpha, t) => assertNear(hw.alphas[t], alpha, 1e-5, `alpha ${t}`));
+assertNear(hw.bondPrice, hw.marketBondPrice, 1e-9, 'tree reprices the bond');
+
 // Invalid requests throw a JS Error.
 assert.throws(
     () => engine.priceVanilla(request({expiryYears: -1})), /expiry_years/);
