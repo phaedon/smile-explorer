@@ -12,3 +12,13 @@ test --test_output=errors
 # the latest release) still uses cc_library without a load(), so autoload it
 # from rules_cc. Remove once csv-parser publishes a fixed BCR version.
 common --incompatible_autoload_externally=+cc_library
+
+# The Emscripten toolchain (used by //wasm:engine) disables C++ exceptions by
+# default, but boost.math's interpolators throw. Enable native WebAssembly
+# exceptions; host toolchains don't define this feature and ignore it.
+build --features=wasm_exceptions
+# boost.container (a transitive dependency of boost.math) falls back to Win32
+# APIs when it doesn't detect pthreads, as in Emscripten's single-threaded
+# build. Emscripten provides no-op pthread mutex stubs, so point it at those.
+# The empty value matches boost's own definition, so host builds are unchanged.
+build --per_file_copt=.*boost\.container.*@-DBOOST_HAS_PTHREADS=
