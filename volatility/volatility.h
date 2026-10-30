@@ -2,7 +2,10 @@
 #define SMILEEXPLORER_VOLATILITY_H_
 
 #include <Eigen/Dense>
+#include <algorithm>
+#include <cmath>
 #include <utility>
+#include <vector>
 
 #include "time/timegrid.h"
 
@@ -38,6 +41,90 @@ struct FlatVol {
   }
 
   double vol_;
+};
+
+// A term structure of volatility, specified by implied (spot) volatilities at
+// increasing maturities, e.g. as quoted for at-the-money options.
+//
+// Evaluating it at time t returns the instantaneous (forward) volatility,
+// which is constant between consecutive maturities, flat at the first implied
+// vol before the first maturity, and flat at the last forward vol beyond the
+// last maturity.
+struct PiecewiseTermStructureVol {
+  static constexpr VolSurfaceFnType type = VolSurfaceFnType::kTermStructure;
+
+  // Expects matching, non-empty vectors with strictly increasing maturities
+  // and non-decreasing total variance (maturity * vol^2), so that every
+  // forward variance is non-negative.
+  PiecewiseTermStructureVol(std::vector<double> maturities,
+                            std::vector<double> implied_vols)
+      : maturities_(std::move(maturities)),
+        implied_vols_(std::move(implied_vols)) {}
+
+  double operator()(double t) const {
+    if (t <= maturities_[0]) return implied_vols_[0];
+    for (size_t k = 1; k < maturities_.size(); ++k) {
+      if (t <= maturities_[k]) return forwardVolBefore(k);
+    }
+    return maturities_.size() > 1 ? forwardVolBefore(maturities_.size() - 1)
+                                  : implied_vols_[0];
+  }
+
+  // The implied (spot) volatility for an expiry at time t: the root mean
+  // square of the forward volatility from 0 to t.
+  double impliedVol(double t) const {
+    if (t <= maturities_[0]) return implied_vols_[0];
+    double total_variance = 0.0;
+    double prev = 0.0;
+    for (size_t k = 0; k < maturities_.size() && prev < t; ++k) {
+      const double end = std::min(t, maturities_[k]);
+      const double vol = (*this)(end);
+      total_variance += vol * vol * (end - prev);
+      prev = end;
+    }
+    if (t > prev) {
+      const double vol = (*this)(t);
+      total_variance += vol * vol * (t - prev);
+    }
+    return std::sqrt(total_variance / t);
+  }
+
+  const std::vector<double>& maturities() const { return maturities_; }
+  const std::vector<double>& impliedVols() const { return implied_vols_; }
+
+ private:
+  // The forward vol between maturities k-1 and k.
+  double forwardVolBefore(size_t k) const {
+    return forwardVol(0,
+                      maturities_[k - 1],
+                      maturities_[k],
+                      implied_vols_[k - 1],
+                      implied_vols_[k]);
+  }
+
+  std::vector<double> maturities_;
+  std::vector<double> implied_vols_;
+};
+
+// A time-invariant local volatility smile (in fact a skew), as a function of
+// the asset price S:
+//
+//   sigma(S) = base + range / (1 + exp(stretch * (S - center)))
+//
+// Volatility rises towards base + range as S falls well below `center`, and
+// falls towards `base` as S rises well above it; `stretch` sets how quickly.
+struct SigmoidSmileVol {
+  static constexpr VolSurfaceFnType type =
+      VolSurfaceFnType::kTimeInvariantSkewSmile;
+
+  double operator()(double s) const {
+    return base + range / (1 + std::exp(stretch * (s - center)));
+  }
+
+  double base;
+  double range;
+  double stretch;
+  double center;
 };
 
 template <typename VolSurfaceT>
