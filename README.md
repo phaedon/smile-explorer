@@ -52,6 +52,14 @@ bazel build //wasm:engine
 
 See [`wasm/README.md`](wasm/README.md) for the WebAssembly API and a small browser demo.
 
+### Interactive essays
+
+[`web/`](web/README.md) contains explorable explanations built on the WebAssembly engine, starting with an essay on binomial option pricing: drag the numbers in the prose and code, step through backward induction, and hover over any node to see its arithmetic.
+
+```shell
+cd web && npm install && npm run engine && npm run dev
+```
+
 This library, and the `explorer` binary, works on MacOS and Linux. On Ubuntu, you may need to install these graphics libraries because of the dependency on GLFW and OpenGL3:
 
 `sudo apt-get install xorg-dev libgl1-mesa-dev`

@@ -83,6 +83,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
 
       - name: Build WebAssembly engine
         run: |
@@ -91,3 +93,10 @@ jobs:
       - name: Run WebAssembly smoke test
         run: |
           node wasm/smoke_test.mjs
+
+      - name: Type-check and build the web app
+        working-directory: web
+        run: |
+          npm ci
+          npm run check
+          npm run build
