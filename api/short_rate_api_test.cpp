@@ -31,11 +31,11 @@ TEST(ShortRateApiTest, MatchesHull) {
   EXPECT_EQ(2, result->j_max);
   EXPECT_NEAR(0.01 * std::sqrt(3.0), result->dr, 1e-15);
   EXPECT_THAT(result->times, ElementsAre(0, 1, 2, 3));
-  EXPECT_THAT(std::vector<double>(result->alphas.begin(),
-                                  result->alphas.begin() + 3),
-              ElementsAre(DoubleNear(0.03824, 1e-5),
-                          DoubleNear(0.05205, 1e-5),
-                          DoubleNear(0.06252, 1e-5)));
+  EXPECT_THAT(
+      std::vector<double>(result->alphas.begin(), result->alphas.begin() + 3),
+      ElementsAre(DoubleNear(0.03824, 1e-5),
+                  DoubleNear(0.05205, 1e-5),
+                  DoubleNear(0.06252, 1e-5)));
   // Slices of 1, 3, 5 and then (clamped) 5 states.
   EXPECT_THAT(result->slice_offsets, ElementsAre(0, 1, 4, 9, 14));
 }
@@ -125,6 +125,18 @@ TEST(ShortRateApiTest, RejectsInvalidSpecs) {
 
   spec = hullSpec();
   spec.dt_years = 0.001;
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument,
+            buildHullWhiteTree(spec).status().code());
+
+  // So slow that j_max would overflow an int.
+  spec = hullSpec();
+  spec.mean_reversion = 1e-12;
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument,
+            buildHullWhiteTree(spec).status().code());
+
+  spec = hullSpec();
+  spec.horizon_years = 1e300;
+  spec.dt_years = 1e-300;
   EXPECT_EQ(absl::StatusCode::kInvalidArgument,
             buildHullWhiteTree(spec).status().code());
 }
