@@ -1,0 +1,22 @@
+{
+  "name": "smile-explorer-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "engine": "cd .. && bazel build //wasm:engine && cd web && npm run sync-engine",
+    "sync-engine": "node scripts/sync-engine.mjs",
+    "dev": "npm run sync-engine && vite",
+    "build": "npm run sync-engine && vite build",
+    "preview": "vite preview",
+    "check": "npm run sync-engine && svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tsconfig/svelte": "^5.0.8",
+    "svelte": "^5.57.3",
+    "svelte-check": "^4.7.7",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.5"
+  }
+}

@@ -1,0 +1,117 @@
+/* Design tokens. Chart roles follow the dataviz reference palette. */
+:root {
+  color-scheme: light;
+  --surface: #fcfcfb;
+  --surface-raised: #f4f3ef;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --gridline: #e1e0d9;
+  --border: rgba(11, 11, 11, 0.1);
+  --accent: #2a78d6;
+  --series-1: #2a78d6; /* blue */
+  --series-2: #eb6834; /* orange */
+  --error: #b42318;
+  /* Sequential blue ramp, from "near zero" (recedes) to "large". */
+  --seq-0: #cde2fb;
+  --seq-1: #b7d3f6;
+  --seq-2: #9ec5f4;
+  --seq-3: #86b6ef;
+  --seq-4: #6da7ec;
+  --seq-5: #5598e7;
+  --seq-6: #3987e5;
+  --seq-7: #2a78d6;
+  --seq-8: #1c5cab;
+  --seq-9: #104281;
+
+  --font-prose: Charter, 'Bitstream Charter', 'Iowan Old Style', Georgia, serif;
+  --font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-code: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) {
+    color-scheme: dark;
+    --surface: #1a1a19;
+    --surface-raised: #242422;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --gridline: #2c2c2a;
+    --border: rgba(255, 255, 255, 0.1);
+    --accent: #3987e5;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --error: #f97066;
+    /* Reversed: near zero recedes into the dark surface. */
+    --seq-0: #0d366b;
+    --seq-1: #104281;
+    --seq-2: #184f95;
+    --seq-3: #1c5cab;
+    --seq-4: #256abf;
+    --seq-5: #2a78d6;
+    --seq-6: #3987e5;
+    --seq-7: #5598e7;
+    --seq-8: #86b6ef;
+    --seq-9: #b7d3f6;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --surface: #1a1a19;
+  --surface-raised: #242422;
+  --text-primary: #f0efec;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --gridline: #2c2c2a;
+  --border: rgba(255, 255, 255, 0.1);
+  --accent: #3987e5;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --error: #f97066;
+  --seq-0: #0d366b;
+  --seq-1: #104281;
+  --seq-2: #184f95;
+  --seq-3: #1c5cab;
+  --seq-4: #256abf;
+  --seq-5: #2a78d6;
+  --seq-6: #3987e5;
+  --seq-7: #5598e7;
+  --seq-8: #86b6ef;
+  --seq-9: #b7d3f6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--text-primary);
+  font: 18px/1.65 var(--font-prose);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-ui);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+code,
+pre {
+  font-family: var(--font-code);
+  font-size: 0.82em;
+}
+
+a {
+  color: var(--accent);
+}
+
+button {
+  font: inherit;
+}
