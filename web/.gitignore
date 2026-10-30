@@ -1,0 +1,4 @@
+node_modules/
+dist/
+# Copied from bazel-bin by scripts/sync-engine.mjs.
+src/lib/engine/
