@@ -5,13 +5,23 @@ package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "pricing_api",
-    srcs = ["pricing_api.cpp"],
-    hdrs = ["pricing_api.h"],
+    srcs = [
+        "pricing_api.cpp",
+        "short_rate_api.cpp",
+    ],
+    hdrs = [
+        "pricing_api.h",
+        "short_rate_api.h",
+    ],
     deps = [
         "//derivatives:derivative",
         "//derivatives:vanilla_option",
+        "//instruments/swaps:fixed_cashflow_instrument",
+        "//rates:short_rate_tree_curve",
         "//rates:zero_curve",
         "//trees:binomial_tree",
+        "//trees:hull_white_propagator",
+        "//trees:trinomial_tree",
         "//trees:propagators",
         "//trees:stochastic_tree_model",
         "//volatility",
@@ -32,6 +42,16 @@ cc_test(
         "//trees:propagators",
         "//trees:stochastic_tree_model",
         "//volatility",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "short_rate_api_test",
+    srcs = ["short_rate_api_test.cpp"],
+    deps = [
+        ":pricing_api",
         "@abseil-cpp//absl/status",
         "@googletest//:gtest_main",
     ],
