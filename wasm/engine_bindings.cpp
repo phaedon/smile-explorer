@@ -10,6 +10,7 @@
 #include <emscripten/val.h>
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/status/statusor.h"
@@ -21,6 +22,7 @@ namespace {
 using emscripten::val;
 
 EMSCRIPTEN_DECLARE_VAL_TYPE(Float64Array);
+EMSCRIPTEN_DECLARE_VAL_TYPE(NumberArray);
 
 Float64Array toFloat64Array(const std::vector<double>& values) {
   // Constructing a Float64Array from a view copies it out of wasm memory.
@@ -29,10 +31,60 @@ Float64Array toFloat64Array(const std::vector<double>& values) {
                                                               values.data())));
 }
 
+std::vector<double> toVector(const NumberArray& values) {
+  if (values.isUndefined() || values.isNull()) return {};
+  return emscripten::convertJSArrayToNumberVector<double>(values);
+}
+
+// JS-facing counterparts of the request structs, with number[] in place of
+// std::vector<double>.
+struct JsVolSpec {
+  VolModel model = VolModel::kFlat;
+  double vol = 0.0;
+  NumberArray term_maturities{val::array()};
+  NumberArray term_vols{val::array()};
+  double smile_range = 0.0;
+  double smile_stretch = 0.0;
+
+  VolSpec toCpp() const {
+    return {.model = model,
+            .vol = vol,
+            .term_maturities = toVector(term_maturities),
+            .term_vols = toVector(term_vols),
+            .smile_range = smile_range,
+            .smile_stretch = smile_stretch};
+  }
+};
+
+struct JsBinomialTreeSpec {
+  TreeModel model = TreeModel::kCoxRossRubinstein;
+  double spot = 0.0;
+  JsVolSpec vol;
+  double rate = 0.0;
+  double drift = 0.0;
+  double dt_years = 0.0;
+};
+
+struct JsVanillaPricingRequest {
+  JsBinomialTreeSpec tree;
+  VanillaOptionSpec option;
+
+  VanillaPricingRequest toCpp() const {
+    return {.tree = {.model = tree.model,
+                     .spot = tree.spot,
+                     .vol = tree.vol.toCpp(),
+                     .rate = tree.rate,
+                     .drift = tree.drift,
+                     .dt_years = tree.dt_years},
+            .option = option};
+  }
+};
+
 // The JS-facing counterpart of VanillaPricingResult.
 struct JsVanillaPricingResult {
   double price = 0.0;
   double bsm_price = 0.0;
+  double bsm_vol = 0.0;
   int expiry_index = 0;
   Float64Array times{val::null()};
   Float64Array forward_dfs{val::null()};
@@ -48,6 +100,7 @@ JsVanillaPricingResult toJs(const VanillaPricingResult& result) {
   return {
       .price = result.price,
       .bsm_price = result.bsm_price,
+      .bsm_vol = result.bsm_vol,
       .expiry_index = result.expiry_index,
       .times = toFloat64Array(result.times),
       .forward_dfs = toFloat64Array(result.forward_dfs),
@@ -60,17 +113,34 @@ JsVanillaPricingResult toJs(const VanillaPricingResult& result) {
   };
 }
 
-// Throws a JS Error (with the status message) for invalid requests.
-JsVanillaPricingResult jsPriceVanilla(const VanillaPricingRequest& request) {
+// Unwraps a StatusOr, converting its value with `convert`, or throws a JS
+// Error with the status message.
+template <typename T, typename ConvertFn>
+auto valueOrThrow(absl::StatusOr<T> status_or, ConvertFn convert) {
   val error = val::undefined();
   {
-    // Scoped so that the C++ result is destroyed before the JS throw, which
+    // Scoped so that C++ objects are destroyed before the JS throw, which
     // unwinds without running C++ destructors.
-    const absl::StatusOr<VanillaPricingResult> result = priceVanilla(request);
-    if (result.ok()) return toJs(*result);
+    const absl::StatusOr<T> result = std::move(status_or);
+    if (result.ok()) return convert(*result);
     error = val::global("Error").new_(std::string(result.status().message()));
   }
   error.throw_();
+}
+
+JsVanillaPricingResult jsPriceVanilla(const JsVanillaPricingRequest& request) {
+  return valueOrThrow(priceVanilla(request.toCpp()), toJs);
+}
+
+Float64Array jsEvaluateVol(const JsVolSpec& vol,
+                           double spot,
+                           const NumberArray& xs) {
+  return valueOrThrow(evaluateVol(vol.toCpp(), spot, toVector(xs)),
+                      toFloat64Array);
+}
+
+double jsImpliedVolatility(const ImpliedVolRequest& request) {
+  return valueOrThrow(impliedVolatility(request), [](double v) { return v; });
 }
 
 }  // namespace
@@ -81,18 +151,33 @@ EMSCRIPTEN_BINDINGS(smileexplorer) {
   namespace em = emscripten;
 
   em::register_type<Float64Array>("Float64Array");
+  em::register_type<NumberArray>("number[]");
 
   em::enum_<TreeModel>("TreeModel")
       .value("CoxRossRubinstein", TreeModel::kCoxRossRubinstein)
-      .value("JarrowRudd", TreeModel::kJarrowRudd);
+      .value("JarrowRudd", TreeModel::kJarrowRudd)
+      .value("LocalVolatility", TreeModel::kLocalVolatility);
 
-  em::value_object<BinomialTreeSpec>("BinomialTreeSpec")
-      .field("model", &BinomialTreeSpec::model)
-      .field("spot", &BinomialTreeSpec::spot)
-      .field("vol", &BinomialTreeSpec::vol)
-      .field("rate", &BinomialTreeSpec::rate)
-      .field("drift", &BinomialTreeSpec::drift)
-      .field("dtYears", &BinomialTreeSpec::dt_years);
+  em::enum_<VolModel>("VolModel")
+      .value("Flat", VolModel::kFlat)
+      .value("TermStructure", VolModel::kTermStructure)
+      .value("SigmoidSmile", VolModel::kSigmoidSmile);
+
+  em::value_object<JsVolSpec>("VolSpec")
+      .field("model", &JsVolSpec::model)
+      .field("vol", &JsVolSpec::vol)
+      .field("termMaturities", &JsVolSpec::term_maturities)
+      .field("termVols", &JsVolSpec::term_vols)
+      .field("smileRange", &JsVolSpec::smile_range)
+      .field("smileStretch", &JsVolSpec::smile_stretch);
+
+  em::value_object<JsBinomialTreeSpec>("BinomialTreeSpec")
+      .field("model", &JsBinomialTreeSpec::model)
+      .field("spot", &JsBinomialTreeSpec::spot)
+      .field("vol", &JsBinomialTreeSpec::vol)
+      .field("rate", &JsBinomialTreeSpec::rate)
+      .field("drift", &JsBinomialTreeSpec::drift)
+      .field("dtYears", &JsBinomialTreeSpec::dt_years);
 
   em::value_object<VanillaOptionSpec>("VanillaOptionSpec")
       .field("strike", &VanillaOptionSpec::strike)
@@ -100,13 +185,22 @@ EMSCRIPTEN_BINDINGS(smileexplorer) {
       .field("isCall", &VanillaOptionSpec::is_call)
       .field("isAmerican", &VanillaOptionSpec::is_american);
 
-  em::value_object<VanillaPricingRequest>("VanillaPricingRequest")
-      .field("tree", &VanillaPricingRequest::tree)
-      .field("option", &VanillaPricingRequest::option);
+  em::value_object<JsVanillaPricingRequest>("VanillaPricingRequest")
+      .field("tree", &JsVanillaPricingRequest::tree)
+      .field("option", &JsVanillaPricingRequest::option);
+
+  em::value_object<ImpliedVolRequest>("ImpliedVolRequest")
+      .field("price", &ImpliedVolRequest::price)
+      .field("spot", &ImpliedVolRequest::spot)
+      .field("strike", &ImpliedVolRequest::strike)
+      .field("expiryYears", &ImpliedVolRequest::expiry_years)
+      .field("rate", &ImpliedVolRequest::rate)
+      .field("isCall", &ImpliedVolRequest::is_call);
 
   em::value_object<JsVanillaPricingResult>("VanillaPricingResult")
       .field("price", &JsVanillaPricingResult::price)
       .field("bsmPrice", &JsVanillaPricingResult::bsm_price)
+      .field("bsmVol", &JsVanillaPricingResult::bsm_vol)
       .field("expiryIndex", &JsVanillaPricingResult::expiry_index)
       .field("times", &JsVanillaPricingResult::times)
       .field("forwardDfs", &JsVanillaPricingResult::forward_dfs)
@@ -119,4 +213,6 @@ EMSCRIPTEN_BINDINGS(smileexplorer) {
       .field("arrowDebreu", &JsVanillaPricingResult::arrow_debreu);
 
   em::function("priceVanilla", &jsPriceVanilla);
+  em::function("evaluateVol", &jsEvaluateVol);
+  em::function("impliedVolatility", &jsImpliedVolatility);
 }
