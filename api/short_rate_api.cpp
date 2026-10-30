@@ -29,6 +29,20 @@ absl::Status validate(const HullWhiteTreeSpec& spec) {
     return absl::InvalidArgumentError(
         "dt_years and horizon_years must be positive");
   }
+  // Check the sizes in floating point, before anything is converted to int.
+  const double steps = spec.horizon_years / spec.dt_years;
+  if (!std::isfinite(steps) || steps > kMaxSteps + 1e-9) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("the tree would need more than ", kMaxSteps, " steps"));
+  }
+  // The tree stops widening at j_max = ceil(0.184 / (a dt)) (see
+  // HullWhitePropagator::jMax), so that bounds the states per step.
+  const double j_max = 0.184 / (spec.mean_reversion * spec.dt_years);
+  if (!std::isfinite(j_max) || j_max > kMaxNodes) {
+    return absl::InvalidArgumentError(
+        "mean reversion is too slow for this timestep: use faster mean "
+        "reversion or longer steps");
+  }
   if (!(spec.bond_face > 0)) {
     return absl::InvalidArgumentError("bond_face must be positive");
   }
@@ -48,10 +62,6 @@ absl::StatusOr<HullWhiteTreeResult> buildHullWhiteTree(
   // error, so that 0.3 / 0.1 is 3 steps, not 4).
   const int num_steps =
       static_cast<int>(std::ceil(spec.horizon_years / spec.dt_years - 1e-9));
-  if (num_steps > kMaxSteps) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("the tree would need more than ", kMaxSteps, " steps"));
-  }
 
   auto propagator = std::make_unique<HullWhitePropagator>(
       spec.mean_reversion, spec.sigma, spec.dt_years);
