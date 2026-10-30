@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "derivatives/derivative.h"
@@ -19,7 +20,7 @@ VanillaPricingRequest exampleRequest() {
   VanillaPricingRequest request;
   request.tree = {.model = TreeModel::kCoxRossRubinstein,
                   .spot = 100,
-                  .vol = 0.158745,
+                  .vol = {.vol = 0.158745},
                   .rate = 0.12,
                   .dt_years = 1 / 52.};
   request.option = {.strike = 105, .expiry_years = 1.0, .is_call = true};
@@ -135,7 +136,7 @@ TEST(PricingApiTest, ArrowDebreuPrices) {
 
 TEST(PricingApiTest, RejectsInvalidRequests) {
   VanillaPricingRequest request = exampleRequest();
-  request.tree.vol = -0.1;
+  request.tree.vol.vol = -0.1;
   EXPECT_EQ(absl::StatusCode::kInvalidArgument,
             priceVanilla(request).status().code());
 
@@ -152,9 +153,136 @@ TEST(PricingApiTest, RejectsInvalidRequests) {
   // With a large timestep and high rate relative to vol, the forward lies
   // outside the up/down range, so there is no risk-neutral measure.
   request = exampleRequest();
-  request.tree.vol = 0.01;
+  request.tree.vol.vol = 0.01;
   request.tree.rate = 0.5;
   request.tree.dt_years = 0.5;
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument,
+            priceVanilla(request).status().code());
+}
+
+VolSpec dermanTermStructure() {
+  // Derman, The Volatility Smile, 13.6.
+  return {.model = VolModel::kTermStructure,
+          .term_maturities = {1, 2, 3},
+          .term_vols = {0.2, 0.255, 0.311}};
+}
+
+TEST(PricingApiTest, TermStructureMatchesBlackScholesAtImpliedVol) {
+  VanillaPricingRequest request = exampleRequest();
+  request.tree.vol = dermanTermStructure();
+  request.tree.rate = 0.05;
+  request.tree.dt_years = 0.01;
+  request.option = {.strike = 100, .expiry_years = 3.0, .is_call = true};
+  const auto result = priceVanilla(request);
+  ASSERT_TRUE(result.ok()) << result.status();
+
+  EXPECT_NEAR(0.311, result->bsm_vol, 1e-3);
+  EXPECT_NEAR(result->bsm_price, result->price, 0.05);
+
+  // Timesteps shrink as the forward vol rises in years 2 and 3.
+  const auto& times = result->times;
+  EXPECT_GT(times[1] - times[0], times.back() - times[times.size() - 2]);
+}
+
+TEST(PricingApiTest, LocalVolTreeWithFlatVolMatchesBlackScholes) {
+  VanillaPricingRequest request = exampleRequest();
+  request.tree.model = TreeModel::kLocalVolatility;
+  request.tree.vol = {.vol = 0.2};
+  request.tree.rate = 0.05;
+  request.tree.dt_years = 1 / 200.;
+  request.option = {.strike = 100, .expiry_years = 1.0, .is_call = true};
+  const auto result = priceVanilla(request);
+  ASSERT_TRUE(result.ok()) << result.status();
+  EXPECT_NEAR(result->bsm_price, result->price, 0.02);
+}
+
+// Prices European calls across strikes on a local-vol tree with a skew, and
+// backs out their Black-Scholes implied vols.
+TEST(PricingApiTest, LocalVolSkewProducesImpliedVolSkew) {
+  VanillaPricingRequest request = exampleRequest();
+  request.tree.model = TreeModel::kLocalVolatility;
+  request.tree.vol = {.model = VolModel::kSigmoidSmile,
+                      .vol = 0.15,
+                      .smile_range = 0.2,
+                      .smile_stretch = 0.05};
+  request.tree.rate = 0.05;
+  request.tree.dt_years = 1 / 100.;
+
+  std::vector<double> implied_vols;
+  for (double strike : {80.0, 100.0, 120.0}) {
+    request.option = {.strike = strike, .expiry_years = 1.0, .is_call = true};
+    const auto result = priceVanilla(request);
+    ASSERT_TRUE(result.ok()) << result.status();
+    const auto implied = impliedVolatility({.price = result->price,
+                                            .spot = 100,
+                                            .strike = strike,
+                                            .expiry_years = 1.0,
+                                            .rate = 0.05,
+                                            .is_call = true});
+    ASSERT_TRUE(implied.ok()) << implied.status();
+    implied_vols.push_back(*implied);
+  }
+  EXPECT_GT(implied_vols[0], implied_vols[1]);
+  EXPECT_GT(implied_vols[1], implied_vols[2]);
+  // The ATM implied vol is close to the local vol at spot (0.25).
+  EXPECT_NEAR(0.25, implied_vols[1], 0.02);
+}
+
+TEST(PricingApiTest, ImpliedVolatilityInvertsBlackScholes) {
+  for (bool is_call : {true, false}) {
+    const VanillaOption option(
+        90, is_call ? OptionPayoff::Call : OptionPayoff::Put);
+    const double price = option.blackScholes(100, 0.23, 0.5, 0.03, 0.0);
+    const auto vol = impliedVolatility({.price = price,
+                                        .spot = 100,
+                                        .strike = 90,
+                                        .expiry_years = 0.5,
+                                        .rate = 0.03,
+                                        .is_call = is_call});
+    ASSERT_TRUE(vol.ok()) << vol.status();
+    EXPECT_NEAR(0.23, *vol, 1e-9);
+  }
+
+  // A call can't be worth more than the stock.
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument,
+            impliedVolatility({.price = 101, .spot = 100, .strike = 90})
+                .status()
+                .code());
+}
+
+TEST(PricingApiTest, EvaluateVol) {
+  const auto term = evaluateVol(dermanTermStructure(), 100, {0.5, 1.5, 2.5});
+  ASSERT_TRUE(term.ok()) << term.status();
+  EXPECT_NEAR(0.2, (*term)[0], 1e-12);
+  EXPECT_NEAR(0.3, (*term)[1], 1e-3);  // Derman, p. 466.
+  EXPECT_NEAR(0.4, (*term)[2], 1e-3);
+
+  const auto skew = evaluateVol({.model = VolModel::kSigmoidSmile,
+                                 .vol = 0.15,
+                                 .smile_range = 0.2,
+                                 .smile_stretch = 0.1},
+                                100,
+                                {100});
+  ASSERT_TRUE(skew.ok()) << skew.status();
+  EXPECT_NEAR(0.25, (*skew)[0], 1e-12);
+}
+
+TEST(PricingApiTest, RejectsInvalidVolSpecs) {
+  VanillaPricingRequest request = exampleRequest();
+
+  // Total variance must not fall: 2 * 0.1^2 < 1 * 0.2^2.
+  request.tree.vol = {.model = VolModel::kTermStructure,
+                      .term_maturities = {1, 2},
+                      .term_vols = {0.2, 0.1}};
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument,
+            priceVanilla(request).status().code());
+
+  // A smile needs the local vol tree, and vice versa for a term structure.
+  request.tree.vol = {.model = VolModel::kSigmoidSmile, .vol = 0.2};
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument,
+            priceVanilla(request).status().code());
+  request.tree.model = TreeModel::kLocalVolatility;
+  request.tree.vol = dermanTermStructure();
   EXPECT_EQ(absl::StatusCode::kInvalidArgument,
             priceVanilla(request).status().code());
 }

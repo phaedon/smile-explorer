@@ -1,5 +1,6 @@
 #include "api/pricing_api.h"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <string>
@@ -23,14 +24,67 @@ constexpr int kMaxTimesteps = 1000;
 
 constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 
+absl::Status validateVol(const VolSpec& vol) {
+  if (!(vol.vol > 0)) {
+    return absl::InvalidArgumentError("vol must be positive");
+  }
+  switch (vol.model) {
+    case VolModel::kFlat:
+      return absl::OkStatus();
+    case VolModel::kTermStructure: {
+      const auto& t = vol.term_maturities;
+      const auto& v = vol.term_vols;
+      if (t.empty() || t.size() != v.size()) {
+        return absl::InvalidArgumentError(
+            "term_maturities and term_vols must be non-empty and of equal "
+            "length");
+      }
+      for (size_t k = 0; k < t.size(); ++k) {
+        if (!(v[k] > 0)) {
+          return absl::InvalidArgumentError("term_vols must be positive");
+        }
+        if (!(t[k] > (k == 0 ? 0.0 : t[k - 1]))) {
+          return absl::InvalidArgumentError(
+              "term_maturities must be positive and strictly increasing");
+        }
+        if (k > 0 && t[k] * v[k] * v[k] < t[k - 1] * v[k - 1] * v[k - 1]) {
+          return absl::InvalidArgumentError(
+              absl::StrCat("the forward variance between ",
+                           t[k - 1],
+                           "y and ",
+                           t[k],
+                           "y is negative: implied vols can't fall that fast"));
+        }
+      }
+      return absl::OkStatus();
+    }
+    case VolModel::kSigmoidSmile:
+      if (!(vol.smile_range >= 0) || !(vol.smile_stretch >= 0)) {
+        return absl::InvalidArgumentError(
+            "smile_range and smile_stretch must be non-negative");
+      }
+      return absl::OkStatus();
+  }
+  return absl::InvalidArgumentError("unknown vol model");
+}
+
 absl::Status validate(const VanillaPricingRequest& request) {
   const BinomialTreeSpec& tree = request.tree;
   const VanillaOptionSpec& option = request.option;
   if (!(tree.spot > 0)) {
     return absl::InvalidArgumentError("spot must be positive");
   }
-  if (!(tree.vol > 0)) {
-    return absl::InvalidArgumentError("vol must be positive");
+  if (absl::Status status = validateVol(tree.vol); !status.ok()) {
+    return status;
+  }
+  const bool local_vol = tree.model == TreeModel::kLocalVolatility;
+  if (local_vol && tree.vol.model == VolModel::kTermStructure) {
+    return absl::InvalidArgumentError(
+        "the local volatility tree needs a flat or smile vol");
+  }
+  if (!local_vol && tree.vol.model == VolModel::kSigmoidSmile) {
+    return absl::InvalidArgumentError(
+        "a vol smile needs the local volatility tree model");
   }
   if (!std::isfinite(tree.rate) || !std::isfinite(tree.drift)) {
     return absl::InvalidArgumentError("rate and drift must be finite");
@@ -44,24 +98,41 @@ absl::Status validate(const VanillaPricingRequest& request) {
   if (!(option.expiry_years > 0)) {
     return absl::InvalidArgumentError("expiry_years must be positive");
   }
-  if (option.expiry_years / tree.dt_years > kMaxTimesteps) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("expiry_years / dt_years must be at most ",
-                     kMaxTimesteps,
-                     " timesteps"));
-  }
   return absl::OkStatus();
 }
 
-template <typename PropagatorT>
+PiecewiseTermStructureVol termStructure(const VolSpec& vol) {
+  return PiecewiseTermStructureVol(vol.term_maturities, vol.term_vols);
+}
+
+SigmoidSmileVol smile(const VolSpec& vol, double spot) {
+  return {.base = vol.vol,
+          .range = vol.smile_range,
+          .stretch = vol.smile_stretch,
+          .center = spot};
+}
+
+template <typename PropagatorT, typename VolSurfaceT>
 absl::StatusOr<VanillaPricingResult> priceOnTree(
-    const VanillaPricingRequest& request, PropagatorT propagator) {
+    const VanillaPricingRequest& request,
+    const RatesCurve& curve,
+    PropagatorT propagator,
+    const Volatility<VolSurfaceT>& volatility,
+    double bsm_vol) {
   const BinomialTreeSpec& spec = request.tree;
   const VanillaOptionSpec& option_spec = request.option;
 
+  // The timegrid depends on the vol (it varies with a term structure), so
+  // check its size before allocating the tree.
+  if (volatility.generateTimegrid(option_spec.expiry_years, spec.dt_years)
+          .size() > kMaxTimesteps + 1) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "the tree would need more than ", kMaxTimesteps, " timesteps"));
+  }
+
   StochasticTreeModel<PropagatorT> asset(
       BinomialTree(option_spec.expiry_years, spec.dt_years), propagator);
-  asset.forwardPropagate(Volatility(FlatVol(spec.vol)));
+  asset.forwardPropagate(volatility);
   const BinomialTree& asset_tree = asset.binomialTree();
   const Timegrid& timegrid = asset_tree.getTimegrid();
 
@@ -72,9 +143,6 @@ absl::StatusOr<VanillaPricingResult> priceOnTree(
     return absl::InternalError("expiry does not fall within the tree");
   }
   const int ti_final = *expiry_index;
-
-  // Flat curve; the maturities only anchor the (constant) zero rate.
-  const ZeroSpotCurve curve({1.0, 10.0}, {spec.rate, spec.rate});
 
   VanillaPricingResult result;
   result.expiry_index = ti_final;
@@ -124,8 +192,9 @@ absl::StatusOr<VanillaPricingResult> priceOnTree(
 
   SingleAssetDerivative deriv(&asset_tree, &curve);
   result.price = deriv.price(option, option_spec.expiry_years);
+  result.bsm_vol = bsm_vol;
   result.bsm_price = european.blackScholes(
-      spec.spot, spec.vol, result.times[ti_final], spec.rate, 0.0);
+      spec.spot, bsm_vol, result.times[ti_final], spec.rate, 0.0);
 
   const BinomialTree& option_tree = deriv.binomialTree();
   const BinomialTree& arrow_debreu_tree = deriv.arrowDebreuTree();
@@ -147,6 +216,38 @@ absl::StatusOr<VanillaPricingResult> priceOnTree(
   return result;
 }
 
+// Dispatches on the (validated) vol model, for the given propagator.
+template <typename PropagatorT>
+absl::StatusOr<VanillaPricingResult> priceWithVol(
+    const VanillaPricingRequest& request,
+    const RatesCurve& curve,
+    PropagatorT propagator) {
+  const VolSpec& vol = request.tree.vol;
+  switch (vol.model) {
+    case VolModel::kFlat:
+      return priceOnTree(
+          request, curve, propagator, Volatility(FlatVol(vol.vol)), vol.vol);
+    case VolModel::kTermStructure: {
+      const PiecewiseTermStructureVol term_structure = termStructure(vol);
+      return priceOnTree(
+          request,
+          curve,
+          propagator,
+          Volatility(term_structure),
+          term_structure.impliedVol(request.option.expiry_years));
+    }
+    case VolModel::kSigmoidSmile: {
+      const SigmoidSmileVol smile_vol = smile(vol, request.tree.spot);
+      return priceOnTree(request,
+                         curve,
+                         propagator,
+                         Volatility(smile_vol),
+                         smile_vol(request.tree.spot));
+    }
+  }
+  return absl::InvalidArgumentError("unknown vol model");
+}
+
 }  // namespace
 
 absl::StatusOr<VanillaPricingResult> priceVanilla(
@@ -154,15 +255,86 @@ absl::StatusOr<VanillaPricingResult> priceVanilla(
   if (absl::Status status = validate(request); !status.ok()) {
     return status;
   }
-  switch (request.tree.model) {
+  const BinomialTreeSpec& tree = request.tree;
+  // Flat curve; the maturities only anchor the (constant) zero rate.
+  const ZeroSpotCurve curve({1.0, 10.0}, {tree.rate, tree.rate});
+  switch (tree.model) {
     case TreeModel::kCoxRossRubinstein:
-      return priceOnTree(request, CRRPropagator(request.tree.spot));
+      return priceWithVol(request, curve, CRRPropagator(tree.spot));
     case TreeModel::kJarrowRudd:
-      return priceOnTree(
-          request,
-          JarrowRuddPropagator(request.tree.drift, request.tree.spot));
+      return priceWithVol(
+          request, curve, JarrowRuddPropagator(tree.drift, tree.spot));
+    case TreeModel::kLocalVolatility:
+      return priceWithVol(
+          request, curve, LocalVolatilityPropagator(curve, tree.spot));
   }
   return absl::InvalidArgumentError("unknown tree model");
+}
+
+absl::StatusOr<std::vector<double>> evaluateVol(const VolSpec& vol,
+                                                double spot,
+                                                const std::vector<double>& xs) {
+  if (absl::Status status = validateVol(vol); !status.ok()) {
+    return status;
+  }
+  std::vector<double> result;
+  result.reserve(xs.size());
+  switch (vol.model) {
+    case VolModel::kFlat:
+      result.assign(xs.size(), vol.vol);
+      break;
+    case VolModel::kTermStructure: {
+      const PiecewiseTermStructureVol term_structure = termStructure(vol);
+      for (double t : xs) result.push_back(term_structure(t));
+      break;
+    }
+    case VolModel::kSigmoidSmile: {
+      const SigmoidSmileVol smile_vol = smile(vol, spot);
+      for (double s : xs) result.push_back(smile_vol(s));
+      break;
+    }
+  }
+  return result;
+}
+
+absl::StatusOr<double> impliedVolatility(const ImpliedVolRequest& request) {
+  const ImpliedVolRequest& r = request;
+  if (!(r.spot > 0) || !(r.strike > 0) || !(r.expiry_years > 0) ||
+      !std::isfinite(r.rate)) {
+    return absl::InvalidArgumentError(
+        "spot, strike and expiry_years must be positive");
+  }
+  const double discounted_strike =
+      r.strike * std::exp(-r.rate * r.expiry_years);
+  const double lower = std::max(
+      0.0, r.is_call ? r.spot - discounted_strike : discounted_strike - r.spot);
+  const double upper = r.is_call ? r.spot : discounted_strike;
+  if (!(r.price > lower && r.price < upper)) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("price ",
+                     r.price,
+                     " is outside the no-arbitrage bounds (",
+                     lower,
+                     ", ",
+                     upper,
+                     ")"));
+  }
+
+  // Black-Scholes prices increase with vol, so bisect.
+  const VanillaOption option(
+      r.strike, r.is_call ? OptionPayoff::Call : OptionPayoff::Put);
+  double lo = 1e-6;
+  double hi = 10.0;
+  for (int k = 0; k < 200 && hi - lo > 1e-12; ++k) {
+    const double mid = 0.5 * (lo + hi);
+    if (option.blackScholes(r.spot, mid, r.expiry_years, r.rate, 0.0) <
+        r.price) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  return 0.5 * (lo + hi);
 }
 
 }  // namespace smileexplorer::api
