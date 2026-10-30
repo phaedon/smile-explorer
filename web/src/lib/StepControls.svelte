@@ -1,14 +1,39 @@
 <!--
-  Play/step controls for backward induction. `revealedFrom` runs from the
-  expiry index (only payoffs known) down to 0 (fully priced).
+  Play/step controls for a computation that proceeds one time slice at a
+  time. `revealedFrom` counts the steps still to do: it runs from expiryIndex
+  (nothing computed beyond the starting slice) down to 0 (done). The default
+  labels describe backward induction from expiry.
 -->
 <script lang="ts">
   import {onDestroy} from 'svelte';
 
+  export type StepLabels = {
+    group: string;
+    reset: string;
+    // Accessible names of the step buttons.
+    undo: string;
+    advance: string;
+    status: (revealedFrom: number, expiryIndex: number) => string;
+  };
+
+  const backwardInduction: StepLabels = {
+    group: 'Backward induction',
+    reset: 'Reset to expiry',
+    undo: 'Step forward in time',
+    advance: 'Step back in time',
+    status: (from, last) =>
+      from === 0
+        ? 'Priced: every step computed'
+        : from === last
+          ? 'Payoffs at expiry'
+          : `Computed back to step ${from} of ${last}`,
+  };
+
   let {
     revealedFrom = $bindable(),
     expiryIndex,
-  }: {revealedFrom: number; expiryIndex: number} = $props();
+    labels = backwardInduction,
+  }: {revealedFrom: number; expiryIndex: number; labels?: StepLabels} = $props();
 
   let timer: ReturnType<typeof setInterval> | null = $state(null);
 
@@ -30,19 +55,13 @@
   onDestroy(stop);
 </script>
 
-<div class="controls" role="group" aria-label="Backward induction">
-  <button onclick={() => { stop(); revealedFrom = expiryIndex; }} disabled={revealedFrom === expiryIndex}>Reset to expiry</button>
-  <button onclick={() => { stop(); revealedFrom = Math.min(expiryIndex, revealedFrom + 1); }} disabled={revealedFrom === expiryIndex} aria-label="Step forward in time">◀</button>
+<div class="controls" role="group" aria-label={labels.group}>
+  <button onclick={() => { stop(); revealedFrom = expiryIndex; }} disabled={revealedFrom === expiryIndex}>{labels.reset}</button>
+  <button onclick={() => { stop(); revealedFrom = Math.min(expiryIndex, revealedFrom + 1); }} disabled={revealedFrom === expiryIndex} aria-label={labels.undo}>◀</button>
   <button class="primary" onclick={play}>{timer ? 'Pause' : revealedFrom === 0 ? 'Replay' : 'Play'}</button>
-  <button onclick={() => { stop(); revealedFrom = Math.max(0, revealedFrom - 1); }} disabled={revealedFrom === 0} aria-label="Step back in time">▶</button>
+  <button onclick={() => { stop(); revealedFrom = Math.max(0, revealedFrom - 1); }} disabled={revealedFrom === 0} aria-label={labels.advance}>▶</button>
   <button onclick={() => { stop(); revealedFrom = 0; }} disabled={revealedFrom === 0}>Show all</button>
-  <span class="status">
-    {revealedFrom === 0
-      ? 'Priced: every step computed'
-      : revealedFrom === expiryIndex
-        ? 'Payoffs at expiry'
-        : `Computed back to step ${revealedFrom} of ${expiryIndex}`}
-  </span>
+  <span class="status">{labels.status(revealedFrom, expiryIndex)}</span>
 </div>
 
 <style>
