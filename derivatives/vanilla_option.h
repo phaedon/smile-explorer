@@ -64,6 +64,9 @@ struct VanillaOption {
                     int i,
                     int ti_final) const;
 
+  // The intrinsic value (payoff if exercised) at the given underlying state.
+  double payoff(double state) const { return getPayoff(state, strike_); }
+
  private:
   double strike_;
   OptionPayoff payoff_;
