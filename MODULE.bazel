@@ -9,7 +9,7 @@ bazel_dep(name = "apple_support", version = "2.11.0")
 
 bazel_dep(name = "boost.math", version = "1.90.0.bcr.1")
 bazel_dep(name = "csv-parser", version = "2.3.0")
-bazel_dep(name = "eigen", version = "3.4.0.bcr.3")
+bazel_dep(name = "eigen", version = "5.0.1.bcr.3")
 bazel_dep(name = "glfw", version = "3.4.0.bcr.4")
 bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
 bazel_dep(name = "imgui", version = "1.91.8.bcr.1")
