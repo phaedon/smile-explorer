@@ -22,3 +22,6 @@ build --features=wasm_exceptions
 # build. Emscripten provides no-op pthread mutex stubs, so point it at those.
 # The empty value matches boost's own definition, so host builds are unchanged.
 build --per_file_copt=.*boost\.container.*@-DBOOST_HAS_PTHREADS=
+
+# AddressSanitizer: bazel test --config=asan ...
+build:asan --copt=-fsanitize=address --copt=-fno-omit-frame-pointer --linkopt=-fsanitize=address

@@ -59,7 +59,10 @@ inline std::optional<int> Timegrid::getTimeIndexForExpiry(
 
   for (size_t t = 0; t < grid_.size(); ++t) {
     const double diff_curr = std::abs(grid_[t] - expiry_years);
-    const double diff_next = std::abs(grid_[t + 1] - expiry_years);
+    // There is no next point after the end of the grid.
+    const double diff_next = t + 1 < grid_.size()
+                                 ? std::abs(grid_[t + 1] - expiry_years)
+                                 : std::numeric_limits<double>::infinity();
     if (t == 0) {
       // Special case: there is no "previous" value to compare to. As we step
       // forward, the difference gets larger, so it must be closest to 0.
