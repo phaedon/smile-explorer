@@ -6,6 +6,8 @@
 import createEngine from './engine/engine_lib.js';
 import type {
   FxVanillaPricingRequest,
+  HullWhiteTreeResult,
+  HullWhiteTreeSpec,
   MainModule,
   RateCurveSpec,
   VanillaPricingRequest,
@@ -14,6 +16,8 @@ import type {
 
 export type {
   FxVanillaPricingRequest,
+  HullWhiteTreeResult,
+  HullWhiteTreeSpec,
   RateCurveSpec,
   VanillaPricingRequest,
   VanillaPricingResult,
