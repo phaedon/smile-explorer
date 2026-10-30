@@ -10,4 +10,8 @@ export default defineConfig({
     // The engine is loaded with top-level await.
     target: 'es2022',
   },
+  // Workers load the engine too, so they must be ES modules.
+  worker: {
+    format: 'es',
+  },
 });
