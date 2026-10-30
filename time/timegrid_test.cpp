@@ -32,6 +32,19 @@ TEST(TimegridTest, RegularGrid) {
   EXPECT_EQ(10, grid.getTimeIndexForExpiry(0.999));
 }
 
+TEST(TimegridTest, ExpiryAtEndOfGrid) {
+  // The last point has no successor; looking it up must not read past the end
+  // of the grid (run with --config=asan to check).
+  Timegrid single;
+  EXPECT_EQ(0, single.getTimeIndexForExpiry(0.0));
+
+  Timegrid grid(3);
+  grid.set(1, 0.5);
+  grid.set(2, 1.0);
+  EXPECT_EQ(2, grid.getTimeIndexForExpiry(1.0));
+  EXPECT_EQ(2, grid.getTimeIndexForExpiry(0.9));
+}
+
 TEST(TimegridTest, IrregularGrid) {
   Timegrid grid;
   for (double t : {0.0, 1.0, 1.2, 1.3, 2.0, 5.0, 10.0, 10.01}) {
