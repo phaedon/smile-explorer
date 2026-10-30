@@ -1,0 +1,38 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "pricing_api",
+    srcs = ["pricing_api.cpp"],
+    hdrs = ["pricing_api.h"],
+    deps = [
+        "//derivatives:derivative",
+        "//derivatives:vanilla_option",
+        "//rates:zero_curve",
+        "//trees:binomial_tree",
+        "//trees:propagators",
+        "//trees:stochastic_tree_model",
+        "//volatility",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "pricing_api_test",
+    srcs = ["pricing_api_test.cpp"],
+    deps = [
+        ":pricing_api",
+        "//derivatives:derivative",
+        "//derivatives:vanilla_option",
+        "//rates:zero_curve",
+        "//trees:propagators",
+        "//trees:stochastic_tree_model",
+        "//volatility",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest_main",
+    ],
+)
