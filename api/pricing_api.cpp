@@ -24,6 +24,8 @@ namespace {
 // the number of timesteps. This keeps requests to a few tens of MB.
 constexpr int kMaxTimesteps = 1000;
 
+constexpr int kMaxCurvePoints = 20;
+
 constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 
 absl::Status validateVol(const VolSpec& vol) {
@@ -117,11 +119,12 @@ SigmoidSmileVol smile(const VolSpec& vol, double spot) {
 absl::Status validateCurve(const RateCurveSpec& curve, std::string_view name) {
   const auto& t = curve.maturities;
   const auto& r = curve.rates;
-  if (t.empty() || t.size() > 10 || t.size() != r.size()) {
+  if (t.empty() || std::ssize(t) > kMaxCurvePoints || t.size() != r.size()) {
     return absl::InvalidArgumentError(
         absl::StrCat(name,
                      " curve: maturities and rates must have equal length, "
-                     "between 1 and 10"));
+                     "between 1 and ",
+                     kMaxCurvePoints));
   }
   for (size_t k = 0; k < t.size(); ++k) {
     if (!std::isfinite(r[k])) {

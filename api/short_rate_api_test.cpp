@@ -3,6 +3,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -139,6 +140,102 @@ TEST(ShortRateApiTest, RejectsInvalidSpecs) {
   spec.dt_years = 1e-300;
   EXPECT_EQ(absl::StatusCode::kInvalidArgument,
             buildHullWhiteTree(spec).status().code());
+}
+
+// Hull, example 32.1: a 3-year put, struck at 63, on a 9-year zero-coupon bond.
+// (Hull interpolates zero rates differently, hence the tolerances.)
+BondOptionRequest hullBondOption() {
+  std::vector<double> maturities{3,
+                                 31,
+                                 62,
+                                 94,
+                                 185,
+                                 367,
+                                 731,
+                                 1096,
+                                 1461,
+                                 1826,
+                                 2194,
+                                 2558,
+                                 2922,
+                                 3287,
+                                 3653};
+  for (auto& m : maturities) m /= 365.;
+  return {.tree = {.mean_reversion = 0.1,
+                   .sigma = 0.01,
+                   .dt_years = 3 / 50.,
+                   .horizon_years = 9,
+                   .curve = {.maturities = maturities,
+                             .rates = {.0501772,
+                                       .0498284,
+                                       .0497234,
+                                       .0496157,
+                                       .0499058,
+                                       .0509389,
+                                       .0579733,
+                                       .0630595,
+                                       .0673464,
+                                       .0694816,
+                                       .0708807,
+                                       .0727527,
+                                       .0730852,
+                                       .073979,
+                                       .0749015}},
+                   .bond_face = 100},
+          .option = {.strike = 63, .expiry_years = 3, .is_call = false}};
+}
+
+TEST(ShortRateApiTest, BondOptionMatchesHull) {
+  const auto result = priceBondOption(hullBondOption());
+  ASSERT_TRUE(result.ok()) << result.status();
+  EXPECT_EQ(50, result->expiry_index);
+  EXPECT_NEAR(1.8057, result->price, 0.01);
+  EXPECT_NEAR(1.8093, result->analytic_price, 0.01);
+  EXPECT_NEAR(result->analytic_price, result->price, 0.01);
+  EXPECT_DOUBLE_EQ(result->price, result->european_price);
+  EXPECT_DOUBLE_EQ(result->price, result->option_values[0]);
+}
+
+TEST(ShortRateApiTest, AmericanBondOption) {
+  BondOptionRequest request = hullBondOption();
+  request.tree.dt_years = 0.25;
+  request.option.is_american = true;
+  const auto result = priceBondOption(request);
+  ASSERT_TRUE(result.ok()) << result.status();
+  EXPECT_GT(result->price, result->european_price);
+
+  const auto& nodes = result->tree;
+  for (int t = 0; t <= result->expiry_index; ++t) {
+    for (int n = nodes.slice_offsets[t]; n < nodes.slice_offsets[t + 1]; ++n) {
+      EXPECT_NEAR(std::max(0.0, 63 - nodes.bond_values[n]),
+                  result->exercise_values[n],
+                  1e-12);
+      if (t < result->expiry_index) {
+        EXPECT_NEAR(std::max(result->exercise_values[n],
+                             result->continuation_values[n]),
+                    result->option_values[n],
+                    1e-9);
+      } else {
+        EXPECT_TRUE(std::isnan(result->continuation_values[n]));
+      }
+    }
+  }
+  // After expiry, there are no option values.
+  EXPECT_TRUE(std::isnan(result->option_values.back()));
+}
+
+TEST(ShortRateApiTest, RejectsInvalidBondOptions) {
+  BondOptionRequest request = hullBondOption();
+  request.option.expiry_years = 9;
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument,
+            priceBondOption(request).status().code());
+  request.option.expiry_years = 0.01;
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument,
+            priceBondOption(request).status().code());
+  request = hullBondOption();
+  request.option.strike = 0;
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument,
+            priceBondOption(request).status().code());
 }
 
 }  // namespace
