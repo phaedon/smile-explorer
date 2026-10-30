@@ -20,10 +20,11 @@ struct CRRPropagator {
                     int t,
                     int i) const {
     if (t == 0) return spot_price_;
-    double curr_time = tree.totalTimeAtIndex(t);
+    // The move into time index t spans the timestep that starts at t - 1.
+    double prev_time = tree.totalTimeAtIndex(t - 1);
 
-    double dt = tree.timestepAt(t);
-    double u = vol_fn.get(curr_time) * std::sqrt(dt);
+    double dt = tree.timestepAt(t - 1);
+    double u = vol_fn.get(prev_time) * std::sqrt(dt);
 
     if (i == 0) {
       double d = -u;
@@ -54,14 +55,15 @@ struct JarrowRuddPropagator {
                     int t,
                     int i) const {
     if (t == 0) return spot_price_;
-    double dt = tree.timestepAt(t);
-    double curr_time = tree.totalTimeAtIndex(t);
+    // The move into time index t spans the timestep that starts at t - 1.
+    double dt = tree.timestepAt(t - 1);
+    double prev_time = tree.totalTimeAtIndex(t - 1);
 
     if (i == 0) {
-      double d = expected_drift_ * dt - vol_fn.get(curr_time) * std::sqrt(dt);
+      double d = expected_drift_ * dt - vol_fn.get(prev_time) * std::sqrt(dt);
       return tree.nodeValue(t - 1, 0) * std::exp(d);
     } else {
-      double u = expected_drift_ * dt + vol_fn.get(curr_time) * std::sqrt(dt);
+      double u = expected_drift_ * dt + vol_fn.get(prev_time) * std::sqrt(dt);
       return tree.nodeValue(t - 1, i - 1) * std::exp(u);
     }
   }

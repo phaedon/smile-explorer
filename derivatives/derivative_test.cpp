@@ -13,9 +13,8 @@ namespace smileexplorer {
 namespace {
 
 TEST(DerivativeTest, TreePricingApproxEqualsBSM) {
-  // TODO: For now, this must be slightly longer because we have problems when
-  // the underlying tree is exactly the length of the derivative.
-  StochasticTreeModel<CRRPropagator> asset(BinomialTree(1.1, 1 / 360.),
+  // The tree is exactly as long as the option.
+  StochasticTreeModel<CRRPropagator> asset(BinomialTree(1.0, 1 / 360.),
                                            CRRPropagator(100));
   Volatility flat_vol(FlatVol(0.158745));
   asset.forwardPropagate(flat_vol);
@@ -48,7 +47,7 @@ TEST(DerivativeTest, TreePricingApproxEqualsBSM) {
   // Verify that forward-propagation method doesn't affect the deriv price at
   // the limit.
   StochasticTreeModel<JarrowRuddPropagator> jrasset(
-      BinomialTree(1.1, 1 / 360.), JarrowRuddPropagator(0.1, 100));
+      BinomialTree(1.0, 1 / 360.), JarrowRuddPropagator(0.1, 100));
   jrasset.forwardPropagate(flat_vol);
   SingleAssetDerivative jrderiv(&jrasset.binomialTree(), &curve);
   EXPECT_NEAR(jrderiv.price(VanillaOption(105, OptionPayoff::Call), 1.0),

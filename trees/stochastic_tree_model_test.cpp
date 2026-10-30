@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 #include "derivatives/derivative.h"
 #include "rates/zero_curve.h"
 #include "test/tree_matchers.h"
@@ -12,6 +14,19 @@
 
 namespace smileexplorer {
 namespace {
+
+TEST(StochasticTreeModelTest, PopulatesFinalTimeIndex) {
+  StochasticTreeModel<CRRPropagator> asset(BinomialTree(1.0, 0.25),
+                                           CRRPropagator(100));
+  asset.forwardPropagate(Volatility(FlatVol(0.2)));
+  const BinomialTree& tree = asset.binomialTree();
+  ASSERT_EQ(4, tree.numTimesteps());
+
+  // After four up moves of exp(0.2 * sqrt(0.25)), and four down moves.
+  EXPECT_DOUBLE_EQ(100 * std::exp(0.4), tree.nodeValue(4, 4));
+  EXPECT_DOUBLE_EQ(100 * std::exp(-0.4), tree.nodeValue(4, 0));
+  EXPECT_FALSE(tree.isTreeEmptyAt(4));
+}
 
 TEST(StochasticTreeModelTest, Derman_VolSmile_13_1) {
   CRRPropagator crr_prop(75);

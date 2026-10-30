@@ -22,7 +22,9 @@ class StochasticTreeModel {
 
     // bool at_least_one_negative_node = false;
 
-    for (int t = 0; t < binomial_tree_.numTimesteps(); ++t) {
+    // numTimesteps() counts the steps between time indices, so the final time
+    // index is numTimesteps() itself.
+    for (int t = 0; t <= binomial_tree_.numTimesteps(); ++t) {
       // Begin by setting the spine. For vol surfaces with no smile, the
       // iteration order doesn't matter, apart from possible performance, but
       // for local vol models, this is essential.
@@ -59,7 +61,7 @@ class StochasticTreeModel {
   }
 
   void forwardPropagate() {
-    for (int t = 0; t < binomial_tree_.numTimesteps(); t++) {
+    for (int t = 0; t <= binomial_tree_.numTimesteps(); t++) {
       for (int i = 0; i <= t; ++i) {
         binomial_tree_.setValue(t, i, propagator_(binomial_tree_, t, i));
       }
