@@ -18,25 +18,30 @@ python3 -m http.server 8000
 
 ## API
 
-`engine_lib.js` is an ES module whose default export is an async factory:
+`engine_lib.js` is an ES module whose default export is an async factory.
+TypeScript definitions are generated alongside it (`engine_lib.d.ts`).
 
 ```js
 import createEngine from './engine_lib.js';
 const engine = await createEngine();
 
-const r = engine.priceVanillaCRR(
-    100,     // spot
-    0.16,    // vol (decimal, annualised)
-    0.04,    // flat continuously-compounded discount rate
-    1.1,     // tree duration in years (must exceed the expiry)
-    1 / 52,  // timestep in years
-    105,     // strike
-    1.0,     // expiry in years
-    true,    // call (false = put)
-    false);  // American (false = European)
-
-// r = {price, bsmPrice, times: [t0, t1, ...], nodes: [[S00], [S10, S11], ...]}
-// or {error: "..."} for invalid inputs.
+const r = engine.priceVanilla({
+  tree: {
+    model: engine.TreeModel.CoxRossRubinstein,  // or JarrowRudd
+    spot: 100,
+    vol: 0.16,        // annualised, as a decimal
+    rate: 0.04,       // flat, continuously compounded
+    drift: 0.1,       // Jarrow-Rudd only
+    dtYears: 1 / 52,  // timestep
+  },
+  option: {strike: 105, expiryYears: 1.0, isCall: true, isAmerican: false},
+});
 ```
 
-The bindings live in `engine_bindings.cpp`.
+The result holds the price, the Black-Scholes European price for reference,
+and every node of the backward induction (asset and option values, exercise
+and continuation values, up-probabilities, Arrow-Debreu prices) as
+`Float64Array`s. Node `(t, i)` is at index `t * (t + 1) / 2 + i`; see
+`api/pricing_api.h` for details. Invalid requests throw an `Error`.
+
+The bindings live in `engine_bindings.cpp`, on top of the C++ API in `//api`.

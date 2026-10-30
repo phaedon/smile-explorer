@@ -62,26 +62,38 @@
     const engine = await createEngine();
     const $ = (id) => document.getElementById(id);
     const inputs = ['vol', 'rate', 'strike', 'steps', 'call', 'american'];
-    const SPOT = 100, EXPIRY = 1.0, TREE_YEARS = 1.1;
+    const SPOT = 100, EXPIRY = 1.0;
 
     function update() {
       for (const id of ['vol', 'rate', 'strike', 'steps']) {
         document.querySelector(`output[for=${id}]`).textContent = $(id).value;
       }
-      const r = engine.priceVanillaCRR(
-          SPOT, +$('vol').value, +$('rate').value, TREE_YEARS,
-          1 / +$('steps').value, +$('strike').value, EXPIRY,
-          $('call').checked, $('american').checked);
-      if (r.error) {
-        $('result').textContent = r.error;
+      let r;
+      try {
+        r = engine.priceVanilla({
+          tree: {
+            model: engine.TreeModel.CoxRossRubinstein, spot: SPOT,
+            vol: +$('vol').value, rate: +$('rate').value, drift: 0,
+            dtYears: 1 / +$('steps').value,
+          },
+          option: {
+            strike: +$('strike').value, expiryYears: EXPIRY,
+            isCall: $('call').checked, isAmerican: $('american').checked,
+          },
+        });
+      } catch (e) {
+        $('result').textContent = e.message;
         return;
       }
       $('result').innerHTML = `Price ${r.price.toFixed(4)} ` +
           `<small>(Black-Scholes European ${r.bsmPrice.toFixed(4)})</small>`;
-      draw(r.times, r.nodes);
+      draw(r.times, r.assetValues);
     }
 
-    function draw(times, nodes) {
+    // Node (t, i) is at index t * (t + 1) / 2 + i in the per-node arrays.
+    const nodeIndex = (t, i) => t * (t + 1) / 2 + i;
+
+    function draw(times, values) {
       const canvas = $('tree');
       const dpr = window.devicePixelRatio || 1;
       const w = canvas.clientWidth, h = canvas.clientHeight;
@@ -90,10 +102,9 @@
       const ctx = canvas.getContext('2d');
       ctx.scale(dpr, dpr);
 
-      const all = nodes.flat();
-      const lo = Math.min(...all), hi = Math.max(...all);
+      const lo = Math.min(...values), hi = Math.max(...values);
       const pad = 8;
-      const x = (t) => pad + (t / times.at(-1)) * (w - 2 * pad);
+      const x = (t) => pad + (times[t] / times.at(-1)) * (w - 2 * pad);
       const y = (s) => h - pad - ((s - lo) / (hi - lo || 1)) * (h - 2 * pad);
       const css = getComputedStyle(document.documentElement);
 
@@ -101,20 +112,22 @@
       ctx.strokeStyle = css.getPropertyValue('--edge');
       ctx.lineWidth = 0.5;
       ctx.beginPath();
-      for (let t = 0; t + 1 < nodes.length; ++t) {
-        nodes[t].forEach((s, i) => {
+      for (let t = 0; t + 1 < times.length; ++t) {
+        for (let i = 0; i <= t; ++i) {
           for (const j of [i, i + 1]) {
-            ctx.moveTo(x(times[t]), y(s));
-            ctx.lineTo(x(times[t + 1]), y(nodes[t + 1][j]));
+            ctx.moveTo(x(t), y(values[nodeIndex(t, i)]));
+            ctx.lineTo(x(t + 1), y(values[nodeIndex(t + 1, j)]));
           }
-        });
+        }
       }
       ctx.stroke();
 
       ctx.fillStyle = css.getPropertyValue('--node');
-      nodes.forEach((states, t) => states.forEach((s) => {
-        ctx.fillRect(x(times[t]) - 1, y(s) - 1, 2, 2);
-      }));
+      for (let t = 0; t < times.length; ++t) {
+        for (let i = 0; i <= t; ++i) {
+          ctx.fillRect(x(t) - 1, y(values[nodeIndex(t, i)]) - 1, 2, 2);
+        }
+      }
     }
 
     for (const id of inputs) $(id).addEventListener('input', update);

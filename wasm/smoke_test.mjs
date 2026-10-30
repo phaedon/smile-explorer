@@ -7,8 +7,8 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 
-const enginePath = path.resolve(
-    process.argv[2] ?? 'bazel-bin/wasm/engine_lib.js');
+const enginePath =
+    path.resolve(process.argv[2] ?? 'bazel-bin/wasm/engine_lib.js');
 const {default: createEngine} = await import(pathToFileURL(enginePath).href);
 const engine = await createEngine();
 
@@ -18,37 +18,63 @@ function assertNear(actual, expected, tolerance, label) {
       `${label}: expected ${expected} ± ${tolerance}, got ${actual}`);
 }
 
+const nodeIndex = (t, i) => t * (t + 1) / 2 + i;
+
+function request({
+  model = engine.TreeModel.CoxRossRubinstein,
+  dtYears = 1 / 360.,
+  strike = 105,
+  expiryYears = 1.0,
+  isCall = true,
+  isAmerican = false,
+} = {}) {
+  return {
+    tree: {model, spot: 100, vol: 0.158745, rate: 0.12, drift: 0.1, dtYears},
+    option: {strike, expiryYears, isCall, isAmerican},
+  };
+}
+
 // Mirrors DerivativeTest.TreePricingApproxEqualsBSM in
 // derivatives/derivative_test.cpp: a 105-strike call on a daily CRR tree with
 // vol 0.158745 and a flat 12% discount rate matches Black-Scholes to 0.005.
-const spot = 100, vol = 0.158745, rate = 0.12;
-const treeYears = 1.1, dt = 1 / 360., expiry = 1.0;
-
-const euro = engine.priceVanillaCRR(
-    spot, vol, rate, treeYears, dt, 105, expiry, /*is_call=*/ true,
-    /*is_american=*/ false);
-assert.equal(euro.error, undefined, euro.error);
+const euro = engine.priceVanilla(request());
 assertNear(euro.price, euro.bsmPrice, 0.005, 'European call vs BSM');
 
-// The tree is returned as one array of node values per timestep.
-assert.equal(euro.times.length, euro.nodes.length);
-assert.equal(euro.times[0], 0);
-assert.deepEqual(euro.nodes[0], [spot]);
-euro.nodes.forEach((states, t) => assert.equal(states.length, t + 1));
+const jr = engine.priceVanilla(
+    request({model: engine.TreeModel.JarrowRudd}));
+assertNear(jr.price, euro.price, 0.005, 'Jarrow-Rudd vs CRR');
+
+// Per-node data are triangular Float64Arrays indexed by nodeIndex(t, i).
+const coarse = engine.priceVanilla(request({dtYears: 1 / 12.}));
+const T = coarse.expiryIndex;
+assert.equal(T, 12);
+assert.ok(coarse.assetValues instanceof Float64Array);
+assert.equal(coarse.times.length, T + 1);
+assert.equal(coarse.assetValues.length, nodeIndex(T + 1, 0));
+assert.equal(coarse.assetValues[0], 100);
+assert.equal(coarse.optionValues[0], coarse.price);
+
+// Each node's value is its discounted expected value one step later.
+const [t, i] = [3, 1];
+const p = coarse.upProbs[nodeIndex(t, i)];
+assertNear(
+    coarse.optionValues[nodeIndex(t, i)],
+    coarse.forwardDfs[t] *
+        (p * coarse.optionValues[nodeIndex(t + 1, i + 1)] +
+         (1 - p) * coarse.optionValues[nodeIndex(t + 1, i)]),
+    1e-12, 'backward induction at (3, 1)');
 
 // Early exercise is worth something for an ITM put with positive rates.
-const put = (american) => engine.priceVanillaCRR(
-    spot, vol, rate, treeYears, dt, 110, expiry, false, american);
+const put = (isAmerican) =>
+    engine.priceVanilla(request({strike: 110, isCall: false, isAmerican}));
 const euroPut = put(false), amerPut = put(true);
 assert.ok(
     amerPut.price > euroPut.price,
     `American put ${amerPut.price} should exceed European ${euroPut.price}`);
 
-// Invalid requests return an error instead of a price.
-const bad = engine.priceVanillaCRR(
-    spot, vol, rate, treeYears, dt, 105, /*expiry=*/ 2.0, true, false);
-assert.match(bad.error, /expiry_years/);
-assert.equal(bad.price, undefined);
+// Invalid requests throw a JS Error.
+assert.throws(
+    () => engine.priceVanilla(request({expiryYears: -1})), /expiry_years/);
 
 console.log(
     `OK: European call ${euro.price.toFixed(4)} (BSM ${

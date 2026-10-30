@@ -11,18 +11,14 @@ cc_binary(
         "-sEXPORT_NAME=createEngine",
         "-sALLOW_MEMORY_GROWTH=1",
         "-sENVIRONMENT=web,worker,node",
+        "--emit-tsd=engine_lib.d.ts",
     ],
     # Only buildable with the Emscripten toolchain (via :engine below), so
     # hide it from wildcard builds on the host.
     tags = ["manual"],
     deps = [
-        "//derivatives:derivative",
-        "//derivatives:vanilla_option",
-        "//rates:zero_curve",
-        "//trees:binomial_tree",
-        "//trees:propagators",
-        "//trees:stochastic_tree_model",
-        "//volatility",
+        "//api:pricing_api",
+        "@abseil-cpp//absl/status:statusor",
     ],
 )
 
@@ -30,6 +26,7 @@ wasm_cc_binary(
     name = "engine",
     cc_target = ":engine_lib",
     outputs = [
+        "engine_lib.d.ts",
         "engine_lib.js",
         "engine_lib.wasm",
     ],
