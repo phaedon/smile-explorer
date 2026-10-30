@@ -33,6 +33,10 @@ jobs:
         run: |
           bazel coverage --combined_report=lcov //...
 
+      - name: Test with AddressSanitizer
+        run: |
+          bazel test --config=asan //...
+
       - name: Coveralls
         uses: coverallsapp/github-action@v2
         with:
