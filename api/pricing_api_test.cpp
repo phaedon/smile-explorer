@@ -1,5 +1,6 @@
 #include "api/pricing_api.h"
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -285,6 +286,145 @@ TEST(PricingApiTest, RejectsInvalidVolSpecs) {
   request.tree.vol = dermanTermStructure();
   EXPECT_EQ(absl::StatusCode::kInvalidArgument,
             priceVanilla(request).status().code());
+}
+
+// Hull, "Options, Futures...", Figure 13.12 (as in
+// DerivativeTest.CurrencyOptionTreePricing): a 3-month call on an exchange
+// rate, on a tree with monthly steps.
+FxVanillaPricingRequest hullFxRequest() {
+  FxVanillaPricingRequest request;
+  request.tree = {.spot = 0.61,
+                  .vol = 0.12,
+                  .domestic = {.maturities = {1}, .rates = {0.05}},
+                  .foreign = {.maturities = {1}, .rates = {0.07}},
+                  .dt_years = 1 / 12.};
+  request.option = {.strike = 0.6, .expiry_years = 0.25, .is_call = true};
+  return request;
+}
+
+TEST(PricingApiTest, FxMatchesHull) {
+  FxVanillaPricingRequest request = hullFxRequest();
+  const auto european = priceFxVanilla(request);
+  ASSERT_TRUE(european.ok()) << european.status();
+  EXPECT_NEAR(0.01860, european->price, 0.00001);
+
+  request.option.is_american = true;
+  const auto american = priceFxVanilla(request);
+  ASSERT_TRUE(american.ok()) << american.status();
+  EXPECT_NEAR(0.01888, american->price, 0.00001);
+}
+
+TEST(PricingApiTest, FxConvergesToGarmanKohlhagen) {
+  FxVanillaPricingRequest request = hullFxRequest();
+  request.tree.dt_years = 1 / 1000.;
+  const auto result = priceFxVanilla(request);
+  ASSERT_TRUE(result.ok()) << result.status();
+  EXPECT_NEAR(result->bsm_price, result->price, 0.0001);
+}
+
+TEST(PricingApiTest, FxPutCallParity) {
+  FxVanillaPricingRequest request = hullFxRequest();
+  // Sloped curves, so that each step drifts differently.
+  request.tree.domestic = {.maturities = {0.1, 0.25}, .rates = {0.02, 0.06}};
+  request.tree.foreign = {.maturities = {0.1, 0.25}, .rates = {0.08, 0.03}};
+  const auto call = priceFxVanilla(request);
+  request.option.is_call = false;
+  const auto put = priceFxVanilla(request);
+  ASSERT_TRUE(call.ok()) << call.status();
+  ASSERT_TRUE(put.ok()) << put.status();
+
+  const double df_dom = std::exp(-0.06 * 0.25);
+  const double df_for = std::exp(-0.03 * 0.25);
+  EXPECT_NEAR(call->price - put->price, 0.61 * df_for - 0.6 * df_dom, 1e-12);
+}
+
+TEST(PricingApiTest, FxWithZeroForeignRateMatchesPriceVanilla) {
+  FxVanillaPricingRequest fx_request = hullFxRequest();
+  fx_request.tree.foreign.rates = {0.0};
+  fx_request.option.is_american = true;
+  const auto fx = priceFxVanilla(fx_request);
+
+  VanillaPricingRequest request;
+  request.tree = {.model = TreeModel::kCoxRossRubinstein,
+                  .spot = 0.61,
+                  .vol = {.vol = 0.12},
+                  .rate = 0.05,
+                  .dt_years = 1 / 12.};
+  request.option = fx_request.option;
+  const auto equity = priceVanilla(request);
+
+  ASSERT_TRUE(fx.ok()) << fx.status();
+  ASSERT_TRUE(equity.ok()) << equity.status();
+  EXPECT_NEAR(equity->price, fx->price, 1e-12);
+  EXPECT_NEAR(equity->bsm_price, fx->bsm_price, 1e-12);
+}
+
+TEST(PricingApiTest, ForwardGrowthGivesUpProbs) {
+  const auto result = priceFxVanilla(hullFxRequest());
+  ASSERT_TRUE(result.ok()) << result.status();
+  const int T = result->expiry_index;
+  ASSERT_EQ(result->forward_growth.size(), T + 1);
+  EXPECT_TRUE(std::isnan(result->forward_growth[T]));
+  for (int t = 0; t < T; ++t) {
+    const double dt = result->times[t + 1] - result->times[t];
+    EXPECT_NEAR(std::exp((0.05 - 0.07) * dt), result->forward_growth[t], 1e-12);
+    for (int i = 0; i <= t; ++i) {
+      const double s = result->asset_values[nodeIndex(t, i)];
+      const double up = result->asset_values[nodeIndex(t + 1, i + 1)] / s;
+      const double down = result->asset_values[nodeIndex(t + 1, i)] / s;
+      EXPECT_NEAR((result->forward_growth[t] - down) / (up - down),
+                  result->up_probs[nodeIndex(t, i)],
+                  1e-12);
+    }
+  }
+
+  // For a single currency, it's the inverse of the forward discount factor.
+  const auto equity = priceVanilla(exampleRequest());
+  ASSERT_TRUE(equity.ok()) << equity.status();
+  EXPECT_NEAR(1 / equity->forward_dfs[0], equity->forward_growth[0], 1e-12);
+}
+
+TEST(PricingApiTest, EvaluateCurve) {
+  const RateCurveSpec curve{.maturities = {1, 2}, .rates = {0.02, 0.03}};
+  const auto dfs = evaluateCurve(curve, {0, 0.5, 1, 1.5, 2, 3});
+  ASSERT_TRUE(dfs.ok()) << dfs.status();
+  // The 1y-2y forward is 4%, and continues past 2y.
+  EXPECT_THAT(*dfs,
+              testing::Pointwise(testing::DoubleNear(1e-12),
+                                 std::vector<double>{1,
+                                                     std::exp(-0.01),
+                                                     std::exp(-0.02),
+                                                     std::exp(-0.02 - 0.02),
+                                                     std::exp(-0.06),
+                                                     std::exp(-0.10)}));
+}
+
+TEST(PricingApiTest, RejectsInvalidFxRequests) {
+  FxVanillaPricingRequest request = hullFxRequest();
+  request.tree.foreign.maturities = {};
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument,
+            priceFxVanilla(request).status().code());
+
+  request = hullFxRequest();
+  request.tree.domestic = {.maturities = {2, 1}, .rates = {0.01, 0.02}};
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument,
+            priceFxVanilla(request).status().code());
+
+  request = hullFxRequest();
+  request.tree.vol = 0;
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument,
+            priceFxVanilla(request).status().code());
+
+  // A rate gap too wide for the vol and timestep admits arbitrage.
+  request = hullFxRequest();
+  request.tree.domestic.rates = {0.9};
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument,
+            priceFxVanilla(request).status().code());
+
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument,
+            evaluateCurve({.maturities = {1}, .rates = {0.01}}, {-1})
+                .status()
+                .code());
 }
 
 }  // namespace

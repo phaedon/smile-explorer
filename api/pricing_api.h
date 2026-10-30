@@ -75,6 +75,32 @@ struct VanillaPricingRequest {
   VanillaOptionSpec option;
 };
 
+// A zero curve: continuously-compounded zero rates (as decimals) at strictly
+// increasing maturities (in years), with constant forward rates between them.
+// Beyond the last maturity, the last forward rate continues.
+struct RateCurveSpec {
+  std::vector<double> maturities;
+  std::vector<double> rates;
+};
+
+// A Cox-Ross-Rubinstein tree for an exchange rate quoted FOR-DOM (the price of
+// one unit of the foreign currency, in the domestic currency), with flat vol.
+// Holding the foreign currency earns the foreign rate, so the tree's
+// risk-neutral drift over each step is the domestic forward rate less the
+// foreign one.
+struct FxTreeSpec {
+  double spot = 1.0;
+  double vol = 0.1;
+  RateCurveSpec domestic;
+  RateCurveSpec foreign;
+  double dt_years = 1 / 52.;
+};
+
+struct FxVanillaPricingRequest {
+  FxTreeSpec tree;
+  VanillaOptionSpec option;
+};
+
 // Index of node (t, i) in the triangular per-node arrays below, where t is the
 // time index and 0 <= i <= t counts the states from the lowest one upwards.
 inline int nodeIndex(int t, int i) { return t * (t + 1) / 2 + i; }
@@ -101,6 +127,12 @@ struct VanillaPricingResult {
   // Per time index: discount factor from times[t] to times[t + 1]. The final
   // entry (at expiry) is NaN.
   std::vector<double> forward_dfs;
+  // Per time index: the risk-neutral expected growth of the underlying from
+  // times[t] to times[t + 1], so that
+  //   up_prob = (forward_growth - down_ratio) / (up_ratio - down_ratio).
+  // This is 1 / forward_df, or for an exchange rate, the domestic 1 /
+  // forward_df divided by the foreign one. NaN at expiry.
+  std::vector<double> forward_growth;
 
   // Per node, indexed by nodeIndex(t, i):
   std::vector<double> asset_values;
@@ -122,6 +154,15 @@ struct VanillaPricingResult {
 
 absl::StatusOr<VanillaPricingResult> priceVanilla(
     const VanillaPricingRequest& request);
+
+// Prices a European or American option on an exchange rate. The result's
+// bsm_price is the Garman-Kohlhagen price and bsm_vol the (flat) vol.
+absl::StatusOr<VanillaPricingResult> priceFxVanilla(
+    const FxVanillaPricingRequest& request);
+
+// Discount factors of the curve at each time in `times` (in years).
+absl::StatusOr<std::vector<double>> evaluateCurve(
+    const RateCurveSpec& curve, const std::vector<double>& times);
 
 // Evaluates the forward (kFlat, kTermStructure) or local (kSigmoidSmile)
 // volatility at each point in `xs`: times in years for a term structure, or
