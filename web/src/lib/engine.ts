@@ -5,12 +5,19 @@
 
 import createEngine from './engine/engine_lib.js';
 import type {
+  FxVanillaPricingRequest,
   MainModule,
+  RateCurveSpec,
   VanillaPricingRequest,
   VanillaPricingResult,
 } from './engine/engine_lib.js';
 
-export type {VanillaPricingRequest, VanillaPricingResult};
+export type {
+  FxVanillaPricingRequest,
+  RateCurveSpec,
+  VanillaPricingRequest,
+  VanillaPricingResult,
+};
 
 export const engine: MainModule = await createEngine();
 
@@ -38,10 +45,18 @@ export type PricingOutcome =
   | {result: VanillaPricingResult; error?: undefined}
   | {result?: undefined; error: string};
 
-export function tryPrice(request: VanillaPricingRequest): PricingOutcome {
+function attemptPricing(price: () => VanillaPricingResult): PricingOutcome {
   try {
-    return {result: engine.priceVanilla(request)};
+    return {result: price()};
   } catch (e) {
     return {error: e instanceof Error ? e.message : String(e)};
   }
+}
+
+export function tryPrice(request: VanillaPricingRequest): PricingOutcome {
+  return attemptPricing(() => engine.priceVanilla(request));
+}
+
+export function tryPriceFx(request: FxVanillaPricingRequest): PricingOutcome {
+  return attemptPricing(() => engine.priceFxVanilla(request));
 }

@@ -4,7 +4,7 @@
   asset price, and the option price is their payoff-weighted sum.
 -->
 <script lang="ts">
-  import {fmt, niceTicks} from './format';
+  import {fmt, level, niceTicks, tickFormat} from './format';
   import {nodeIndex, type VanillaPricingResult} from './engine';
 
   let {
@@ -70,6 +70,7 @@
 
   const yTicks = $derived(niceTicks(0, adMax, 3));
   const xTicks = $derived(niceTicks(sLo, sHi, 6));
+  const xTickFmt = $derived(tickFormat(xTicks));
   const price = $derived(states.reduce((sum, d) => sum + d.ad * d.payoff, 0));
 
   let hovered = $state<number | null>(null);
@@ -96,7 +97,7 @@
     {/each}
     {#each xTicks as v (v)}
       <text class="tick" x={x(v)} y={H - PAD.bottom + 20} text-anchor="middle"
-        >{fmt(v, 0)}</text
+        >{xTickFmt(v)}</text
       >
     {/each}
 
@@ -120,7 +121,7 @@
 
     <line class="strike" x1={x(strike)} x2={x(strike)} y1={PAD.top} y2={H - PAD.bottom} />
     <text class="tick" x={x(strike)} y={PAD.top - 10} text-anchor="middle"
-      >K = {fmt(strike, 0)}</text
+      >K = {level(strike)}</text
     >
   </svg>
 

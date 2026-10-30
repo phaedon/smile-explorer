@@ -14,6 +14,7 @@
     isCall,
     isAmerican,
     revealedFrom = 0,
+    digits = 2,
   }: {
     result: VanillaPricingResult;
     node: NodeRef;
@@ -21,6 +22,8 @@
     isCall: boolean;
     isAmerican: boolean;
     revealedFrom?: number;
+    // Decimals for prices and option values.
+    digits?: number;
   } = $props();
 
   const T = $derived(result.expiryIndex);
@@ -29,8 +32,8 @@
   const atExpiry = $derived(node.t === T);
   const payoffExpr = $derived(
     isCall
-      ? `max(${fmt(S)} − ${fmt(strike)}, 0)`
-      : `max(${fmt(strike)} − ${fmt(S)}, 0)`,
+      ? `max(${fmt(S, digits)} − ${fmt(strike, digits)}, 0)`
+      : `max(${fmt(strike, digits)} − ${fmt(S, digits)}, 0)`,
   );
   const up = $derived(atExpiry ? 0 : result.optionValues[nodeIndex(node.t + 1, node.i + 1)]);
   const down = $derived(atExpiry ? 0 : result.optionValues[nodeIndex(node.t + 1, node.i)]);
@@ -43,14 +46,14 @@
 <div class="panel" aria-live="polite">
   <div class="head">
     {node.t === 0 ? 'Today' : `Step ${node.t}`} · t = {fmt(result.times[node.t], 3)}y ·
-    S = {fmt(S)}
+    S = {fmt(S, digits)}
   </div>
   {#if node.t < revealedFrom}
     <p class="note">Not computed yet: step the induction back to here.</p>
   {:else if atExpiry}
     <div class="eq">
       <span class="lhs">V</span><span>= payoff = {payoffExpr}</span>
-      <span></span><span>= <strong>{fmt(result.optionValues[n])}</strong></span>
+      <span></span><span>= <strong>{fmt(result.optionValues[n], digits)}</strong></span>
     </div>
   {:else}
     <div class="eq">
@@ -58,21 +61,21 @@
       <span>= DF × (p · V<sub>up</sub> + (1 − p) · V<sub>down</sub>)</span>
       <span></span>
       <span
-        >= {fmt(result.forwardDfs[node.t], 4)} × ({fmt(p, 4)} × {fmt(up)} + {fmt(
+        >= {fmt(result.forwardDfs[node.t], 4)} × ({fmt(p, 4)} × {fmt(up, digits)} + {fmt(
           1 - p,
           4,
-        )} × {fmt(down)})</span
+        )} × {fmt(down, digits)})</span
       >
-      <span></span><span>= {fmt(result.continuationValues[n])}</span>
+      <span></span><span>= {fmt(result.continuationValues[n], digits)}</span>
       {#if isAmerican}
-        <span class="lhs">exercise</span><span>= {payoffExpr} = {fmt(result.exerciseValues[n])}</span>
+        <span class="lhs">exercise</span><span>= {payoffExpr} = {fmt(result.exerciseValues[n], digits)}</span>
         <span class="lhs">V</span>
         <span
-          >= max(exercise, hold) = <strong>{fmt(result.optionValues[n])}</strong>
+          >= max(exercise, hold) = <strong>{fmt(result.optionValues[n], digits)}</strong>
           {#if exercised}<em class="flag">exercise early</em>{/if}</span
         >
       {:else}
-        <span class="lhs">V</span><span>= hold = <strong>{fmt(result.optionValues[n])}</strong></span>
+        <span class="lhs">V</span><span>= hold = <strong>{fmt(result.optionValues[n], digits)}</strong></span>
       {/if}
     </div>
   {/if}

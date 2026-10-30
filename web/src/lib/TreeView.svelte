@@ -5,7 +5,7 @@
   induction can be stepped through. Hovering snaps to the nearest node.
 -->
 <script lang="ts">
-  import {fmt, logTicks, niceTicks} from './format';
+  import {level, logTicks, niceTicks, tickFormat} from './format';
   import {nodeIndex, type VanillaPricingResult} from './engine';
 
   export type NodeRef = {t: number; i: number};
@@ -101,6 +101,7 @@
       (v) => v >= Math.exp(lo) && v <= Math.exp(hi),
     ),
   );
+  const yTickFmt = $derived(tickFormat(yTicks));
   const xTicks = $derived(niceTicks(0, result.times[T], 4));
 
   function fillFor(node: Node): string {
@@ -165,7 +166,7 @@
   {#each yTicks as v (v)}
     <line class="grid" x1={PAD.left} x2={W - PAD.right} y1={y(v)} y2={y(v)} />
     <text class="tick" x={PAD.left - 8} y={y(v)} text-anchor="end" dy="0.32em"
-      >{fmt(v, v < 10 ? 1 : 0)}</text
+      >{yTickFmt(v)}</text
     >
   {/each}
   {#each xTicks as v (v)}
@@ -188,7 +189,7 @@
       y2={y(strike)}
     />
     <text class="tick" x={W - PAD.right + 10} y={y(strike)} dy="0.32em"
-      >K = {fmt(strike, 0)}</text
+      >K = {level(strike)}</text
     >
   {/if}
 
