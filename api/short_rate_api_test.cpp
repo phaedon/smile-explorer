@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string_view>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -236,6 +237,42 @@ TEST(ShortRateApiTest, RejectsInvalidBondOptions) {
   request.option.strike = 0;
   EXPECT_EQ(absl::StatusCode::kInvalidArgument,
             priceBondOption(request).status().code());
+}
+
+void expectInvalid(const absl::Status& status, std::string_view message) {
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument, status.code()) << status;
+  EXPECT_THAT(status.message(), testing::HasSubstr(message));
+}
+
+TEST(ShortRateApiTest, ExplainsInvalidSpecs) {
+  const auto with = [](auto modify) {
+    HullWhiteTreeSpec spec = hullSpec();
+    modify(spec);
+    return buildHullWhiteTree(spec).status();
+  };
+  using S = HullWhiteTreeSpec;
+  expectInvalid(with([](S& s) { s.sigma = 0; }), "sigma");
+  expectInvalid(with([](S& s) { s.dt_years = 0; }), "dt_years");
+  expectInvalid(with([](S& s) { s.horizon_years = -1; }), "horizon_years");
+  expectInvalid(with([](S& s) { s.bond_face = 0; }), "bond_face");
+  // Slow mean reversion keeps the tree widening: 500 steps would need about
+  // 250,000 nodes.
+  expectInvalid(with([](S& s) {
+                  s.mean_reversion = 0.0005;
+                  s.dt_years = 0.01;
+                  s.horizon_years = 5;
+                }),
+                "nodes");
+}
+
+TEST(ShortRateApiTest, ExplainsInvalidBondOptions) {
+  BondOptionRequest request = hullBondOption();
+  request.option.expiry_years = 0;
+  expectInvalid(priceBondOption(request).status(), "expiry_years");
+
+  request = hullBondOption();
+  request.tree.sigma = 0;
+  expectInvalid(priceBondOption(request).status(), "sigma");
 }
 
 }  // namespace

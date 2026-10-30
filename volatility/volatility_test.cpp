@@ -137,19 +137,34 @@ TEST(VolatilityTest, PiecewiseTermStructureVolMatchesDerman) {
               1e-12);
 
   // Same timegrid as DermanExampleVol.
-  const auto timegrid =
-      Volatility(term_structure).generateTimegrid(3.0, 0.1);
+  const auto timegrid = Volatility(term_structure).generateTimegrid(3.0, 0.1);
   EXPECT_NEAR(0.044, timegrid.dt(30), 0.001);
   EXPECT_NEAR(0.025, timegrid.dt(50), 0.001);
 }
 
 TEST(VolatilityTest, SigmoidSmileVol) {
-  SigmoidSmileVol smile{.base = 0.15, .range = 0.2, .stretch = 0.1,
-                        .center = 100};
+  SigmoidSmileVol smile{
+      .base = 0.15, .range = 0.2, .stretch = 0.1, .center = 100};
   EXPECT_DOUBLE_EQ(0.25, smile(100));
   EXPECT_NEAR(0.35, smile(0), 1e-4);
   EXPECT_NEAR(0.15, smile(200), 1e-4);
   EXPECT_GT(smile(90), smile(110));
+}
+
+// Beyond the last quoted maturity, the last forward vol carries on.
+TEST(VolatilityTest, PiecewiseTermStructureVolExtrapolates) {
+  PiecewiseTermStructureVol term_structure({1, 2, 3}, {0.2, 0.255, 0.311});
+  const double last_forward_variance = 3 * 0.311 * 0.311 - 2 * 0.255 * 0.255;
+  EXPECT_NEAR(std::sqrt(last_forward_variance), term_structure(5.0), 1e-12);
+  EXPECT_NEAR(std::sqrt((3 * 0.311 * 0.311 + 2 * last_forward_variance) / 5),
+              term_structure.impliedVol(5.0),
+              1e-12);
+
+  // With a single quote, the vol is flat at it.
+  PiecewiseTermStructureVol single({1}, {0.2});
+  EXPECT_DOUBLE_EQ(0.2, single(0.5));
+  EXPECT_DOUBLE_EQ(0.2, single(5.0));
+  EXPECT_NEAR(0.2, single.impliedVol(5.0), 1e-12);
 }
 
 }  // namespace

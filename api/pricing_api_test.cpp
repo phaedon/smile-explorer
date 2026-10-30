@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <string_view>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -425,6 +426,86 @@ TEST(PricingApiTest, RejectsInvalidFxRequests) {
             evaluateCurve({.maturities = {1}, .rates = {0.01}}, {-1})
                 .status()
                 .code());
+}
+
+// Every request is validated before pricing, with an error that names the
+// problem (the essays show these messages to readers).
+void expectInvalid(const absl::Status& status, std::string_view message) {
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument, status.code()) << status;
+  EXPECT_THAT(status.message(), testing::HasSubstr(message));
+}
+
+TEST(PricingApiTest, ExplainsInvalidVanillaRequests) {
+  const auto with = [](auto modify) {
+    VanillaPricingRequest request = exampleRequest();
+    modify(request);
+    return priceVanilla(request).status();
+  };
+  using R = VanillaPricingRequest;
+  expectInvalid(with([](R& r) { r.tree.spot = 0; }), "spot");
+  expectInvalid(with([](R& r) { r.tree.rate = NAN; }), "finite");
+  expectInvalid(with([](R& r) { r.tree.dt_years = 0; }), "dt_years");
+  expectInvalid(with([](R& r) { r.option.strike = 0; }), "strike");
+  expectInvalid(with([](R& r) {
+                  r.tree.vol = {.model = VolModel::kTermStructure,
+                                .term_maturities = {1, 2},
+                                .term_vols = {0.2}};
+                }),
+                "equal length");
+  expectInvalid(with([](R& r) {
+                  r.tree.vol = {.model = VolModel::kTermStructure,
+                                .term_maturities = {1, 2},
+                                .term_vols = {0.2, -0.2}};
+                }),
+                "term_vols must be positive");
+  expectInvalid(with([](R& r) {
+                  r.tree.vol = {.model = VolModel::kTermStructure,
+                                .term_maturities = {2, 1},
+                                .term_vols = {0.2, 0.2}};
+                }),
+                "strictly increasing");
+  expectInvalid(with([](R& r) {
+                  r.tree.model = TreeModel::kLocalVolatility;
+                  r.tree.vol = {.model = VolModel::kSigmoidSmile,
+                                .vol = 0.2,
+                                .smile_range = -0.1};
+                }),
+                "non-negative");
+  // Enums arrive from JS as plain numbers, so out-of-range values are
+  // possible.
+  expectInvalid(with([](R& r) { r.tree.vol.model = static_cast<VolModel>(7); }),
+                "unknown vol model");
+  expectInvalid(with([](R& r) { r.tree.model = static_cast<TreeModel>(7); }),
+                "unknown tree model");
+}
+
+TEST(PricingApiTest, ExplainsInvalidFxRequests) {
+  const auto with = [](auto modify) {
+    FxVanillaPricingRequest request = hullFxRequest();
+    modify(request);
+    return priceFxVanilla(request).status();
+  };
+  using R = FxVanillaPricingRequest;
+  expectInvalid(with([](R& r) { r.tree.spot = 0; }), "spot");
+  expectInvalid(with([](R& r) { r.tree.dt_years = 0; }), "dt_years");
+  expectInvalid(with([](R& r) { r.option.strike = 0; }), "strike");
+  expectInvalid(with([](R& r) { r.option.expiry_years = 0; }), "expiry_years");
+  expectInvalid(with([](R& r) { r.tree.foreign.rates = {NAN}; }),
+                "foreign curve: rates must be finite");
+}
+
+TEST(PricingApiTest, ExplainsOtherInvalidInputs) {
+  expectInvalid(
+      evaluateCurve({.maturities = {1, 2}, .rates = {0.01}}, {1}).status(),
+      "equal length");
+  expectInvalid(evaluateVol({.vol = 0}, 100, {1}).status(), "vol");
+  expectInvalid(impliedVolatility({.price = 5, .spot = 0}).status(), "spot");
+}
+
+TEST(PricingApiTest, EvaluatesFlatVol) {
+  const auto vols = evaluateVol({.vol = 0.2}, 100, {0.5, 1, 90, 110});
+  ASSERT_TRUE(vols.ok()) << vols.status();
+  EXPECT_THAT(*vols, testing::Each(0.2));
 }
 
 }  // namespace
