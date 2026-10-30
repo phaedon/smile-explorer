@@ -63,14 +63,16 @@ void TrinomialTree::updateSuccessorNodes(const TrinomialNode& curr_node,
 }
 
 double TrinomialTree::weightedArrowDebreuSumAtTimestep(int time_index) const {
+  // Discount over one (uniform) timestep. This uses dt_ rather than
+  // timegrid_.dt(time_index), which is undefined at the final time index: the
+  // short-rate calibration needs this sum there too.
   const auto& timeslice = tree_[time_index];
   return std::accumulate(
       timeslice.begin(),
       timeslice.end(),
       0.0,
       [&](double ad_sum, const TrinomialNode& node) {
-        return ad_sum + node.arrow_debreu * std::exp(-node.state_value *
-                                                     timegrid_.dt(time_index));
+        return ad_sum + node.arrow_debreu * std::exp(-node.state_value * dt_);
       });
 }
 
