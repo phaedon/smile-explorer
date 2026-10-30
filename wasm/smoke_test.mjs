@@ -20,6 +20,15 @@ function assertNear(actual, expected, tolerance, label) {
 
 const nodeIndex = (t, i) => t * (t + 1) / 2 + i;
 
+const flatVol = (vol) => ({
+  model: engine.VolModel.Flat,
+  vol,
+  termMaturities: [],
+  termVols: [],
+  smileRange: 0,
+  smileStretch: 0,
+});
+
 function request({
   model = engine.TreeModel.CoxRossRubinstein,
   dtYears = 1 / 360.,
@@ -29,7 +38,14 @@ function request({
   isAmerican = false,
 } = {}) {
   return {
-    tree: {model, spot: 100, vol: 0.158745, rate: 0.12, drift: 0.1, dtYears},
+    tree: {
+      model,
+      spot: 100,
+      vol: flatVol(0.158745),
+      rate: 0.12,
+      drift: 0.1,
+      dtYears,
+    },
     option: {strike, expiryYears, isCall, isAmerican},
   };
 }
@@ -71,6 +87,38 @@ const euroPut = put(false), amerPut = put(true);
 assert.ok(
     amerPut.price > euroPut.price,
     `American put ${amerPut.price} should exceed European ${euroPut.price}`);
+
+// A local-vol tree with a skew produces a skew in implied vols.
+const skew = {
+  ...flatVol(0.15),
+  model: engine.VolModel.SigmoidSmile,
+  smileRange: 0.2,
+  smileStretch: 0.05,
+};
+assertNear(
+    engine.evaluateVol(skew, 100, [100])[0], 0.25, 1e-12, 'local vol at spot');
+const impliedAt = (strike) => {
+  const r = engine.priceVanilla({
+    tree: {
+      model: engine.TreeModel.LocalVolatility,
+      spot: 100,
+      vol: skew,
+      rate: 0.05,
+      drift: 0,
+      dtYears: 1 / 100,
+    },
+    option: {strike, expiryYears: 1, isCall: true, isAmerican: false},
+  });
+  return engine.impliedVolatility({
+    price: r.price,
+    spot: 100,
+    strike,
+    expiryYears: 1,
+    rate: 0.05,
+    isCall: true,
+  });
+};
+assert.ok(impliedAt(80) > impliedAt(120), 'implied vols should skew');
 
 // Invalid requests throw a JS Error.
 assert.throws(

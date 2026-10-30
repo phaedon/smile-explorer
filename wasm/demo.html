@@ -73,7 +73,11 @@
         r = engine.priceVanilla({
           tree: {
             model: engine.TreeModel.CoxRossRubinstein, spot: SPOT,
-            vol: +$('vol').value, rate: +$('rate').value, drift: 0,
+            vol: {
+              model: engine.VolModel.Flat, vol: +$('vol').value,
+              termMaturities: [], termVols: [], smileRange: 0, smileStretch: 0,
+            },
+            rate: +$('rate').value, drift: 0,
             dtYears: 1 / +$('steps').value,
           },
           option: {
