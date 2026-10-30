@@ -1,95 +1,122 @@
-// JavaScript bindings (via Embind) for the pricing core, compiled to
+// JavaScript bindings (via Embind) for the pricing API in //api, compiled to
 // WebAssembly by //wasm:engine.
 //
-// This is a deliberately thin first binding: a single entry point that builds a
-// CRR tree with flat vol and a flat discount curve, and prices a vanilla option
-// on it. It returns plain JS values so that a browser UI can draw the tree.
+// Requests are plain JS objects that map field-for-field onto the C++ request
+// structs. Results come back as plain objects whose per-node data are
+// Float64Arrays, indexed as described in api/pricing_api.h. TypeScript
+// definitions for all of this are generated at link time (engine_lib.d.ts).
 
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
 
-#include <cmath>
+#include <string>
+#include <vector>
 
-#include "derivatives/derivative.h"
-#include "derivatives/vanilla_option.h"
-#include "rates/zero_curve.h"
-#include "trees/binomial_tree.h"
-#include "trees/propagators.h"
-#include "trees/stochastic_tree_model.h"
-#include "volatility/volatility.h"
+#include "absl/status/statusor.h"
+#include "api/pricing_api.h"
 
-namespace smileexplorer {
+namespace smileexplorer::api {
 namespace {
 
 using emscripten::val;
 
-// Guards against requests that would allocate a huge (dense N x N) tree.
-constexpr int kMaxTimesteps = 5000;
+EMSCRIPTEN_DECLARE_VAL_TYPE(Float64Array);
 
-val errorResult(const std::string& message) {
-  val result = val::object();
-  result.set("error", message);
-  return result;
+Float64Array toFloat64Array(const std::vector<double>& values) {
+  // Constructing a Float64Array from a view copies it out of wasm memory.
+  return Float64Array(val::global("Float64Array")
+                          .new_(emscripten::typed_memory_view(values.size(),
+                                                              values.data())));
 }
 
-val priceVanillaCRR(double spot,
-                    double vol,
-                    double rate,
-                    double tree_years,
-                    double dt_years,
-                    double strike,
-                    double expiry_years,
-                    bool is_call,
-                    bool is_american) {
-  if (spot <= 0 || vol <= 0 || strike <= 0) {
-    return errorResult("spot, vol and strike must be positive");
-  }
-  if (dt_years <= 0 || tree_years <= 0) {
-    return errorResult("tree_years and dt_years must be positive");
-  }
-  if (tree_years / dt_years > kMaxTimesteps) {
-    return errorResult("too many timesteps (max " +
-                       std::to_string(kMaxTimesteps) + ")");
-  }
-  if (expiry_years <= 0 || expiry_years >= tree_years) {
-    return errorResult("expiry_years must be in (0, tree_years)");
-  }
+// The JS-facing counterpart of VanillaPricingResult.
+struct JsVanillaPricingResult {
+  double price = 0.0;
+  double bsm_price = 0.0;
+  int expiry_index = 0;
+  Float64Array times{val::null()};
+  Float64Array forward_dfs{val::null()};
+  Float64Array asset_values{val::null()};
+  Float64Array option_values{val::null()};
+  Float64Array exercise_values{val::null()};
+  Float64Array continuation_values{val::null()};
+  Float64Array up_probs{val::null()};
+  Float64Array arrow_debreu{val::null()};
+};
 
-  StochasticTreeModel<CRRPropagator> asset(BinomialTree(tree_years, dt_years),
-                                           CRRPropagator(spot));
-  asset.forwardPropagate(Volatility(FlatVol(vol)));
+JsVanillaPricingResult toJs(const VanillaPricingResult& result) {
+  return {
+      .price = result.price,
+      .bsm_price = result.bsm_price,
+      .expiry_index = result.expiry_index,
+      .times = toFloat64Array(result.times),
+      .forward_dfs = toFloat64Array(result.forward_dfs),
+      .asset_values = toFloat64Array(result.asset_values),
+      .option_values = toFloat64Array(result.option_values),
+      .exercise_values = toFloat64Array(result.exercise_values),
+      .continuation_values = toFloat64Array(result.continuation_values),
+      .up_probs = toFloat64Array(result.up_probs),
+      .arrow_debreu = toFloat64Array(result.arrow_debreu),
+  };
+}
 
-  ZeroSpotCurve curve({1.0, 10.0}, {rate, rate});
-  SingleAssetDerivative deriv(&asset.binomialTree(), &curve);
-
-  const OptionPayoff payoff = is_call ? OptionPayoff::Call : OptionPayoff::Put;
-  const VanillaOption option(
-      strike,
-      payoff,
-      is_american ? ExerciseStyle::American : ExerciseStyle::European);
-  const VanillaOption european(strike, payoff, ExerciseStyle::European);
-
-  const BinomialTree& tree = asset.binomialTree();
-  val times = val::array();
-  val nodes = val::array();
-  for (int t = 0; t < tree.numTimesteps(); ++t) {
-    times.call<void>("push", tree.totalTimeAtIndex(t));
-    nodes.call<void>("push", val::array(tree.statesAtTimeIndex(t)));
+// Throws a JS Error (with the status message) for invalid requests.
+JsVanillaPricingResult jsPriceVanilla(const VanillaPricingRequest& request) {
+  val error = val::undefined();
+  {
+    // Scoped so that the C++ result is destroyed before the JS throw, which
+    // unwinds without running C++ destructors.
+    const absl::StatusOr<VanillaPricingResult> result = priceVanilla(request);
+    if (result.ok()) return toJs(*result);
+    error = val::global("Error").new_(std::string(result.status().message()));
   }
-
-  val result = val::object();
-  result.set("price", deriv.price(option, expiry_years));
-  // Closed-form European price, for comparison (even for American options).
-  result.set("bsmPrice",
-             european.blackScholes(spot, vol, expiry_years, rate, 0));
-  result.set("times", times);
-  result.set("nodes", nodes);
-  return result;
+  error.throw_();
 }
 
 }  // namespace
-}  // namespace smileexplorer
+}  // namespace smileexplorer::api
 
 EMSCRIPTEN_BINDINGS(smileexplorer) {
-  emscripten::function("priceVanillaCRR", &smileexplorer::priceVanillaCRR);
+  using namespace smileexplorer::api;
+  namespace em = emscripten;
+
+  em::register_type<Float64Array>("Float64Array");
+
+  em::enum_<TreeModel>("TreeModel")
+      .value("CoxRossRubinstein", TreeModel::kCoxRossRubinstein)
+      .value("JarrowRudd", TreeModel::kJarrowRudd);
+
+  em::value_object<BinomialTreeSpec>("BinomialTreeSpec")
+      .field("model", &BinomialTreeSpec::model)
+      .field("spot", &BinomialTreeSpec::spot)
+      .field("vol", &BinomialTreeSpec::vol)
+      .field("rate", &BinomialTreeSpec::rate)
+      .field("drift", &BinomialTreeSpec::drift)
+      .field("dtYears", &BinomialTreeSpec::dt_years);
+
+  em::value_object<VanillaOptionSpec>("VanillaOptionSpec")
+      .field("strike", &VanillaOptionSpec::strike)
+      .field("expiryYears", &VanillaOptionSpec::expiry_years)
+      .field("isCall", &VanillaOptionSpec::is_call)
+      .field("isAmerican", &VanillaOptionSpec::is_american);
+
+  em::value_object<VanillaPricingRequest>("VanillaPricingRequest")
+      .field("tree", &VanillaPricingRequest::tree)
+      .field("option", &VanillaPricingRequest::option);
+
+  em::value_object<JsVanillaPricingResult>("VanillaPricingResult")
+      .field("price", &JsVanillaPricingResult::price)
+      .field("bsmPrice", &JsVanillaPricingResult::bsm_price)
+      .field("expiryIndex", &JsVanillaPricingResult::expiry_index)
+      .field("times", &JsVanillaPricingResult::times)
+      .field("forwardDfs", &JsVanillaPricingResult::forward_dfs)
+      .field("assetValues", &JsVanillaPricingResult::asset_values)
+      .field("optionValues", &JsVanillaPricingResult::option_values)
+      .field("exerciseValues", &JsVanillaPricingResult::exercise_values)
+      .field("continuationValues",
+             &JsVanillaPricingResult::continuation_values)
+      .field("upProbs", &JsVanillaPricingResult::up_probs)
+      .field("arrowDebreu", &JsVanillaPricingResult::arrow_debreu);
+
+  em::function("priceVanilla", &jsPriceVanilla);
 }
