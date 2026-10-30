@@ -120,12 +120,39 @@ const impliedAt = (strike) => {
 };
 assert.ok(impliedAt(80) > impliedAt(120), 'implied vols should skew');
 
+// A currency option, priced off a domestic and a foreign zero curve: Hull,
+// "Options, Futures...", Figure 13.12.
+const fxRequest = (isAmerican) => ({
+  tree: {
+    spot: 0.61,
+    vol: 0.12,
+    domestic: {maturities: [1], rates: [0.05]},
+    foreign: {maturities: [1], rates: [0.07]},
+    dtYears: 1 / 12,
+  },
+  option: {strike: 0.6, expiryYears: 0.25, isCall: true, isAmerican},
+});
+const fxEuro = engine.priceFxVanilla(fxRequest(false));
+const fxAmer = engine.priceFxVanilla(fxRequest(true));
+assertNear(fxEuro.price, 0.01860, 1e-5, 'European FX call (Hull 13.12)');
+assertNear(fxAmer.price, 0.01888, 1e-5, 'American FX call (Hull 13.12)');
+assertNear(
+    fxEuro.forwardGrowth[0], Math.exp(-0.02 / 12), 1e-12,
+    'FX forward growth');
+
+const dfs = engine.evaluateCurve({maturities: [1, 2], rates: [0.02, 0.03]},
+                                 [0, 1, 2]);
+assertNear(dfs[2], Math.exp(-0.06), 1e-12, 'curve discount factor');
+assert.throws(
+    () => engine.evaluateCurve({maturities: [2, 1], rates: [0, 0]}, [1]),
+    /strictly increasing/);
+
 // Invalid requests throw a JS Error.
 assert.throws(
     () => engine.priceVanilla(request({expiryYears: -1})), /expiry_years/);
 
 console.log(
     `OK: European call ${euro.price.toFixed(4)} (BSM ${
-        euro.bsmPrice.toFixed(4)}), ` +
+        euro.bsmPrice.toFixed(4)}), FX call ${fxAmer.price.toFixed(5)}, ` +
     `put ${euroPut.price.toFixed(4)} European / ${
         amerPut.price.toFixed(4)} American`);
