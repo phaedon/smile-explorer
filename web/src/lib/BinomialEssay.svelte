@@ -59,7 +59,7 @@
   const yearsFmt = (v: number) => fmt(v, 2);
 </script>
 
-<article>
+<article class="essay">
   <header>
     <p class="kicker">smile-explorer · interactive notes</p>
     <h1>Pricing an option on a binomial tree</h1>
@@ -74,7 +74,7 @@
   </header>
 
   {#if outcome.error}
-    <div class="error" role="alert">
+    <div class="error sticky" role="alert">
       <strong>The engine rejected these parameters:</strong>
       {outcome.error}. Showing the last valid tree.
     </div>
@@ -336,63 +336,6 @@ double price = deriv.price(
 </article>
 
 <style>
-  article {
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 48px 16px 64px;
-  }
-  .kicker {
-    font: 600 13px var(--font-ui);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin: 0;
-  }
-  h1 {
-    font-size: clamp(30px, 6vw, 42px);
-    margin: 8px 0 16px;
-  }
-  h2 {
-    font-size: 24px;
-    margin: 56px 0 12px;
-  }
-  .lede {
-    font-size: 20px;
-    color: var(--text-secondary);
-  }
-  .hint {
-    color: var(--text-primary);
-  }
-  .sample {
-    color: var(--accent);
-    border-bottom: 1px dashed currentColor;
-  }
-  pre {
-    background: var(--surface-raised);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px 16px;
-    overflow-x: auto;
-    line-height: 1.6;
-    font-size: 15px;
-  }
-  pre code {
-    font-size: 14px;
-  }
-  .display {
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-    overflow-x: auto;
-  }
-  figure {
-    margin: 24px 0;
-  }
-  figcaption {
-    font: 14px/1.5 var(--font-ui);
-    color: var(--text-secondary);
-    margin-top: 6px;
-    min-height: 3em;
-  }
   .legend {
     display: flex;
     flex-wrap: wrap;
@@ -431,40 +374,5 @@ double price = deriv.price(
     height: 9px;
     border: 2px solid var(--series-2);
     transform: rotate(45deg);
-  }
-  .stat {
-    font: 16px var(--font-ui);
-    font-variant-numeric: tabular-nums;
-  }
-  .muted {
-    color: var(--text-secondary);
-  }
-  .error {
-    position: sticky;
-    top: 8px;
-    z-index: 1;
-    font: 14px/1.5 var(--font-ui);
-    color: var(--error);
-    background: var(--surface-raised);
-    border: 1px solid var(--error);
-    border-radius: 8px;
-    padding: 10px 14px;
-    margin: 16px 0;
-  }
-  button.inline {
-    font: 15px var(--font-ui);
-    padding: 2px 10px;
-    border-radius: 6px;
-    border: 1px solid var(--accent);
-    background: transparent;
-    color: var(--accent);
-    cursor: pointer;
-  }
-  footer {
-    margin-top: 64px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border);
-    font: 14px var(--font-ui);
-    color: var(--text-muted);
   }
 </style>

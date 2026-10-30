@@ -5,7 +5,7 @@
   induction can be stepped through. Hovering snaps to the nearest node.
 -->
 <script lang="ts">
-  import {fmt, niceTicks} from './format';
+  import {fmt, logTicks, niceTicks} from './format';
   import {nodeIndex, type VanillaPricingResult} from './engine';
 
   export type NodeRef = {t: number; i: number};
@@ -37,8 +37,12 @@
   const lo = $derived(Math.log(result.assetValues[nodeIndex(T, 0)]));
   const hi = $derived(Math.log(result.assetValues[nodeIndex(T, T)]));
 
+  // Time indices are placed at their actual times: with a term structure of
+  // vol, the timesteps aren't uniform.
   const x = (t: number) =>
-    PAD.left + (T > 0 ? t / T : 0) * (W - PAD.left - PAD.right);
+    PAD.left +
+    (T > 0 ? result.times[t] / result.times[T] : 0) *
+      (W - PAD.left - PAD.right);
   const y = (s: number) =>
     PAD.top +
     (hi > lo ? 1 - (Math.log(s) - lo) / (hi - lo) : 0.5) *
@@ -91,8 +95,9 @@
     return d;
   });
 
+  // The price axis is logarithmic.
   const yTicks = $derived(
-    niceTicks(Math.exp(lo), Math.exp(hi), 5).filter(
+    logTicks(Math.exp(lo), Math.exp(hi)).filter(
       (v) => v >= Math.exp(lo) && v <= Math.exp(hi),
     ),
   );
@@ -111,12 +116,17 @@
     const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(
       ctm.inverse(),
     );
-    const t = Math.round(
-      ((p.x - PAD.left) / (W - PAD.left - PAD.right)) * T,
-    );
-    if (t < 0 || t > T) {
+    const time =
+      ((p.x - PAD.left) / (W - PAD.left - PAD.right)) * result.times[T];
+    if (time < -0.5 * result.times[1] || time > result.times[T] * 1.02) {
       hovered = null;
       return;
+    }
+    let t = 0;
+    for (let k = 1; k <= T; ++k) {
+      if (Math.abs(result.times[k] - time) < Math.abs(result.times[t] - time)) {
+        t = k;
+      }
     }
     let best = 0;
     for (let i = 1; i <= t; ++i) {
