@@ -5,6 +5,8 @@
 
 import createEngine from './engine/engine_lib.js';
 import type {
+  BondOptionRequest,
+  BondOptionResult,
   FxVanillaPricingRequest,
   HullWhiteTreeResult,
   HullWhiteTreeSpec,
@@ -15,6 +17,8 @@ import type {
 } from './engine/engine_lib.js';
 
 export type {
+  BondOptionRequest,
+  BondOptionResult,
   FxVanillaPricingRequest,
   HullWhiteTreeResult,
   HullWhiteTreeSpec,

@@ -4,8 +4,9 @@
   branches to three successors; nodes on the edges, where branching bends
   inwards, are drawn as diamonds. Nodes can be coloured by a per-node value
   (on a ramp from its smallest to its largest value), with only the time slices in [shownFrom, shownTo] treated as computed, so
-  that a forward or backward pass can be stepped through. Hovering snaps to
-  the nearest node.
+  that a forward or backward pass can be stepped through. Nodes whose value is
+  NaN (an option after its expiry, say) are drawn faded, and `marked` nodes
+  (early exercise) get a ring. Hovering snaps to the nearest node.
 -->
 <script lang="ts">
   import {niceTicks, tickFormat} from './format';
@@ -17,6 +18,7 @@
     values = null,
     shownFrom = 0,
     shownTo = Number.POSITIVE_INFINITY,
+    marked = null,
     hovered = $bindable(null),
   }: {
     tree: HullWhiteTreeResult;
@@ -25,6 +27,8 @@
     values?: Float64Array | null;
     shownFrom?: number;
     shownTo?: number;
+    // Per-node flags for nodes to ring, or null.
+    marked?: boolean[] | null;
     // Index of the hovered node.
     hovered?: number | null;
   } = $props();
@@ -62,11 +66,13 @@
   const shown = (t: number) => t >= shownFrom && t <= shownTo;
   // The ramp spans the values' own range: bond values, say, all sit near
   // their face value.
-  const minValue = $derived(values ? Math.min(...values) : 0);
-  const maxValue = $derived(values ? Math.max(...values) : 0);
+  const finiteValues = $derived(values ? Array.from(values).filter(Number.isFinite) : []);
+  const minValue = $derived(finiteValues.length ? Math.min(...finiteValues) : 0);
+  const maxValue = $derived(finiteValues.length ? Math.max(...finiteValues) : 0);
+  const valueless = (n: number) => values !== null && !Number.isFinite(values[n]);
   function fillFor(n: number): string {
     if (!values) return 'var(--series-1)';
-    if (!shown(sliceOf[n])) return 'var(--surface)';
+    if (!shown(sliceOf[n]) || valueless(n)) return 'var(--surface)';
     if (!(maxValue > minValue)) return 'var(--seq-5)';
     const level = (values[n] - minValue) / (maxValue - minValue);
     return `var(--seq-${Math.min(9, Math.floor(level * 10))})`;
@@ -146,6 +152,7 @@
       <circle
         class="node"
         class:pending={values !== null && !shown(sliceOf[n])}
+        class:valueless={valueless(n)}
         {cx}
         {cy}
         r={radius}
@@ -155,6 +162,7 @@
       <rect
         class="node edge"
         class:pending={values !== null && !shown(sliceOf[n])}
+        class:valueless={valueless(n)}
         x={cx - radius}
         y={cy - radius}
         width={radius * 2}
@@ -164,6 +172,14 @@
       />
     {/if}
   {/each}
+
+  {#if marked}
+    {#each ys as v, n (n)}
+      {#if marked[n]}
+        <circle class="mark" cx={x(sliceOf[n])} cy={y(v)} r={radius + 2.5} />
+      {/if}
+    {/each}
+  {/if}
 
   {#if hovered !== null}
     <circle class="ring" cx={x(sliceOf[hovered])} cy={y(ys[hovered])} r={radius + 4} />
@@ -206,6 +222,14 @@
   }
   .node.pending {
     stroke: var(--text-muted);
+  }
+  .node.valueless {
+    stroke: var(--border);
+  }
+  .mark {
+    fill: none;
+    stroke: var(--text-primary);
+    stroke-width: 1.5;
   }
   .ring {
     fill: none;
