@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <vector>
 
 #include "derivative.h"
@@ -138,6 +139,37 @@ TEST(InterestRateDerivativeTest, CouponBondOption) {
   double bond_option_price =
       bond_option.price(VanillaOption(99., OptionPayoff::Call), 2.1);
   EXPECT_NEAR(0.944596, bond_option_price, 0.0005);
+}
+
+// A put on a zero-coupon bond is worth exercising early when rates are high
+// (and the bond cheap), so the American put is worth more than the European
+// one; at no node is it worth less than its exercise value.
+TEST(InterestRateDerivativeTest, AmericanBondOption) {
+  ZeroSpotCurve curve({1, 5, 10}, {0.05, 0.06, 0.065});
+  const double dt = 0.25;
+  ShortRateTreeCurve hullwhitecurve(
+      std::make_unique<HullWhitePropagator>(0.1, 0.01, dt), curve, 9.);
+  FixedCashflowInstrument bond(&hullwhitecurve);
+  ASSERT_TRUE(
+      bond.setCashflows({Cashflow{.time_years = 9.0, .amount = 100.}}).ok());
+  bond.price();
+  auto swap = InterestRateSwap::createBond(std::move(bond));
+
+  InterestRateDerivative european(&hullwhitecurve, &swap);
+  const double european_price =
+      european.price(VanillaOption(63., OptionPayoff::Put), 3.0);
+  InterestRateDerivative american(&hullwhitecurve, &swap);
+  const double american_price = american.price(
+      VanillaOption(63., OptionPayoff::Put, ExerciseStyle::American), 3.0);
+
+  EXPECT_GT(american_price, european_price + 0.01);
+  const auto& bond_tree = swap.trinomialTree();
+  for (int ti = 0; ti <= 12; ++ti) {
+    for (int i = 0; i < american.tree().numStatesAt(ti); ++i) {
+      EXPECT_GE(american.tree().nodeValue(ti, i),
+                std::max(0.0, 63. - bond_tree.nodeValue(ti, i)) - 1e-12);
+    }
+  }
 }
 
 }  // namespace smileexplorer

@@ -1,5 +1,7 @@
 #include "vanilla_option.h"
 
+#include <algorithm>
+
 #include "absl/log/log.h"
 #include "bsm.h"
 
@@ -101,7 +103,9 @@ double VanillaOption::operator()(const TrinomialTree& deriv_tree,
       std::exp(-r * short_rate_tree.getTimegrid().dt(ti)) * expected_next;
 
   if (style_ == ExerciseStyle::American) {
-    static_assert("Unimplemented!");
+    // Exercise if the payoff on the underlying's value here beats holding.
+    return std::max(discounted_expected_next_state,
+                    getPayoff(bond_tree.tree_[ti][i].state_value, strike_));
   }
 
   return discounted_expected_next_state;
