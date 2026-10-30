@@ -1,7 +1,7 @@
 // The essay's shared, reactive model parameters. Every figure and code snippet
 // reads from (and the draggable numbers write to) this one object.
 
-import {engine, type VanillaPricingRequest} from './engine';
+import {engine, flatVol, type VanillaPricingRequest} from './engine';
 
 export const params = $state({
   spot: 100,
@@ -24,7 +24,7 @@ export function requestFor(
     tree: {
       model: engine.TreeModel.CoxRossRubinstein,
       spot: p.spot,
-      vol: p.vol,
+      vol: flatVol(p.vol),
       rate: p.rate,
       drift: 0,
       dtYears: 1 / stepsPerYear,

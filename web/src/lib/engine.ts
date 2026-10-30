@@ -21,6 +21,19 @@ export function nodeIndex(t: number, i: number): number {
   return (t * (t + 1)) / 2 + i;
 }
 
+export type VolSpec = Parameters<MainModule['evaluateVol']>[0];
+
+export function flatVol(vol: number): VolSpec {
+  return {
+    model: engine.VolModel.Flat,
+    vol,
+    termMaturities: [],
+    termVols: [],
+    smileRange: 0,
+    smileStretch: 0,
+  };
+}
+
 export type PricingOutcome =
   | {result: VanillaPricingResult; error?: undefined}
   | {result?: undefined; error: string};
