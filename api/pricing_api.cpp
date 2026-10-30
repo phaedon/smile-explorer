@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <memory>
 #include <string>
+#include <string_view>
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
@@ -112,34 +114,75 @@ SigmoidSmileVol smile(const VolSpec& vol, double spot) {
           .center = spot};
 }
 
+absl::Status validateCurve(const RateCurveSpec& curve, std::string_view name) {
+  const auto& t = curve.maturities;
+  const auto& r = curve.rates;
+  if (t.empty() || t.size() > 10 || t.size() != r.size()) {
+    return absl::InvalidArgumentError(
+        absl::StrCat(name,
+                     " curve: maturities and rates must have equal length, "
+                     "between 1 and 10"));
+  }
+  for (size_t k = 0; k < t.size(); ++k) {
+    if (!std::isfinite(r[k])) {
+      return absl::InvalidArgumentError(
+          absl::StrCat(name, " curve: rates must be finite"));
+    }
+    if (!(t[k] > (k == 0 ? 0.0 : t[k - 1]))) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          name, " curve: maturities must be positive and strictly increasing"));
+    }
+  }
+  return absl::OkStatus();
+}
+
+ZeroSpotCurve zeroCurve(const RateCurveSpec& curve) {
+  return ZeroSpotCurve(curve.maturities, curve.rates);
+}
+
+// The tree-independent inputs to priceOnTree.
+struct TreeInputs {
+  double spot;
+  double dt_years;
+  const VanillaOptionSpec& option;
+  // The (domestic) discount curve.
+  const RatesCurve& curve;
+  // For an exchange rate, the foreign curve; otherwise null.
+  const RatesCurve* foreign_curve = nullptr;
+};
+
+// The continuously-compounded zero rate to time t.
+double zeroRate(const RatesCurve& curve, double t) {
+  return -std::log(curve.df(t)) / t;
+}
+
 template <typename PropagatorT, typename VolSurfaceT>
 absl::StatusOr<VanillaPricingResult> priceOnTree(
-    const VanillaPricingRequest& request,
-    const RatesCurve& curve,
+    const TreeInputs& inputs,
     PropagatorT propagator,
     const Volatility<VolSurfaceT>& volatility,
     double bsm_vol) {
-  const BinomialTreeSpec& spec = request.tree;
-  const VanillaOptionSpec& option_spec = request.option;
+  const VanillaOptionSpec& option_spec = inputs.option;
+  const RatesCurve& curve = inputs.curve;
+  const RatesCurve* foreign_curve = inputs.foreign_curve;
 
   // The timegrid depends on the vol (it varies with a term structure), so
   // check its size before allocating the tree.
-  if (volatility.generateTimegrid(option_spec.expiry_years, spec.dt_years)
+  if (volatility.generateTimegrid(option_spec.expiry_years, inputs.dt_years)
           .size() > kMaxTimesteps + 1) {
     return absl::InvalidArgumentError(absl::StrCat(
         "the tree would need more than ", kMaxTimesteps, " timesteps"));
   }
 
   StochasticTreeModel<PropagatorT> asset(
-      BinomialTree(option_spec.expiry_years, spec.dt_years), propagator);
+      BinomialTree(option_spec.expiry_years, inputs.dt_years), propagator);
   asset.forwardPropagate(volatility);
   const BinomialTree& asset_tree = asset.binomialTree();
   const Timegrid& timegrid = asset_tree.getTimegrid();
 
   const auto expiry_index =
       timegrid.getTimeIndexForExpiry(option_spec.expiry_years);
-  if (!expiry_index.has_value() ||
-      *expiry_index > asset_tree.numTimesteps()) {
+  if (!expiry_index.has_value() || *expiry_index > asset_tree.numTimesteps()) {
     return absl::InternalError("expiry does not fall within the tree");
   }
   const int ti_final = *expiry_index;
@@ -148,6 +191,7 @@ absl::StatusOr<VanillaPricingResult> priceOnTree(
   result.expiry_index = ti_final;
   result.times.resize(ti_final + 1);
   result.forward_dfs.resize(ti_final + 1, kNaN);
+  result.forward_growth.resize(ti_final + 1, kNaN);
   const int num_nodes = numNodes(ti_final + 1);
   result.asset_values.resize(num_nodes);
   result.option_values.resize(num_nodes);
@@ -159,14 +203,23 @@ absl::StatusOr<VanillaPricingResult> priceOnTree(
   for (int t = 0; t <= ti_final; ++t) {
     result.times[t] = timegrid.time(t);
     if (t < ti_final) {
-      result.forward_dfs[t] =
-          curve.forwardDF(timegrid.time(t), timegrid.time(t + 1));
+      const double t0 = timegrid.time(t);
+      const double t1 = timegrid.time(t + 1);
+      result.forward_dfs[t] = curve.forwardDF(t0, t1);
+      result.forward_growth[t] =
+          foreign_curve == nullptr
+              ? curve.inverseForwardDF(t0, t1)
+              : curve.inverseForwardDF(t0, t1) /
+                    foreign_curve->inverseForwardDF(t0, t1);
     }
     for (int i = 0; i <= t; ++i) {
       const int n = nodeIndex(t, i);
       result.asset_values[n] = asset_tree.nodeValue(t, i);
       if (t < ti_final) {
-        const double p = asset_tree.getUpProbAt(curve, t, i);
+        const double p =
+            foreign_curve == nullptr
+                ? asset_tree.getUpProbAt(curve, t, i)
+                : asset_tree.getUpProbAt(curve, *foreign_curve, t, i);
         if (!(p > 0 && p < 1)) {
           return absl::InvalidArgumentError(absl::StrCat(
               "risk-neutral up-probability ",
@@ -174,7 +227,10 @@ absl::StatusOr<VanillaPricingResult> priceOnTree(
               " at time index ",
               t,
               " is outside (0, 1), so the tree admits arbitrage; use a "
-              "smaller timestep, a higher vol or a lower rate"));
+              "smaller timestep, a higher vol or ",
+              foreign_curve == nullptr
+                  ? "a lower rate"
+                  : "a smaller gap between the domestic and foreign rates"));
         }
         result.up_probs[n] = p;
       }
@@ -190,14 +246,25 @@ absl::StatusOr<VanillaPricingResult> priceOnTree(
   const VanillaOption european(
       option_spec.strike, payoff, ExerciseStyle::European);
 
-  SingleAssetDerivative deriv(&asset_tree, &curve);
-  result.price = deriv.price(option, option_spec.expiry_years);
+  std::unique_ptr<SingleAssetDerivative> deriv =
+      foreign_curve == nullptr
+          ? std::make_unique<SingleAssetDerivative>(&asset_tree, &curve)
+          : std::make_unique<CurrencyDerivative>(
+                &asset_tree, &curve, foreign_curve);
+  result.price = deriv->price(option, option_spec.expiry_years);
   result.bsm_vol = bsm_vol;
+  // Black-Scholes, with the foreign rate (if any) as the dividend yield: for
+  // an exchange rate, this is Garman-Kohlhagen.
+  const double expiry = result.times[ti_final];
   result.bsm_price = european.blackScholes(
-      spec.spot, bsm_vol, result.times[ti_final], spec.rate, 0.0);
+      inputs.spot,
+      bsm_vol,
+      expiry,
+      zeroRate(curve, expiry),
+      foreign_curve == nullptr ? 0.0 : zeroRate(*foreign_curve, expiry));
 
-  const BinomialTree& option_tree = deriv.binomialTree();
-  const BinomialTree& arrow_debreu_tree = deriv.arrowDebreuTree();
+  const BinomialTree& option_tree = deriv->binomialTree();
+  const BinomialTree& arrow_debreu_tree = deriv->arrowDebreuTree();
   for (int t = 0; t <= ti_final; ++t) {
     for (int i = 0; i <= t; ++i) {
       const int n = nodeIndex(t, i);
@@ -207,9 +274,8 @@ absl::StatusOr<VanillaPricingResult> priceOnTree(
       if (t < ti_final) {
         const double p = result.up_probs[n];
         result.continuation_values[n] =
-            result.forward_dfs[t] *
-            (p * option_tree.nodeValue(t + 1, i + 1) +
-             (1 - p) * option_tree.nodeValue(t + 1, i));
+            result.forward_dfs[t] * (p * option_tree.nodeValue(t + 1, i + 1) +
+                                     (1 - p) * option_tree.nodeValue(t + 1, i));
       }
     }
   }
@@ -223,23 +289,25 @@ absl::StatusOr<VanillaPricingResult> priceWithVol(
     const RatesCurve& curve,
     PropagatorT propagator) {
   const VolSpec& vol = request.tree.vol;
+  const TreeInputs inputs{.spot = request.tree.spot,
+                          .dt_years = request.tree.dt_years,
+                          .option = request.option,
+                          .curve = curve};
   switch (vol.model) {
     case VolModel::kFlat:
       return priceOnTree(
-          request, curve, propagator, Volatility(FlatVol(vol.vol)), vol.vol);
+          inputs, propagator, Volatility(FlatVol(vol.vol)), vol.vol);
     case VolModel::kTermStructure: {
       const PiecewiseTermStructureVol term_structure = termStructure(vol);
       return priceOnTree(
-          request,
-          curve,
+          inputs,
           propagator,
           Volatility(term_structure),
           term_structure.impliedVol(request.option.expiry_years));
     }
     case VolModel::kSigmoidSmile: {
       const SigmoidSmileVol smile_vol = smile(vol, request.tree.spot);
-      return priceOnTree(request,
-                         curve,
+      return priceOnTree(inputs,
                          propagator,
                          Volatility(smile_vol),
                          smile_vol(request.tree.spot));
@@ -269,6 +337,63 @@ absl::StatusOr<VanillaPricingResult> priceVanilla(
           request, curve, LocalVolatilityPropagator(curve, tree.spot));
   }
   return absl::InvalidArgumentError("unknown tree model");
+}
+
+absl::StatusOr<VanillaPricingResult> priceFxVanilla(
+    const FxVanillaPricingRequest& request) {
+  const FxTreeSpec& tree = request.tree;
+  const VanillaOptionSpec& option = request.option;
+  if (!(tree.spot > 0)) {
+    return absl::InvalidArgumentError("spot must be positive");
+  }
+  if (!(tree.vol > 0)) {
+    return absl::InvalidArgumentError("vol must be positive");
+  }
+  if (absl::Status status = validateCurve(tree.domestic, "domestic");
+      !status.ok()) {
+    return status;
+  }
+  if (absl::Status status = validateCurve(tree.foreign, "foreign");
+      !status.ok()) {
+    return status;
+  }
+  if (!(tree.dt_years > 0)) {
+    return absl::InvalidArgumentError("dt_years must be positive");
+  }
+  if (!(option.strike > 0)) {
+    return absl::InvalidArgumentError("strike must be positive");
+  }
+  if (!(option.expiry_years > 0)) {
+    return absl::InvalidArgumentError("expiry_years must be positive");
+  }
+
+  const ZeroSpotCurve domestic = zeroCurve(tree.domestic);
+  const ZeroSpotCurve foreign = zeroCurve(tree.foreign);
+  return priceOnTree(TreeInputs{.spot = tree.spot,
+                                .dt_years = tree.dt_years,
+                                .option = option,
+                                .curve = domestic,
+                                .foreign_curve = &foreign},
+                     CRRPropagator(tree.spot),
+                     Volatility(FlatVol(tree.vol)),
+                     tree.vol);
+}
+
+absl::StatusOr<std::vector<double>> evaluateCurve(
+    const RateCurveSpec& curve, const std::vector<double>& times) {
+  if (absl::Status status = validateCurve(curve, "rate"); !status.ok()) {
+    return status;
+  }
+  const ZeroSpotCurve zero_curve = zeroCurve(curve);
+  std::vector<double> dfs;
+  dfs.reserve(times.size());
+  for (double t : times) {
+    if (!(t >= 0)) {
+      return absl::InvalidArgumentError("times must be non-negative");
+    }
+    dfs.push_back(zero_curve.df(t));
+  }
+  return dfs;
 }
 
 absl::StatusOr<std::vector<double>> evaluateVol(const VolSpec& vol,
