@@ -32,7 +32,7 @@ TEST(PricingApiTest, MatchesLibraryPrice) {
   ASSERT_TRUE(result.ok()) << result.status();
 
   // The same computation, composed directly from the library.
-  StochasticTreeModel<CRRPropagator> asset(BinomialTree(1.0 + 2 / 52., 1 / 52.),
+  StochasticTreeModel<CRRPropagator> asset(BinomialTree(1.0, 1 / 52.),
                                            CRRPropagator(100));
   asset.forwardPropagate(Volatility(FlatVol(0.158745)));
   ZeroSpotCurve curve({1.0, 10.0}, {0.12, 0.12});

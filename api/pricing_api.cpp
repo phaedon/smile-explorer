@@ -59,13 +59,8 @@ absl::StatusOr<VanillaPricingResult> priceOnTree(
   const BinomialTreeSpec& spec = request.tree;
   const VanillaOptionSpec& option_spec = request.option;
 
-  // The tree must extend beyond the expiry: the final row of a tree is never
-  // populated by forward propagation, and the expiry is snapped to the
-  // nearest timegrid point, which may lie just after the requested expiry.
   StochasticTreeModel<PropagatorT> asset(
-      BinomialTree(option_spec.expiry_years + 2 * spec.dt_years,
-                   spec.dt_years),
-      propagator);
+      BinomialTree(option_spec.expiry_years, spec.dt_years), propagator);
   asset.forwardPropagate(Volatility(FlatVol(spec.vol)));
   const BinomialTree& asset_tree = asset.binomialTree();
   const Timegrid& timegrid = asset_tree.getTimegrid();
@@ -73,7 +68,7 @@ absl::StatusOr<VanillaPricingResult> priceOnTree(
   const auto expiry_index =
       timegrid.getTimeIndexForExpiry(option_spec.expiry_years);
   if (!expiry_index.has_value() ||
-      *expiry_index >= asset_tree.numTimesteps()) {
+      *expiry_index > asset_tree.numTimesteps()) {
     return absl::InternalError("expiry does not fall within the tree");
   }
   const int ti_final = *expiry_index;
