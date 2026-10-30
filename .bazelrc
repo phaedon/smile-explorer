@@ -25,3 +25,7 @@ build --per_file_copt=.*boost\.container.*@-DBOOST_HAS_PTHREADS=
 
 # AddressSanitizer: bazel test --config=asan ...
 build:asan --copt=-fsanitize=address --copt=-fno-omit-frame-pointer --linkopt=-fsanitize=address
+# Only build what the tests need. The GUI deps don't build under ASan on Linux:
+# xkbcommon (via glfw) detects strndup with a configure-style check that doesn't
+# pass with these flags, so it defines its own, which clashes with glibc's.
+test:asan --build_tests_only
