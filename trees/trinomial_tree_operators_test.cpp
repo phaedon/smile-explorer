@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include "absl/status/status.h"
 #include "rates/short_rate_tree_curve.h"
 #include "trinomial_tree.h"
 
@@ -43,6 +44,32 @@ TEST(TrinomialTreeOperatorsTest, HullWhiteParamsMayCauseTreeMismatches) {
   ShortRateTreeCurve c(
       std::make_unique<HullWhitePropagator>(.15, .02, dt), market_curve, 10);
   EXPECT_TRUE(treesHaveMatchingStructure(b.trinomialTree(), c.trinomialTree()));
+}
+
+TEST(TrinomialTreeOperatorsTest, BackwardInductionChecksPreconditions) {
+  const double dt = 0.25;
+  ZeroSpotCurve market_curve({1, 2, 5}, {0.03, 0.04, 0.05});
+  ShortRateTreeCurve curve(
+      std::make_unique<HullWhitePropagator>(.1, .01, dt), market_curve, 2);
+  TrinomialTree tree = TrinomialTree::createFrom(curve.trinomialTree());
+  const int last = std::ssize(tree.tree_) - 1;
+
+  // A tree with a different structure can't be discounted on this curve.
+  ShortRateTreeCurve other(
+      std::make_unique<HullWhitePropagator>(.5, .01, dt), market_curve, 2);
+  TrinomialTree mismatched = TrinomialTree::createFrom(other.trinomialTree());
+  EXPECT_EQ(absl::StatusCode::kFailedPrecondition,
+            runBackwardInduction(curve, mismatched, last, 0).code());
+
+  // The induction must run backwards, over time indices within the tree.
+  EXPECT_EQ(absl::StatusCode::kFailedPrecondition,
+            runBackwardInduction(curve, tree, 2, 2).code());
+  EXPECT_EQ(absl::StatusCode::kFailedPrecondition,
+            runBackwardInduction(curve, tree, 2, -1).code());
+  EXPECT_EQ(absl::StatusCode::kFailedPrecondition,
+            runBackwardInduction(curve, tree, last + 1, 0).code());
+
+  EXPECT_TRUE(runBackwardInduction(curve, tree, last, 0).ok());
 }
 
 }  // namespace
