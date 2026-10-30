@@ -1,0 +1,125 @@
+<!doctype html>
+<!--
+  Minimal browser demo of the WebAssembly pricing engine. Not the interactive
+  essay itself; it only proves the browser path end to end.
+
+  From the repo root:
+    bazel build //wasm:engine
+    python3 -m http.server 8000
+  then open http://localhost:8000/wasm/demo.html
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>smile-explorer WASM demo</title>
+  <style>
+    :root { --bg: #fafaf9; --fg: #1c1917; --muted: #78716c; --edge: #d6d3d1;
+            --node: #2563eb; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #1c1917; --fg: #f5f5f4; --muted: #a8a29e; --edge: #44403c;
+              --node: #60a5fa; }
+    }
+    body { margin: 0 auto; max-width: 900px; padding: 24px 16px;
+           font: 15px/1.5 system-ui, sans-serif; background: var(--bg);
+           color: var(--fg); }
+    .controls { display: grid; grid-template-columns: max-content 1fr 5em;
+                gap: 6px 12px; align-items: center; }
+    .controls output { font-variant-numeric: tabular-nums; text-align: right; }
+    .result { margin: 16px 0; font-size: 18px; font-variant-numeric: tabular-nums; }
+    .result small { color: var(--muted); }
+    canvas { width: 100%; height: 420px; display: block; }
+  </style>
+</head>
+<body>
+  <h1>CRR binomial tree</h1>
+  <div class="controls">
+    <label for="vol">Volatility</label>
+    <input id="vol" type="range" min="0.02" max="0.8" step="0.005" value="0.16">
+    <output for="vol"></output>
+    <label for="rate">Rate</label>
+    <input id="rate" type="range" min="0" max="0.15" step="0.0025" value="0.04">
+    <output for="rate"></output>
+    <label for="strike">Strike</label>
+    <input id="strike" type="range" min="60" max="140" step="1" value="105">
+    <output for="strike"></output>
+    <label for="steps">Steps per year</label>
+    <input id="steps" type="range" min="4" max="104" step="1" value="26">
+    <output for="steps"></output>
+    <label>Option</label>
+    <span>
+      <label><input id="call" type="checkbox" checked> Call</label>
+      <label><input id="american" type="checkbox"> American</label>
+    </span>
+    <span></span>
+  </div>
+  <div class="result" id="result">Loading engine…</div>
+  <canvas id="tree"></canvas>
+
+  <script type="module">
+    import createEngine from '../bazel-bin/wasm/engine_lib.js';
+
+    const engine = await createEngine();
+    const $ = (id) => document.getElementById(id);
+    const inputs = ['vol', 'rate', 'strike', 'steps', 'call', 'american'];
+    const SPOT = 100, EXPIRY = 1.0, TREE_YEARS = 1.1;
+
+    function update() {
+      for (const id of ['vol', 'rate', 'strike', 'steps']) {
+        document.querySelector(`output[for=${id}]`).textContent = $(id).value;
+      }
+      const r = engine.priceVanillaCRR(
+          SPOT, +$('vol').value, +$('rate').value, TREE_YEARS,
+          1 / +$('steps').value, +$('strike').value, EXPIRY,
+          $('call').checked, $('american').checked);
+      if (r.error) {
+        $('result').textContent = r.error;
+        return;
+      }
+      $('result').innerHTML = `Price ${r.price.toFixed(4)} ` +
+          `<small>(Black-Scholes European ${r.bsmPrice.toFixed(4)})</small>`;
+      draw(r.times, r.nodes);
+    }
+
+    function draw(times, nodes) {
+      const canvas = $('tree');
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+
+      const all = nodes.flat();
+      const lo = Math.min(...all), hi = Math.max(...all);
+      const pad = 8;
+      const x = (t) => pad + (t / times.at(-1)) * (w - 2 * pad);
+      const y = (s) => h - pad - ((s - lo) / (hi - lo || 1)) * (h - 2 * pad);
+      const css = getComputedStyle(document.documentElement);
+
+      // Each node (t, i) branches to (t + 1, i) and (t + 1, i + 1).
+      ctx.strokeStyle = css.getPropertyValue('--edge');
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      for (let t = 0; t + 1 < nodes.length; ++t) {
+        nodes[t].forEach((s, i) => {
+          for (const j of [i, i + 1]) {
+            ctx.moveTo(x(times[t]), y(s));
+            ctx.lineTo(x(times[t + 1]), y(nodes[t + 1][j]));
+          }
+        });
+      }
+      ctx.stroke();
+
+      ctx.fillStyle = css.getPropertyValue('--node');
+      nodes.forEach((states, t) => states.forEach((s) => {
+        ctx.fillRect(x(times[t]) - 1, y(s) - 1, 2, 2);
+      }));
+    }
+
+    for (const id of inputs) $(id).addEventListener('input', update);
+    window.addEventListener('resize', update);
+    update();
+  </script>
+</body>
+</html>

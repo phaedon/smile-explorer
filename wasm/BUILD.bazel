@@ -1,0 +1,39 @@
+load("@emsdk//emscripten_toolchain:wasm_rules.bzl", "wasm_cc_binary")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+
+cc_binary(
+    name = "engine_lib",
+    srcs = ["engine_bindings.cpp"],
+    linkopts = [
+        "--bind",
+        "-sMODULARIZE=1",
+        "-sEXPORT_ES6=1",
+        "-sEXPORT_NAME=createEngine",
+        "-sALLOW_MEMORY_GROWTH=1",
+        "-sENVIRONMENT=web,worker,node",
+    ],
+    # Only buildable with the Emscripten toolchain (via :engine below), so
+    # hide it from wildcard builds on the host.
+    tags = ["manual"],
+    deps = [
+        "//derivatives:derivative",
+        "//derivatives:vanilla_option",
+        "//rates:zero_curve",
+        "//trees:binomial_tree",
+        "//trees:propagators",
+        "//trees:stochastic_tree_model",
+        "//volatility",
+    ],
+)
+
+wasm_cc_binary(
+    name = "engine",
+    cc_target = ":engine_lib",
+    outputs = [
+        "engine_lib.js",
+        "engine_lib.wasm",
+    ],
+    # Downloads the Emscripten SDK on first build, so keep it out of wildcard
+    # builds; build it explicitly with `bazel build //wasm:engine`.
+    tags = ["manual"],
+)

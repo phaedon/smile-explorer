@@ -62,3 +62,32 @@ jobs:
       - name: Run Tests with Bazel
         run: |
           bazel test //... --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+  build_wasm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Bazel
+        uses: bazel-contrib/setup-bazel@0.14.0
+        with:
+          # Avoid downloading Bazel every time.
+          bazelisk-cache: true
+          # Store build cache per workflow.
+          disk-cache: ${{ github.workflow }}
+          # Share repository cache between workflows.
+          repository-cache: true
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build WebAssembly engine
+        run: |
+          bazel build //wasm:engine
+
+      - name: Run WebAssembly smoke test
+        run: |
+          node wasm/smoke_test.mjs
