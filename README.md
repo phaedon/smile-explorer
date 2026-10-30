@@ -54,7 +54,10 @@ See [`wasm/README.md`](wasm/README.md) for the WebAssembly API and a small brows
 
 ### Interactive essays
 
-[`web/`](web/README.md) contains explorable explanations built on the WebAssembly engine, starting with an essay on binomial option pricing: drag the numbers in the prose and code, step through backward induction, and hover over any node to see its arithmetic.
+[`web/`](web/README.md) contains explorable explanations built on the WebAssembly engine:
+
+* **Binomial trees**: drag the numbers in the prose and code, step through backward induction, and hover over any node to see its arithmetic.
+* **Volatility in the tree**: term structures of volatility (and trees whose timesteps adapt to them), local volatility and the Derman-Kani implied tree, and the implied-vol smile that local vol produces.
 
 ```shell
 cd web && npm install && npm run engine && npm run dev

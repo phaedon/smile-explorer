@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "engine": "cd .. && bazel build //wasm:engine && cd web && npm run sync-engine",
+    "engine": "cd .. && bazel build -c opt //wasm:engine && cd web && npm run sync-engine",
     "sync-engine": "node scripts/sync-engine.mjs",
     "dev": "npm run sync-engine && vite",
     "build": "npm run sync-engine && vite build",
