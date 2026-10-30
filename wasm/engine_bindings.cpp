@@ -219,6 +219,40 @@ JsHullWhiteTreeResult toJs(const HullWhiteTreeResult& r) {
   };
 }
 
+struct JsBondOptionRequest {
+  JsHullWhiteTreeSpec tree;
+  BondOptionSpec option;
+
+  BondOptionRequest toCpp() const {
+    return {.tree = tree.toCpp(), .option = option};
+  }
+};
+
+// The JS-facing counterpart of BondOptionResult.
+struct JsBondOptionResult {
+  JsHullWhiteTreeResult tree;
+  double price = 0.0;
+  double european_price = 0.0;
+  double analytic_price = 0.0;
+  int expiry_index = 0;
+  Float64Array option_values{val::null()};
+  Float64Array exercise_values{val::null()};
+  Float64Array continuation_values{val::null()};
+};
+
+JsBondOptionResult toJs(const BondOptionResult& r) {
+  return {
+      .tree = toJs(r.tree),
+      .price = r.price,
+      .european_price = r.european_price,
+      .analytic_price = r.analytic_price,
+      .expiry_index = r.expiry_index,
+      .option_values = toFloat64Array(r.option_values),
+      .exercise_values = toFloat64Array(r.exercise_values),
+      .continuation_values = toFloat64Array(r.continuation_values),
+  };
+}
+
 // Unwraps a StatusOr, converting its value with `convert`, or throws a JS
 // Error with the status message.
 template <typename T, typename ConvertFn>
@@ -248,6 +282,11 @@ JsVanillaPricingResult jsPriceFxVanilla(
 JsHullWhiteTreeResult jsBuildHullWhiteTree(const JsHullWhiteTreeSpec& spec) {
   return valueOrThrow(buildHullWhiteTree(spec.toCpp()),
                       [](const HullWhiteTreeResult& r) { return toJs(r); });
+}
+
+JsBondOptionResult jsPriceBondOption(const JsBondOptionRequest& request) {
+  return valueOrThrow(priceBondOption(request.toCpp()),
+                      [](const BondOptionResult& r) { return toJs(r); });
 }
 
 Float64Array jsEvaluateCurve(const JsRateCurveSpec& curve,
@@ -381,7 +420,28 @@ EMSCRIPTEN_BINDINGS(smileexplorer) {
       .field("arrowDebreu", &JsHullWhiteTreeResult::arrow_debreu)
       .field("bondValues", &JsHullWhiteTreeResult::bond_values);
 
+  em::value_object<BondOptionSpec>("BondOptionSpec")
+      .field("strike", &BondOptionSpec::strike)
+      .field("expiryYears", &BondOptionSpec::expiry_years)
+      .field("isCall", &BondOptionSpec::is_call)
+      .field("isAmerican", &BondOptionSpec::is_american);
+
+  em::value_object<JsBondOptionRequest>("BondOptionRequest")
+      .field("tree", &JsBondOptionRequest::tree)
+      .field("option", &JsBondOptionRequest::option);
+
+  em::value_object<JsBondOptionResult>("BondOptionResult")
+      .field("tree", &JsBondOptionResult::tree)
+      .field("price", &JsBondOptionResult::price)
+      .field("europeanPrice", &JsBondOptionResult::european_price)
+      .field("analyticPrice", &JsBondOptionResult::analytic_price)
+      .field("expiryIndex", &JsBondOptionResult::expiry_index)
+      .field("optionValues", &JsBondOptionResult::option_values)
+      .field("exerciseValues", &JsBondOptionResult::exercise_values)
+      .field("continuationValues", &JsBondOptionResult::continuation_values);
+
   em::function("priceVanilla", &jsPriceVanilla);
+  em::function("priceBondOption", &jsPriceBondOption);
   em::function("buildHullWhiteTree", &jsBuildHullWhiteTree);
   em::function("priceFxVanilla", &jsPriceFxVanilla);
   em::function("evaluateCurve", &jsEvaluateCurve);
