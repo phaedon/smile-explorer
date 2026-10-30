@@ -7,3 +7,8 @@ build --cxxopt=-std=c++20 --cxxopt=-Werror=return-type --copt=-Wsign-compare
 # without an explicit minimum OS target. macOS 26 is the actual host OS.
 build --macos_minimum_os=14.0
 test --test_output=errors
+
+# Bazel 9 removed the native C++ rules. csv-parser's BCR BUILD file (2.3.0,
+# the latest release) still uses cc_library without a load(), so autoload it
+# from rules_cc. Remove once csv-parser publishes a fixed BCR version.
+common --incompatible_autoload_externally=+cc_library
