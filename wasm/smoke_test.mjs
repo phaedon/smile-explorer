@@ -166,6 +166,25 @@ assert.deepEqual([...hw.sliceOffsets], [0, 1, 4, 9, 14]);
     (alpha, t) => assertNear(hw.alphas[t], alpha, 1e-5, `alpha ${t}`));
 assertNear(hw.bondPrice, hw.marketBondPrice, 1e-9, 'tree reprices the bond');
 
+// An American put on a 9-year zero-coupon bond, on a quarterly tree.
+const bondOption = (isAmerican) => engine.priceBondOption({
+  tree: {
+    meanReversion: 0.1,
+    sigma: 0.01,
+    dtYears: 0.25,
+    horizonYears: 9,
+    curve: {maturities: [1, 5, 10], rates: [0.05, 0.06, 0.065]},
+    bondFace: 100,
+  },
+  option: {strike: 63, expiryYears: 3, isCall: false, isAmerican},
+});
+const bondEuro = bondOption(false);
+assertNear(bondEuro.price, bondEuro.analyticPrice, 0.05,
+           'bond option tree vs closed form');
+assert.ok(bondOption(true).price > bondEuro.price,
+          'American bond put should exceed European');
+assert.equal(bondEuro.expiryIndex, 12);
+
 // Invalid requests throw a JS Error.
 assert.throws(
     () => engine.priceVanilla(request({expiryYears: -1})), /expiry_years/);
