@@ -48,6 +48,7 @@ cc_library(
     deps = [
         ":binomial_tree",
         "//rates:rates_curve",
+        "//volatility",
     ],
 )
 
@@ -68,6 +69,8 @@ cc_test(
         "//derivatives:derivative",
         "//rates:zero_curve",
         "//test:tree_matchers",
+        "//volatility:dupire_local_vol",
+        "//volatility:ssvi",
         "@googletest//:gtest_main",
     ],
 )
