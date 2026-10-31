@@ -6,7 +6,10 @@ package(default_visibility = ["//visibility:public"])
 cc_library(
     name = "bsm",
     hdrs = ["bsm.h"],
-    visibility = ["//visibility:private"],
+    visibility = [
+        "//api:__pkg__",
+        "//derivatives:__pkg__",
+    ],
 )
 
 cc_test(
