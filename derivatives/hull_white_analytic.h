@@ -1,7 +1,9 @@
 #ifndef SMILEEXPLORER_DERIVATIVES_HULL_WHITE_ANALYTIC_H_
 #define SMILEEXPLORER_DERIVATIVES_HULL_WHITE_ANALYTIC_H_
 
+#include <algorithm>
 #include <cmath>
+#include <utility>
 #include <vector>
 
 #include "derivatives/hull_white_bond_option.h"
@@ -59,25 +61,41 @@ inline double hullWhiteCouponBondOption(const RatesCurve& curve,
                                         const std::vector<double>& amounts,
                                         double strike,
                                         bool is_call) {
-  const auto bond_at = [&](double r) {
-    double value = 0.0;
+  // Each bond price is A_i exp(-B_i r): compute A_i and B_i once.
+  const double a = mean_reversion;
+  std::vector<double> coef(times.size());
+  std::vector<double> b(times.size());
+  for (size_t i = 0; i < times.size(); ++i) {
+    b[i] = (1 - std::exp(-a * (times[i] - expiry))) / a;
+    coef[i] =
+        amounts[i] * hullWhiteBondPrice(curve, a, sigma, expiry, times[i], 0.0);
+  }
+  // The bond's value, less the strike, and its derivative in r.
+  const auto excess = [&](double r) {
+    double value = -strike;
+    double slope = 0.0;
     for (size_t i = 0; i < times.size(); ++i) {
-      value +=
-          amounts[i] *
-          hullWhiteBondPrice(curve, mean_reversion, sigma, expiry, times[i], r);
+      const double v = coef[i] * std::exp(-b[i] * r);
+      value += v;
+      slope -= b[i] * v;
     }
-    return value;
+    return std::pair{value, slope};
   };
-  // The bond's value falls as r rises: bracket r*, then bisect.
+  // The value falls as r rises, and is convex in r, so Newton's method from
+  // the left of the root converges monotonically; bisection is the fallback.
   double lo = -1.0;
   double hi = 1.0;
-  while (bond_at(lo) < strike && lo > -100) lo *= 2;
-  while (bond_at(hi) > strike && hi < 100) hi *= 2;
-  for (int k = 0; k < 200 && hi - lo > 1e-14; ++k) {
-    const double mid = 0.5 * (lo + hi);
-    (bond_at(mid) > strike ? lo : hi) = mid;
+  while (excess(lo).first < 0 && lo > -100) lo *= 2;
+  while (excess(hi).first > 0 && hi < 100) hi *= 2;
+  double r_star = lo;
+  for (int k = 0; k < 100; ++k) {
+    const auto [value, slope] = excess(r_star);
+    if (std::abs(value) < 1e-14 * std::max(1.0, strike)) break;
+    (value > 0 ? lo : hi) = r_star;
+    double next = r_star - value / slope;
+    if (!(next > lo && next < hi)) next = 0.5 * (lo + hi);
+    r_star = next;
   }
-  const double r_star = 0.5 * (lo + hi);
 
   double price = 0.0;
   for (size_t i = 0; i < times.size(); ++i) {
