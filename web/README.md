@@ -33,14 +33,19 @@ Actions tab). It needs Pages enabled once in the repository settings, with
 - `src/lib/engine.ts`: loads the engine; its types are generated from the C++
   structs in `api/pricing_api.h` via Embind.
 - `src/lib/params.svelte.ts`, `volParams.svelte.ts`, `fxParams.svelte.ts`,
-  `hwParams.svelte.ts`, `bondParams.svelte.ts`: each essay's shared, reactive
-  parameters behind every figure and draggable number.
+  `hwParams.svelte.ts`, `bondParams.svelte.ts`, `greeksParams.svelte.ts`: each
+  essay's shared, reactive parameters behind every figure and draggable number.
 - `src/App.svelte`: navigation between essays (hash routes, e.g.
   `#/volatility`).
 - `src/lib/BinomialEssay.svelte`, `VolatilityEssay.svelte`, `FxEssay.svelte`,
-  `HullWhiteEssay.svelte`, `BondOptionEssay.svelte`: the essays (`#/binomial`,
-  `#/volatility`, `#/fx`, `#/hull-white`, `#/bond-options`).
-- `src/lib/smileWorker.ts`: computes implied-vol smiles in a Web Worker.
+  `HullWhiteEssay.svelte`, `BondOptionEssay.svelte`, `GreeksEssay.svelte`: the
+  essays (`#/binomial`, `#/volatility`, `#/fx`, `#/hull-white`,
+  `#/bond-options`, `#/greeks`).
+- `src/lib/smileWorker.ts`, `hedgeWorker.ts`: implied-vol smiles and
+  delta-hedging simulations, computed in Web Workers.
+- `src/lib/Surface3D.svelte`: a 3D surface (three.js, loaded only when the
+  figure scrolls into view), always paired with a 2D view such as
+  `Heatmap.svelte` for reading values.
 - `src/lib/*.svelte`: reusable pieces (draggable numbers, binomial and
   trinomial tree views, step controls, node formula, line, distribution and
   convergence charts).

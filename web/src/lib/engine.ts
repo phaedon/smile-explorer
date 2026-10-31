@@ -7,6 +7,8 @@ import createEngine from './engine/engine_lib.js';
 import type {
   BondOptionRequest,
   BondOptionResult,
+  DeltaHedgeResult,
+  GreeksResult,
   FxVanillaPricingRequest,
   HullWhiteTreeResult,
   HullWhiteTreeSpec,
@@ -19,6 +21,8 @@ import type {
 export type {
   BondOptionRequest,
   BondOptionResult,
+  DeltaHedgeResult,
+  GreeksResult,
   FxVanillaPricingRequest,
   HullWhiteTreeResult,
   HullWhiteTreeSpec,
