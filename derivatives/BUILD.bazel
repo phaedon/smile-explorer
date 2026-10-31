@@ -118,6 +118,9 @@ cc_library(
         "//rates:short_rate_tree_curve",
         "//trees:trinomial_tree",
         "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
     ],
 )
 
