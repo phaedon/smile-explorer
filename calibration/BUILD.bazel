@@ -1,0 +1,30 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "hull_white_calibration",
+    srcs = ["hull_white_calibration.cpp"],
+    hdrs = ["hull_white_calibration.h"],
+    deps = [
+        "//derivatives:bachelier",
+        "//derivatives:hull_white_analytic",
+        "//rates:rates_curve",
+        "//rates:swap_rates",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "hull_white_calibration_test",
+    srcs = ["hull_white_calibration_test.cpp"],
+    deps = [
+        ":hull_white_calibration",
+        "//rates:zero_curve",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest_main",
+    ],
+)
