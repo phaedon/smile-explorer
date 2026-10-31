@@ -8,6 +8,7 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "calibration/nelder_mead.h"
 #include "derivatives/bachelier.h"
 #include "derivatives/hull_white_analytic.h"
 #include "rates/swap_rates.h"
@@ -32,72 +33,6 @@ std::vector<double> paymentTimes(const RateOptionQuote& quote,
     times.push_back(quote.expiry + static_cast<double>(k) / payments_per_year);
   }
   return times;
-}
-
-// Nelder-Mead minimisation of f over two variables, from `start` with initial
-// steps `step`.
-template <typename F>
-std::pair<std::array<double, 2>, int> nelderMead(F f,
-                                                 std::array<double, 2> start,
-                                                 std::array<double, 2> step,
-                                                 int max_iterations,
-                                                 double tolerance) {
-  using Point = std::array<double, 2>;
-  std::array<Point, 3> x = {start,
-                            Point{start[0] + step[0], start[1]},
-                            Point{start[0], start[1] + step[1]}};
-  std::array<double, 3> fx = {f(x[0]), f(x[1]), f(x[2])};
-  const auto combine = [](const Point& a, const Point& b, double t) {
-    return Point{a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])};
-  };
-  int iteration = 0;
-  for (; iteration < max_iterations; ++iteration) {
-    // Order: best first.
-    std::array<int, 3> order = {0, 1, 2};
-    std::sort(order.begin(), order.end(), [&](int i, int j) {
-      return fx[i] < fx[j];
-    });
-    x = {x[order[0]], x[order[1]], x[order[2]]};
-    fx = {fx[order[0]], fx[order[1]], fx[order[2]]};
-    if (std::abs(fx[2] - fx[0]) < tolerance &&
-        std::abs(x[2][0] - x[0][0]) + std::abs(x[2][1] - x[0][1]) < 1e-9) {
-      break;
-    }
-    const Point centroid = combine(x[0], x[1], 0.5);
-    const Point reflected = combine(centroid, x[2], -1.0);
-    const double f_reflected = f(reflected);
-    if (f_reflected < fx[0]) {
-      const Point expanded = combine(centroid, x[2], -2.0);
-      const double f_expanded = f(expanded);
-      if (f_expanded < f_reflected) {
-        x[2] = expanded;
-        fx[2] = f_expanded;
-      } else {
-        x[2] = reflected;
-        fx[2] = f_reflected;
-      }
-    } else if (f_reflected < fx[1]) {
-      x[2] = reflected;
-      fx[2] = f_reflected;
-    } else {
-      const bool outside = f_reflected < fx[2];
-      const Point contracted =
-          combine(centroid, outside ? reflected : x[2], 0.5);
-      const double f_contracted = f(contracted);
-      if (f_contracted < std::min(f_reflected, fx[2])) {
-        x[2] = contracted;
-        fx[2] = f_contracted;
-      } else {
-        // Shrink towards the best point.
-        for (int k = 1; k < 3; ++k) {
-          x[k] = combine(x[0], x[k], 0.5);
-          fx[k] = f(x[k]);
-        }
-      }
-    }
-  }
-  const int best = std::min_element(fx.begin(), fx.end()) - fx.begin();
-  return {x[best], iteration};
 }
 
 }  // namespace
@@ -195,13 +130,12 @@ absl::StatusOr<CalibrationResult> calibrateHullWhite(
   double best_f = std::numeric_limits<double>::infinity();
   int iterations = 0;
   for (double a0 : {0.02, 0.1, 0.5}) {
-    const auto [x, n] = nelderMead(objective,
-                                   {std::log(a0), std::log(mean_vol)},
-                                   {0.5, 0.2},
-                                   /*max_iterations=*/400,
-                                   /*tolerance=*/1e-18);
+    const auto [x, fx, n] = nelderMead<2>(objective,
+                                          {std::log(a0), std::log(mean_vol)},
+                                          {0.5, 0.2},
+                                          /*max_iterations=*/400,
+                                          /*tolerance=*/1e-18);
     iterations += n;
-    const double fx = objective(x);
     if (fx < best_f) {
       best_f = fx;
       best_x = x;
