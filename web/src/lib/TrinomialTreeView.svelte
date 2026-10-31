@@ -19,6 +19,7 @@
     shownFrom = 0,
     shownTo = Number.POSITIVE_INFINITY,
     marked = null,
+    lastSlice = Number.POSITIVE_INFINITY,
     hovered = $bindable(null),
   }: {
     tree: HullWhiteTreeResult;
@@ -29,6 +30,8 @@
     shownTo?: number;
     // Per-node flags for nodes to ring, or null.
     marked?: boolean[] | null;
+    // Draw only the time slices up to this one (an option's expiry, say).
+    lastSlice?: number;
     // Index of the hovered node.
     hovered?: number | null;
   } = $props();
@@ -39,8 +42,11 @@
 
   let svg: SVGSVGElement;
 
-  const T = $derived(tree.times.length - 1);
-  const ys = $derived(yMode === 'x' ? tree.x : tree.shortRates);
+  const T = $derived(Math.min(tree.times.length - 1, lastSlice));
+  // Nodes are stored slice by slice, so the visible ones are a prefix.
+  const ys = $derived(
+    (yMode === 'x' ? tree.x : tree.shortRates).subarray(0, tree.sliceOffsets[T + 1]),
+  );
   const sliceOf = $derived.by(() => {
     const out = new Int32Array(ys.length);
     for (let t = 0; t <= T; ++t) {
@@ -82,8 +88,8 @@
     let d = '';
     for (let n = 0; n < ys.length; ++n) {
       const m = tree.successorMid[n];
-      if (m < 0) continue;
       const t = sliceOf[n];
+      if (m < 0 || t >= T) continue;
       const from = `M${x(t)},${y(ys[n])}`;
       for (const k of [m - 1, m, m + 1]) d += `${from}L${x(t + 1)},${y(ys[k])}`;
     }
@@ -91,7 +97,7 @@
   });
 
   const hoverEdges = $derived.by(() => {
-    if (hovered === null || tree.successorMid[hovered] < 0) return '';
+    if (hovered === null || tree.successorMid[hovered] < 0 || sliceOf[hovered] >= T) return '';
     const n = hovered;
     const m = tree.successorMid[n];
     const t = sliceOf[n];
