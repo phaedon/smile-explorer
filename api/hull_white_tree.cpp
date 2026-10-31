@@ -1,5 +1,6 @@
 #include "api/hull_white_tree.h"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <memory>
@@ -179,9 +180,11 @@ absl::StatusOr<FittedTree> fitTree(
   return fitted;
 }
 
-absl::StatusOr<BondOptionResult> optionOnBond(const FittedTree& fitted,
-                                              const BondOptionSpec& option_spec,
-                                              double dt_years) {
+absl::StatusOr<BondOptionResult> optionOnBond(
+    const FittedTree& fitted,
+    const BondOptionSpec& option_spec,
+    double dt_years,
+    const std::vector<ExerciseDate>* bermudan_dates) {
   if (!(option_spec.strike > 0)) {
     return absl::InvalidArgumentError("strike must be positive");
   }
@@ -198,8 +201,24 @@ absl::StatusOr<BondOptionResult> optionOnBond(const FittedTree& fitted,
         "the option must expire at least one step after today and before "
         "the bond matures");
   }
-  const int ti_final = *expiry_index;
-  const double expiry = tree.getTimegrid().time(ti_final);
+  // The first (or only) exercise date.
+  const double expiry = tree.getTimegrid().time(*expiry_index);
+  // The last exercise date, and the amount excluded from the bond's value on
+  // each exercise date (NaN where the option can't be exercised).
+  int ti_final = *expiry_index;
+  std::vector<double> excluded(num_steps + 1, kNaN);
+  if (bermudan_dates != nullptr) {
+    for (const ExerciseDate& date : *bermudan_dates) {
+      const auto index =
+          tree.getTimegrid().getTimeIndexForExpiry(date.time_years);
+      if (!index.has_value() || *index >= num_steps) {
+        return absl::InvalidArgumentError(
+            "every exercise date must fall before the bond matures");
+      }
+      excluded[*index] = date.cashflow_excluded;
+      ti_final = std::max(ti_final, *index);
+    }
+  }
 
   BondOptionResult result;
   result.expiry_index = ti_final;
@@ -212,7 +231,14 @@ absl::StatusOr<BondOptionResult> optionOnBond(const FittedTree& fitted,
                              option_spec.is_american ? ExerciseStyle::American
                                                      : ExerciseStyle::European);
   InterestRateDerivative deriv(fitted.tree_curve.get(), &bond);
-  result.price = deriv.price(option, expiry);
+  if (bermudan_dates != nullptr) {
+    const absl::StatusOr<double> price =
+        deriv.priceBermudan(option, *bermudan_dates);
+    if (!price.ok()) return price.status();
+    result.price = *price;
+  } else {
+    result.price = deriv.price(option, expiry);
+  }
   InterestRateDerivative european(fitted.tree_curve.get(), &bond);
   result.european_price =
       european.price(VanillaOption(option_spec.strike, payoff), expiry);
@@ -227,7 +253,12 @@ absl::StatusOr<BondOptionResult> optionOnBond(const FittedTree& fitted,
     for (int i = 0; i < tree.numStatesAt(t); ++i) {
       const int n = nodes.slice_offsets[t] + i;
       result.option_values[n] = deriv.tree().nodeValue(t, i);
-      result.exercise_values[n] = option.payoff(nodes.bond_values[n]);
+      if (bermudan_dates == nullptr) {
+        result.exercise_values[n] = option.payoff(nodes.bond_values[n]);
+      } else if (!std::isnan(excluded[t])) {
+        result.exercise_values[n] =
+            option.payoff(nodes.bond_values[n] - excluded[t]);
+      }
       if (t < ti_final) {
         // The option's value at node index k of the next slice.
         const auto next = [&](int k) {

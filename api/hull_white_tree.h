@@ -11,6 +11,7 @@
 
 #include "absl/status/statusor.h"
 #include "api/short_rate_api.h"
+#include "derivatives/interest_rate_derivative.h"
 #include "instruments/swaps/fixed_cashflow_instrument.h"
 #include "rates/short_rate_tree_curve.h"
 #include "rates/zero_curve.h"
@@ -37,9 +38,15 @@ absl::StatusOr<FittedTree> fitTree(
 // Prices an option on the fitted bond, filling everything in BondOptionResult
 // except `tree` (left empty, for the caller to move the nodes into) and
 // `analytic_price` (NaN).
-absl::StatusOr<BondOptionResult> optionOnBond(const FittedTree& fitted,
-                                              const BondOptionSpec& option,
-                                              double dt_years);
+//
+// With `bermudan_dates`, the option can be exercised only on those dates (the
+// first being option.expiry_years), its exercise values are set only there,
+// and european_price is the option exercisable on the first date alone.
+absl::StatusOr<BondOptionResult> optionOnBond(
+    const FittedTree& fitted,
+    const BondOptionSpec& option,
+    double dt_years,
+    const std::vector<ExerciseDate>* bermudan_dates = nullptr);
 
 }  // namespace smileexplorer::api
 

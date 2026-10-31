@@ -3,6 +3,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <string_view>
 #include <vector>
@@ -117,6 +118,51 @@ TEST(RatesOptionsApiTest, ExplainsInvalidSwaptions) {
                 }),
                 "fall on");
   expectInvalid(with([](R& r) { r.tree.curve.rates = {}; }), "curve");
+}
+
+TEST(RatesOptionsApiTest, BermudanSwaption) {
+  SwaptionRequest request = swaption2y5y(12);
+  request.swaption.is_bermudan = true;
+  const auto bermudan = priceSwaption(request);
+  ASSERT_TRUE(bermudan.ok()) << bermudan.status();
+  EXPECT_THAT(bermudan->exercise_times, testing::ElementsAre(2, 3, 4, 5, 6));
+  ASSERT_EQ(5, std::ssize(bermudan->coterminal_european_prices));
+  EXPECT_TRUE(std::isnan(bermudan->option.analytic_price));
+  EXPECT_TRUE(std::isnan(bermudan->normal_vol));
+
+  // Its first co-terminal European is the plain European swaption, which is
+  // also what european_price reports.
+  request.swaption.is_bermudan = false;
+  const auto european = priceSwaption(request);
+  ASSERT_TRUE(european.ok()) << european.status();
+  EXPECT_NEAR(
+      european->option.price, bermudan->coterminal_european_prices[0], 1e-9);
+  EXPECT_NEAR(european->option.price, bermudan->option.european_price, 1e-9);
+
+  // Worth more than any one of its Europeans.
+  const double best =
+      *std::max_element(bermudan->coterminal_european_prices.begin(),
+                        bermudan->coterminal_european_prices.end());
+  EXPECT_GT(bermudan->option.price, best);
+
+  // Exercise values exist only on exercise dates (whole years from 2 to 6),
+  // and the option is worth at least its exercise value there.
+  const auto& r = *bermudan;
+  EXPECT_EQ(6 * 12, r.option.expiry_index);
+  for (int t = 0; t <= r.option.expiry_index; ++t) {
+    const double time = r.option.tree.times[t];
+    const bool exercisable =
+        std::abs(time - std::round(time)) < 1e-9 && time >= 2 - 1e-9;
+    for (int n = r.option.tree.slice_offsets[t];
+         n < r.option.tree.slice_offsets[t + 1];
+         ++n) {
+      EXPECT_EQ(exercisable, !std::isnan(r.option.exercise_values[n])) << t;
+      if (exercisable) {
+        EXPECT_GE(r.option.option_values[n] + 1e-12,
+                  r.option.exercise_values[n]);
+      }
+    }
+  }
 }
 
 CapRequest cap5y(double steps_per_year = 24) {
