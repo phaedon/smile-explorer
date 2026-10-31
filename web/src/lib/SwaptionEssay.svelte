@@ -128,6 +128,32 @@
   const fitOk = $derived(fit && fit.error === undefined ? (fit as FitOk) : null);
   const fitError = $derived(fit?.error ?? null);
 
+  // ---- 5. A Bermudan --------------------------------------------------------------
+
+  const bermudanOutcome = $derived(attempt(() => engine.priceSwaption(swaptionRequestFor(p, p.stepsPerYear, true))));
+  let lastBermudan: SwaptionResult | null = null;
+  const bermudan = $derived.by(() => {
+    if (bermudanOutcome.value) lastBermudan = bermudanOutcome.value;
+    return bermudanOutcome.value ?? lastBermudan;
+  });
+  const bermudanTree = $derived(bermudan?.option.tree ?? null);
+  let bermudanFrom = $state(Number.POSITIVE_INFINITY);
+  $effect(() => {
+    const last = bermudan?.option.expiryIndex ?? 0;
+    if (bermudanFrom > last) bermudanFrom = last;
+  });
+  // Where exercising beats holding on (only on exercise dates, where an
+  // exercise value exists).
+  const exercisedNodes = $derived(
+    bermudan
+      ? Array.from(bermudan.option.exerciseValues, (exercise, n) => {
+          const hold = bermudan!.option.continuationValues[n];
+          return Number.isFinite(exercise) && exercise > 0 && (!Number.isFinite(hold) || exercise > hold + 1e-12);
+        })
+      : null,
+  );
+  const bestEuropean = $derived(bermudan ? Math.max(...bermudan.coterminalEuropeanPrices) : NaN);
+
   function useFit() {
     if (!fitOk) return;
     p.meanReversion = fitOk.meanReversion;
@@ -440,16 +466,89 @@ swaption.price(VanillaOption(100, OptionPayoff::{p.isPayer ? 'Put' : 'Call'}), {
   </section>
 
   <section>
-    <h2>What calibration is for</h2>
+    <h2>5. What calibration is for: a Bermudan</h2>
     <p>
       None of the quoted swaptions needed a model: their prices were given.
       The point of fitting <i>a</i> and σ is what comes next. A tree that
       reprices the curve, and these swaptions as well as two parameters
       allow, can price what isn't quoted. The classic example is a
-      <em>Bermudan</em> swaption, exercisable on each of the swap's dates.
-      Calibrating to these co-terminal swaptions is the usual choice for one,
-      since each is a European version of one of its exercise dates.
+      <em>Bermudan</em> swaption: the right to enter the swap on any of
+      several dates, each time for the rest of its life, at the same fixed
+      rate.
     </p>
+    {#if bermudan && bermudanTree && swaption}
+      <p>
+        Take the {p.isPayer ? 'payer' : 'receiver'} swaption from section 2 and
+        make it exercisable at {level(p.expiryYears)} years or on any later
+        payment date but the last:
+        {[...bermudan.exerciseTimes].map((t) => `${level(t)}y`).join(', ')}. Exercising
+        on a payment date enters the swap after that date's coupon, so on
+        the tree the exercise value is par less the <em>ex-coupon</em> bond.
+        Each date on its own would be a European swaption on the rest of the
+        swap. These are the co-terminal swaptions, which is why section 4
+        calibrates to them.
+      </p>
+      <pre><code>// Exercise at {level(p.expiryYears)}y, then on each coupon date, excluding that coupon.
+std::vector&lt;ExerciseDate&gt; dates = {'{'}{[...bermudan.exerciseTimes].map((t, k) => `{${level(t)}, ${k === 0 ? '0' : fmt(100 * bermudan.fixedRate, 3)}}`).join(', ')}{'}'};
+double price = swaption.priceBermudan(VanillaOption(100, OptionPayoff::{p.isPayer ? 'Put' : 'Call'}), dates);  // = {priceFmt(bermudan.option.price)}</code></pre>
+      <figure>
+        <StepControls bind:revealedFrom={bermudanFrom} expiryIndex={bermudan.option.expiryIndex} />
+        <TrinomialTreeView
+          tree={bermudanTree}
+          yMode="rate"
+          values={bermudan.option.optionValues}
+          shownFrom={Math.min(bermudanFrom, bermudan.option.expiryIndex)}
+          lastSlice={bermudan.option.expiryIndex}
+          marked={exercisedNodes}
+        />
+        <figcaption>
+          The Bermudan's value, rolled back from its last exercise date.
+          Ringed nodes are where exercising beats waiting: when rates are high
+          enough that the swap left is worth more now than the chance of a
+          better date later.
+        </figcaption>
+      </figure>
+      <p class="stat">
+        Bermudan <strong>{priceFmt(bermudan.option.price)}</strong>
+        <span class="muted"
+          >· best single date {priceFmt(bestEuropean)} · the right to choose is worth
+          {priceFmt(bermudan.option.price - bestEuropean)}</span
+        >
+      </p>
+      <figure>
+        <LineChart
+          ariaLabel="Each co-terminal European swaption's price, against the Bermudan's"
+          series={[
+            {
+              name: 'Bermudan',
+              color: 'var(--series-1)',
+              points: [...bermudan.exerciseTimes].map((x) => ({x, y: bermudan!.option.price})),
+            },
+            {
+              name: 'exercisable on that date only',
+              color: 'var(--series-2)',
+              points: [...bermudan.exerciseTimes].map((x, k) => ({x, y: bermudan!.coterminalEuropeanPrices[k]})),
+              dotsOnly: true,
+            },
+          ]}
+          xFormat={(v) => `${fmt(v, 0)}y`}
+          yFormat={(v) => fmt(v, 2)}
+          xLabel="exercise date"
+          height={190}
+        />
+        <figcaption>
+          The Bermudan is worth more than any one of its dates, but less than
+          all of them together: it can only be exercised once.
+        </figcaption>
+      </figure>
+      <p>
+        Unlike the European, a Bermudan has no closed form, and its price
+        depends on how the model moves rates <em>between</em> the exercise
+        dates, not just on each date's vol. That is why it matters which
+        quotes the model was calibrated to, and why a two-parameter fit that
+        misses some of them leaves real uncertainty in the price.
+      </p>
+    {/if}
   </section>
 
   <footer>
