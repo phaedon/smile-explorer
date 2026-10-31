@@ -4,10 +4,25 @@ load("@rules_cc//cc:cc_test.bzl", "cc_test")
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
+    name = "nelder_mead",
+    hdrs = ["nelder_mead.h"],
+)
+
+cc_test(
+    name = "nelder_mead_test",
+    srcs = ["nelder_mead_test.cpp"],
+    deps = [
+        ":nelder_mead",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "hull_white_calibration",
     srcs = ["hull_white_calibration.cpp"],
     hdrs = ["hull_white_calibration.h"],
     deps = [
+        ":nelder_mead",
         "//derivatives:bachelier",
         "//derivatives:hull_white_analytic",
         "//rates:rates_curve",
