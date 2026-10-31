@@ -34,3 +34,22 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "dupire_local_vol",
+    hdrs = ["dupire_local_vol.h"],
+    deps = [
+        ":ssvi",
+        ":volatility",
+    ],
+)
+
+cc_test(
+    name = "dupire_local_vol_test",
+    srcs = ["dupire_local_vol_test.cpp"],
+    deps = [
+        ":dupire_local_vol",
+        ":volatility",
+        "@googletest//:gtest_main",
+    ],
+)

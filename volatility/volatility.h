@@ -22,8 +22,7 @@ enum class VolSurfaceFnType {
   kBlackScholesMerton,
   kTermStructure,
   kTimeInvariantSkewSmile,
-
-  // Currently unimplemented.
+  // Local vol as a function of the asset price and time, e.g. DupireLocalVol.
   kTimeVaryingSkewSmile
 };
 
@@ -139,6 +138,8 @@ class Volatility {
 
   Timegrid generateTimegrid(double t_final, double initial_timestep) const;
 
+  static constexpr VolSurfaceFnType type = VolSurfaceT::type;
+
  private:
   VolSurfaceT vol_surface_;
 };
@@ -148,7 +149,8 @@ Timegrid Volatility<VolSurfaceT>::generateTimegrid(
     double t_final, double initial_timestep) const {
   if constexpr (VolSurfaceT::type == VolSurfaceFnType::kBlackScholesMerton ||
                 VolSurfaceT::type ==
-                    VolSurfaceFnType::kTimeInvariantSkewSmile) {
+                    VolSurfaceFnType::kTimeInvariantSkewSmile ||
+                VolSurfaceT::type == VolSurfaceFnType::kTimeVaryingSkewSmile) {
     const int timegrid_size = std::ceil(t_final / initial_timestep) + 1;
     Timegrid grid(timegrid_size);
     for (int i = 0; i < timegrid_size; ++i) {
