@@ -10,6 +10,8 @@
 #include "time/time_enums.h"
 #include "trees/binomial_tree.h"
 #include "trees/propagators.h"
+#include "volatility/dupire_local_vol.h"
+#include "volatility/ssvi.h"
 #include "volatility/volatility.h"
 
 namespace smileexplorer {
@@ -166,6 +168,52 @@ TEST(StochasticTreeModelTest, DermanChapter14_3) {
               BinomialTreeMatchesUpToTimeIndex(expected, 0.005));
 
   EXPECT_NEAR(0.12, price, 0.005);
+}
+
+// Every up-probability on the tree lies strictly between 0 and 1.
+bool allProbabilitiesValid(const BinomialTree& tree, const RatesCurve& curve) {
+  for (int t = 0; t < tree.numTimesteps(); ++t) {
+    for (int i = 0; i <= t; ++i) {
+      const double p = tree.getUpProbAt(curve, t, i);
+      if (!(p > 0 && p < 1)) return false;
+    }
+  }
+  return true;
+}
+
+// A time-varying local vol from a surface with no smile reproduces
+// Black-Scholes.
+TEST(StochasticTreeModelTest, DupireLocalVolTreeMatchesBlackScholes) {
+  ZeroSpotCurve curve({1.0, 10.0}, {0.03, 0.03});
+  LocalVolatilityPropagator propagator(curve, 100.0);
+  StochasticTreeModel asset(BinomialTree(1.0, 1 / 200.), propagator);
+  asset.forwardPropagate(Volatility(
+      DupireLocalVol(SsviSurface(0, 1e-9, 0.5, {1}, {0.04}), 100, 0.03)));
+  ASSERT_TRUE(allProbabilitiesValid(asset.binomialTree(), curve));
+  SingleAssetDerivative deriv(&asset.binomialTree(), &curve);
+  const VanillaOption call(100, OptionPayoff::Call);
+  EXPECT_NEAR(call.blackScholes(100, 0.2, 1.0, 0.03, 0.0),
+              deriv.price(call, 1.0),
+              0.02);
+}
+
+// A steep skew in local vol would put some nodes on the wrong side of their
+// parent's forward; the Derman-Kani override moves them, so that every
+// branching probability stays valid.
+TEST(StochasticTreeModelTest, SteepSkewKeepsProbabilitiesValid) {
+  ZeroSpotCurve curve({1.0, 10.0}, {0.03, 0.03});
+  LocalVolatilityPropagator propagator(curve, 100.0);
+  StochasticTreeModel asset(BinomialTree(1.0, 1 / 50.), propagator);
+  asset.forwardPropagate(Volatility(SigmoidSmileVol{
+      .base = 0.1, .range = 0.9, .stretch = 0.3, .center = 100}));
+  EXPECT_TRUE(allProbabilitiesValid(asset.binomialTree(), curve));
+  // Nodes stay ordered.
+  const BinomialTree& tree = asset.binomialTree();
+  for (int t = 1; t <= tree.numTimesteps(); ++t) {
+    for (int i = 1; i <= t; ++i) {
+      EXPECT_LT(tree.nodeValue(t, i - 1), tree.nodeValue(t, i));
+    }
+  }
 }
 
 }  // namespace

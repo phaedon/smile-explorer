@@ -1,10 +1,13 @@
 #ifndef SMILEEXPLORER_TREES_PROPAGATORS_H_
 #define SMILEEXPLORER_TREES_PROPAGATORS_H_
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
 
 #include "rates/rates_curve.h"
 #include "trees/binomial_tree.h"
+#include "volatility/volatility.h"
 
 namespace smileexplorer {
 
@@ -106,15 +109,16 @@ struct LocalVolatilityPropagator {
     // The lower node in the previous timestep (if it exists).
     const auto Sprev_low = tree.safeNodeValue(t - 1, i - 1);
 
+    double prev_time = tree.totalTimeAtIndex(t - 1);
     if (i == (t + 1) / 2 && t % 2 == 1) {
       // Even number of nodes (odd time-index), upper spine:
       double S = Sprev_low.value();
-      double sigma = vol_fn.get(S);
+      double sigma = localVol(vol_fn, S, prev_time);
       return S * std::exp(sigma * std::sqrt(dt));
     } else if (i == (t - 1) / 2 && t % 2 == 1) {
       // Even number of nodes, lower spine:
       double S = Sprev_high.value();
-      double sigma = vol_fn.get(S);
+      double sigma = localVol(vol_fn, S, prev_time);
       return S * std::exp(-sigma * std::sqrt(dt));
     }
 
@@ -123,7 +127,6 @@ struct LocalVolatilityPropagator {
     // ======================================================
 
     double curr_time = tree.totalTimeAtIndex(t);
-    double prev_time = tree.totalTimeAtIndex(t - 1);
 
     // Helper function to calculate the forward price
     auto calculateForward = [&](double S) {
@@ -137,21 +140,51 @@ struct LocalVolatilityPropagator {
       const double S_d = tree.nodeValue(t, i - 1);
       double S = Sprev_low.value();
       const double F = calculateForward(S);
-      double sigma = vol_fn.get(S);
-      return F + (S * S * sigma * sigma * dt) / (F - S_d);
+      double sigma = localVol(vol_fn, S, prev_time);
+      const double S_u = F + (S * S * sigma * sigma * dt) / (F - S_d);
+      // The node must lie above its parent's forward and, if there is a node
+      // above the parent, below that one's forward: otherwise one of the
+      // two branching probabilities leaves (0, 1). Where it doesn't, override
+      // it as Derman and Kani do, keeping both forwards bracketed.
+      const double F_above = Sprev_high.has_value()
+                                 ? calculateForward(Sprev_high.value())
+                                 : std::numeric_limits<double>::infinity();
+      if (S_u > F && S_u < F_above && std::isfinite(S_u)) return S_u;
+      return std::isfinite(F_above)
+                 ? (F + F_above) / 2
+                 : std::max(F, S_d) * std::exp(sigma * std::sqrt(dt));
     } else {
       // Populate lower nodes.
       const double S_u = tree.nodeValue(t, i + 1);
       double S = Sprev_high.value();
       const double F = calculateForward(S);
-      double sigma = vol_fn.get(S);
-      return F - (S * S * sigma * sigma * dt) / (S_u - F);
+      double sigma = localVol(vol_fn, S, prev_time);
+      const double S_d = F - (S * S * sigma * sigma * dt) / (S_u - F);
+      // As above: below the parent's forward, and above the forward of the
+      // node below the parent (if any).
+      const double F_below =
+          Sprev_low.has_value() ? calculateForward(Sprev_low.value()) : 0.0;
+      if (S_d < F && S_d > F_below && std::isfinite(S_d)) return S_d;
+      return Sprev_low.has_value()
+                 ? (F + F_below) / 2
+                 : std::min(F, S_u) * std::exp(-sigma * std::sqrt(dt));
     }
   }
 
   void updateSpot(double spot) { spot_price_ = spot; }
 
  private:
+  // Local vol at asset price s, at time t if the surface depends on time.
+  template <typename VolatilityT>
+  static double localVol(const VolatilityT& vol_fn, double s, double t) {
+    if constexpr (VolatilityT::type ==
+                  VolSurfaceFnType::kTimeVaryingSkewSmile) {
+      return vol_fn.get(s, t);
+    } else {
+      return vol_fn.get(s);
+    }
+  }
+
   const RatesCurve& curve_;
   double spot_price_;
 };
