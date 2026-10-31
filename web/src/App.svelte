@@ -3,6 +3,7 @@
   import BondOptionEssay from './lib/BondOptionEssay.svelte';
   import FxEssay from './lib/FxEssay.svelte';
   import GreeksEssay from './lib/GreeksEssay.svelte';
+  import SwaptionEssay from './lib/SwaptionEssay.svelte';
   import HullWhiteEssay from './lib/HullWhiteEssay.svelte';
   import VolatilityEssay from './lib/VolatilityEssay.svelte';
 
@@ -13,6 +14,7 @@
     {id: 'hull-white', title: 'Interest rate trees', component: HullWhiteEssay},
     {id: 'bond-options', title: 'Options on bonds', component: BondOptionEssay},
     {id: 'greeks', title: 'Greeks and hedging', component: GreeksEssay},
+    {id: 'swaptions', title: 'Calibrating the rate tree', component: SwaptionEssay},
   ];
 
   // Hash routing (#/binomial), so the site works as static files anywhere.

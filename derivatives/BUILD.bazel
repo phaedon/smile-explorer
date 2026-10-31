@@ -4,6 +4,23 @@ load("@rules_cc//cc:cc_test.bzl", "cc_test")
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
+    name = "bachelier",
+    hdrs = ["bachelier.h"],
+    deps = [":bsm"],
+)
+
+cc_test(
+    name = "bachelier_test",
+    srcs = ["bachelier_test.cpp"],
+    deps = [
+        ":bachelier",
+        "//rates:swap_rates",
+        "//rates:zero_curve",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "bsm",
     hdrs = ["bsm.h"],
     visibility = [
@@ -67,6 +84,25 @@ cc_test(
     srcs = ["hull_white_bond_option_test.cpp"],
     deps = [
         ":hull_white_bond_option",
+        "//rates:zero_curve",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "hull_white_analytic",
+    hdrs = ["hull_white_analytic.h"],
+    deps = [
+        ":hull_white_bond_option",
+        "//rates:rates_curve",
+    ],
+)
+
+cc_test(
+    name = "hull_white_analytic_test",
+    srcs = ["hull_white_analytic_test.cpp"],
+    deps = [
+        ":hull_white_analytic",
         "//rates:zero_curve",
         "@googletest//:gtest_main",
     ],

@@ -7,15 +7,23 @@ cc_library(
     name = "pricing_api",
     srcs = [
         "greeks_api.cpp",
+        "hull_white_tree.cpp",
+        "hull_white_tree.h",
         "pricing_api.cpp",
+        "rates_options_api.cpp",
         "short_rate_api.cpp",
     ],
     hdrs = [
         "greeks_api.h",
         "pricing_api.h",
+        "rates_options_api.h",
         "short_rate_api.h",
     ],
     deps = [
+        "//calibration:hull_white_calibration",
+        "//derivatives:bachelier",
+        "//derivatives:hull_white_analytic",
+        "//rates:swap_rates",
         "//derivatives:bsm",
         "//derivatives:derivative",
         "//derivatives:hull_white_bond_option",
@@ -69,6 +77,17 @@ cc_test(
     deps = [
         ":pricing_api",
         "//derivatives:bsm",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "rates_options_api_test",
+    srcs = ["rates_options_api_test.cpp"],
+    deps = [
+        ":pricing_api",
+        "//rates:zero_curve",
         "@abseil-cpp//absl/status",
         "@googletest//:gtest_main",
     ],

@@ -33,16 +33,18 @@ Actions tab). It needs Pages enabled once in the repository settings, with
 - `src/lib/engine.ts`: loads the engine; its types are generated from the C++
   structs in `api/pricing_api.h` via Embind.
 - `src/lib/params.svelte.ts`, `volParams.svelte.ts`, `fxParams.svelte.ts`,
-  `hwParams.svelte.ts`, `bondParams.svelte.ts`, `greeksParams.svelte.ts`: each
-  essay's shared, reactive parameters behind every figure and draggable number.
+  `hwParams.svelte.ts`, `bondParams.svelte.ts`, `greeksParams.svelte.ts`,
+  `swaptionParams.svelte.ts`: each essay's shared, reactive parameters behind
+  every figure and draggable number.
 - `src/App.svelte`: navigation between essays (hash routes, e.g.
   `#/volatility`).
 - `src/lib/BinomialEssay.svelte`, `VolatilityEssay.svelte`, `FxEssay.svelte`,
-  `HullWhiteEssay.svelte`, `BondOptionEssay.svelte`, `GreeksEssay.svelte`: the
-  essays (`#/binomial`, `#/volatility`, `#/fx`, `#/hull-white`,
-  `#/bond-options`, `#/greeks`).
-- `src/lib/smileWorker.ts`, `hedgeWorker.ts`: implied-vol smiles and
-  delta-hedging simulations, computed in Web Workers.
+  `HullWhiteEssay.svelte`, `BondOptionEssay.svelte`, `GreeksEssay.svelte`,
+  `SwaptionEssay.svelte`: the essays (`#/binomial`, `#/volatility`, `#/fx`,
+  `#/hull-white`, `#/bond-options`, `#/greeks`, `#/swaptions`).
+- `src/lib/smileWorker.ts`, `hedgeWorker.ts`, `calibrationWorker.ts`:
+  implied-vol smiles, delta-hedging simulations and Hull-White calibration,
+  computed in Web Workers.
 - `src/lib/Surface3D.svelte`: a 3D surface (three.js, loaded only when the
   figure scrolls into view), always paired with a 2D view such as
   `Heatmap.svelte` for reading values.
