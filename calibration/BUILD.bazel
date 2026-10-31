@@ -43,3 +43,26 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "smile_calibration",
+    srcs = ["smile_calibration.cpp"],
+    hdrs = ["smile_calibration.h"],
+    deps = [
+        ":nelder_mead",
+        "//volatility:ssvi",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "smile_calibration_test",
+    srcs = ["smile_calibration_test.cpp"],
+    deps = [
+        ":smile_calibration",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest_main",
+    ],
+)
