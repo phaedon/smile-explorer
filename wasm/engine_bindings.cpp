@@ -16,6 +16,7 @@
 #include "absl/status/statusor.h"
 #include "api/greeks_api.h"
 #include "api/pricing_api.h"
+#include "api/rates_options_api.h"
 #include "api/short_rate_api.h"
 
 namespace smileexplorer::api {
@@ -26,6 +27,7 @@ using emscripten::val;
 EMSCRIPTEN_DECLARE_VAL_TYPE(Float64Array);
 EMSCRIPTEN_DECLARE_VAL_TYPE(Int32Array);
 EMSCRIPTEN_DECLARE_VAL_TYPE(NumberArray);
+EMSCRIPTEN_DECLARE_VAL_TYPE(QuoteArray);
 
 Float64Array toFloat64Array(const std::vector<double>& values) {
   // Constructing a Float64Array from a view copies it out of wasm memory.
@@ -329,6 +331,106 @@ JsDeltaHedgeResult toJs(const DeltaHedgeResult& r) {
   };
 }
 
+struct JsSwaptionRequest {
+  JsHullWhiteTreeSpec tree;
+  SwaptionSpec swaption;
+};
+
+struct JsSwaptionResult {
+  JsBondOptionResult option;
+  double fixed_rate = 0.0;
+  double par_rate = 0.0;
+  double annuity = 0.0;
+  Float64Array payment_times{val::null()};
+  double normal_vol = 0.0;
+  double analytic_normal_vol = 0.0;
+};
+
+JsSwaptionResult toJs(SwaptionResult r) {
+  return {.option = toJs(r.option),
+          .fixed_rate = r.fixed_rate,
+          .par_rate = r.par_rate,
+          .annuity = r.annuity,
+          .payment_times = toFloat64Array(r.payment_times),
+          .normal_vol = r.normal_vol,
+          .analytic_normal_vol = r.analytic_normal_vol};
+}
+
+struct JsCapRequest {
+  JsHullWhiteTreeSpec tree;
+  CapSpec cap;
+};
+
+struct JsCapResult {
+  double strike = 0.0;
+  double price = 0.0;
+  double analytic_price = 0.0;
+  Float64Array fixing_times{val::null()};
+  Float64Array payment_times{val::null()};
+  Float64Array forward_rates{val::null()};
+  Float64Array prices{val::null()};
+  Float64Array analytic_prices{val::null()};
+  Float64Array normal_vols{val::null()};
+};
+
+JsCapResult toJs(const CapResult& r) {
+  return {.strike = r.strike,
+          .price = r.price,
+          .analytic_price = r.analytic_price,
+          .fixing_times = toFloat64Array(r.fixing_times),
+          .payment_times = toFloat64Array(r.payment_times),
+          .forward_rates = toFloat64Array(r.forward_rates),
+          .prices = toFloat64Array(r.prices),
+          .analytic_prices = toFloat64Array(r.analytic_prices),
+          .normal_vols = toFloat64Array(r.normal_vols)};
+}
+
+// Quotes arrive as a plain JS array of RateOptionQuote objects.
+std::vector<RateOptionQuote> toQuotes(const QuoteArray& quotes) {
+  std::vector<RateOptionQuote> out;
+  if (quotes.isUndefined() || quotes.isNull()) return out;
+  const int n = quotes["length"].as<int>();
+  for (int i = 0; i < n; ++i) {
+    const val q = quotes[i];
+    out.push_back({.type = q["type"].as<RateOptionType>(),
+                   .expiry = q["expiry"].as<double>(),
+                   .tenor = q["tenor"].as<double>(),
+                   .normal_vol = q["normalVol"].as<double>()});
+  }
+  return out;
+}
+
+struct JsCalibrationRequest {
+  JsRateCurveSpec curve;
+  QuoteArray quotes{val::array()};
+  int fixed_payments_per_year = 1;
+};
+
+struct JsCalibrationResult {
+  HullWhiteParams params;
+  Float64Array market_vols{val::null()};
+  Float64Array model_vols{val::null()};
+  double rms_error = 0.0;
+  int iterations = 0;
+  bool converged = false;
+};
+
+JsCalibrationResult toJs(const CalibrationResult& r) {
+  return {.params = r.params,
+          .market_vols = toFloat64Array(r.market_vols),
+          .model_vols = toFloat64Array(r.model_vols),
+          .rms_error = r.rms_error,
+          .iterations = r.iterations,
+          .converged = r.converged};
+}
+
+struct JsModelVolsRequest {
+  JsRateCurveSpec curve;
+  HullWhiteParams params;
+  QuoteArray quotes{val::array()};
+  int fixed_payments_per_year = 1;
+};
+
 // Unwraps a StatusOr, converting its value with `convert`, or throws a JS
 // Error with the status message.
 template <typename T, typename ConvertFn>
@@ -381,6 +483,35 @@ JsDeltaHedgeResult jsSimulateDeltaHedge(const JsDeltaHedgeRequest& request) {
                       [](const DeltaHedgeResult& r) { return toJs(r); });
 }
 
+JsSwaptionResult jsPriceSwaption(const JsSwaptionRequest& request) {
+  return valueOrThrow(priceSwaption({.tree = request.tree.toCpp(),
+                                     .swaption = request.swaption}),
+                      [](const SwaptionResult& r) { return toJs(r); });
+}
+
+JsCapResult jsPriceCap(const JsCapRequest& request) {
+  return valueOrThrow(
+      priceCap({.tree = request.tree.toCpp(), .cap = request.cap}),
+      [](const CapResult& r) { return toJs(r); });
+}
+
+JsCalibrationResult jsCalibrateHullWhite(const JsCalibrationRequest& request) {
+  return valueOrThrow(calibrateHullWhite({.curve = request.curve.toCpp(),
+                                          .quotes = toQuotes(request.quotes),
+                                          .fixed_payments_per_year =
+                                              request.fixed_payments_per_year}),
+                      [](const CalibrationResult& r) { return toJs(r); });
+}
+
+Float64Array jsModelNormalVols(const JsModelVolsRequest& request) {
+  return valueOrThrow(modelNormalVols({.curve = request.curve.toCpp(),
+                                       .params = request.params,
+                                       .quotes = toQuotes(request.quotes),
+                                       .fixed_payments_per_year =
+                                           request.fixed_payments_per_year}),
+                      toFloat64Array);
+}
+
 Float64Array jsEvaluateCurve(const JsRateCurveSpec& curve,
                              const NumberArray& times) {
   return valueOrThrow(evaluateCurve(curve.toCpp(), toVector(times)),
@@ -403,11 +534,15 @@ double jsImpliedVolatility(const ImpliedVolRequest& request) {
 
 EMSCRIPTEN_BINDINGS(smileexplorer) {
   using namespace smileexplorer::api;
+  using smileexplorer::HullWhiteParams;
+  using smileexplorer::RateOptionQuote;
+  using smileexplorer::RateOptionType;
   namespace em = emscripten;
 
   em::register_type<Float64Array>("Float64Array");
   em::register_type<Int32Array>("Int32Array");
   em::register_type<NumberArray>("number[]");
+  em::register_type<QuoteArray>("RateOptionQuote[]");
 
   em::enum_<TreeModel>("TreeModel")
       .value("CoxRossRubinstein", TreeModel::kCoxRossRubinstein)
@@ -597,6 +732,90 @@ EMSCRIPTEN_BINDINGS(smileexplorer) {
   em::function("computeGreeks", &jsComputeGreeks);
   em::function("greekSurface", &jsGreekSurface);
   em::function("simulateDeltaHedge", &jsSimulateDeltaHedge);
+  em::enum_<RateOptionType>("RateOptionType")
+      .value("Caplet", RateOptionType::kCaplet)
+      .value("Swaption", RateOptionType::kSwaption);
+
+  em::value_object<RateOptionQuote>("RateOptionQuote")
+      .field("type", &RateOptionQuote::type)
+      .field("expiry", &RateOptionQuote::expiry)
+      .field("tenor", &RateOptionQuote::tenor)
+      .field("normalVol", &RateOptionQuote::normal_vol);
+
+  em::value_object<HullWhiteParams>("HullWhiteParams")
+      .field("meanReversion", &HullWhiteParams::mean_reversion)
+      .field("sigma", &HullWhiteParams::sigma);
+
+  em::value_object<SwaptionSpec>("SwaptionSpec")
+      .field("expiryYears", &SwaptionSpec::expiry_years)
+      .field("tenorYears", &SwaptionSpec::tenor_years)
+      .field("fixedPaymentsPerYear", &SwaptionSpec::fixed_payments_per_year)
+      .field("atTheMoney", &SwaptionSpec::at_the_money)
+      .field("fixedRate", &SwaptionSpec::fixed_rate)
+      .field("notional", &SwaptionSpec::notional)
+      .field("isPayer", &SwaptionSpec::is_payer);
+
+  em::value_object<JsSwaptionRequest>("SwaptionRequest")
+      .field("tree", &JsSwaptionRequest::tree)
+      .field("swaption", &JsSwaptionRequest::swaption);
+
+  em::value_object<JsSwaptionResult>("SwaptionResult")
+      .field("option", &JsSwaptionResult::option)
+      .field("fixedRate", &JsSwaptionResult::fixed_rate)
+      .field("parRate", &JsSwaptionResult::par_rate)
+      .field("annuity", &JsSwaptionResult::annuity)
+      .field("paymentTimes", &JsSwaptionResult::payment_times)
+      .field("normalVol", &JsSwaptionResult::normal_vol)
+      .field("analyticNormalVol", &JsSwaptionResult::analytic_normal_vol);
+
+  em::value_object<CapSpec>("CapSpec")
+      .field("maturityYears", &CapSpec::maturity_years)
+      .field("paymentsPerYear", &CapSpec::payments_per_year)
+      .field("atTheMoney", &CapSpec::at_the_money)
+      .field("strike", &CapSpec::strike)
+      .field("notional", &CapSpec::notional)
+      .field("isCap", &CapSpec::is_cap);
+
+  em::value_object<JsCapRequest>("CapRequest")
+      .field("tree", &JsCapRequest::tree)
+      .field("cap", &JsCapRequest::cap);
+
+  em::value_object<JsCapResult>("CapResult")
+      .field("strike", &JsCapResult::strike)
+      .field("price", &JsCapResult::price)
+      .field("analyticPrice", &JsCapResult::analytic_price)
+      .field("fixingTimes", &JsCapResult::fixing_times)
+      .field("paymentTimes", &JsCapResult::payment_times)
+      .field("forwardRates", &JsCapResult::forward_rates)
+      .field("prices", &JsCapResult::prices)
+      .field("analyticPrices", &JsCapResult::analytic_prices)
+      .field("normalVols", &JsCapResult::normal_vols);
+
+  em::value_object<JsCalibrationRequest>("CalibrationRequest")
+      .field("curve", &JsCalibrationRequest::curve)
+      .field("quotes", &JsCalibrationRequest::quotes)
+      .field("fixedPaymentsPerYear",
+             &JsCalibrationRequest::fixed_payments_per_year);
+
+  em::value_object<JsCalibrationResult>("CalibrationResult")
+      .field("params", &JsCalibrationResult::params)
+      .field("marketVols", &JsCalibrationResult::market_vols)
+      .field("modelVols", &JsCalibrationResult::model_vols)
+      .field("rmsError", &JsCalibrationResult::rms_error)
+      .field("iterations", &JsCalibrationResult::iterations)
+      .field("converged", &JsCalibrationResult::converged);
+
+  em::value_object<JsModelVolsRequest>("ModelVolsRequest")
+      .field("curve", &JsModelVolsRequest::curve)
+      .field("params", &JsModelVolsRequest::params)
+      .field("quotes", &JsModelVolsRequest::quotes)
+      .field("fixedPaymentsPerYear",
+             &JsModelVolsRequest::fixed_payments_per_year);
+
+  em::function("priceSwaption", &jsPriceSwaption);
+  em::function("priceCap", &jsPriceCap);
+  em::function("calibrateHullWhite", &jsCalibrateHullWhite);
+  em::function("modelNormalVols", &jsModelNormalVols);
   em::function("priceVanilla", &jsPriceVanilla);
   em::function("priceBondOption", &jsPriceBondOption);
   em::function("buildHullWhiteTree", &jsBuildHullWhiteTree);
