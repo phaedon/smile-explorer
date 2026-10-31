@@ -4,6 +4,7 @@
   import FxEssay from './lib/FxEssay.svelte';
   import GreeksEssay from './lib/GreeksEssay.svelte';
   import HullWhiteEssay from './lib/HullWhiteEssay.svelte';
+  import SmileEssay from './lib/SmileEssay.svelte';
   import SwaptionEssay from './lib/SwaptionEssay.svelte';
   import VolatilityEssay from './lib/VolatilityEssay.svelte';
 
@@ -59,6 +60,17 @@
           title: 'Calibrating the rate tree',
           blurb: 'Swaptions and caps, fitting the model to quotes, and Bermudans.',
           component: SwaptionEssay,
+        },
+      ],
+    },
+    {
+      name: 'Putting it together',
+      pages: [
+        {
+          id: 'smile',
+          title: 'The smile, calibrated',
+          blurb: 'From quoted implied vols to a local-vol tree that prices them back.',
+          component: SmileEssay,
         },
       ],
     },
