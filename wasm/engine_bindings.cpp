@@ -344,6 +344,8 @@ struct JsSwaptionResult {
   Float64Array payment_times{val::null()};
   double normal_vol = 0.0;
   double analytic_normal_vol = 0.0;
+  Float64Array exercise_times{val::null()};
+  Float64Array coterminal_european_prices{val::null()};
 };
 
 JsSwaptionResult toJs(SwaptionResult r) {
@@ -353,7 +355,10 @@ JsSwaptionResult toJs(SwaptionResult r) {
           .annuity = r.annuity,
           .payment_times = toFloat64Array(r.payment_times),
           .normal_vol = r.normal_vol,
-          .analytic_normal_vol = r.analytic_normal_vol};
+          .analytic_normal_vol = r.analytic_normal_vol,
+          .exercise_times = toFloat64Array(r.exercise_times),
+          .coterminal_european_prices =
+              toFloat64Array(r.coterminal_european_prices)};
 }
 
 struct JsCapRequest {
@@ -753,7 +758,8 @@ EMSCRIPTEN_BINDINGS(smileexplorer) {
       .field("atTheMoney", &SwaptionSpec::at_the_money)
       .field("fixedRate", &SwaptionSpec::fixed_rate)
       .field("notional", &SwaptionSpec::notional)
-      .field("isPayer", &SwaptionSpec::is_payer);
+      .field("isPayer", &SwaptionSpec::is_payer)
+      .field("isBermudan", &SwaptionSpec::is_bermudan);
 
   em::value_object<JsSwaptionRequest>("SwaptionRequest")
       .field("tree", &JsSwaptionRequest::tree)
@@ -766,7 +772,10 @@ EMSCRIPTEN_BINDINGS(smileexplorer) {
       .field("annuity", &JsSwaptionResult::annuity)
       .field("paymentTimes", &JsSwaptionResult::payment_times)
       .field("normalVol", &JsSwaptionResult::normal_vol)
-      .field("analyticNormalVol", &JsSwaptionResult::analytic_normal_vol);
+      .field("analyticNormalVol", &JsSwaptionResult::analytic_normal_vol)
+      .field("exerciseTimes", &JsSwaptionResult::exercise_times)
+      .field("coterminalEuropeanPrices",
+             &JsSwaptionResult::coterminal_european_prices);
 
   em::value_object<CapSpec>("CapSpec")
       .field("maturityYears", &CapSpec::maturity_years)
