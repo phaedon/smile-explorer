@@ -172,4 +172,95 @@ TEST(InterestRateDerivativeTest, AmericanBondOption) {
   }
 }
 
+// A payer Bermudan swaption: exercisable at 2, 3, 4, 5 and 6 years into the
+// remainder of a swap paying 4% annually to 7 years. Each exercise is a put,
+// struck at par, on the ex-coupon bond of the swap's remaining fixed leg.
+class BermudanSwaptionTest : public ::testing::Test {
+ protected:
+  BermudanSwaptionTest()
+      : curve_({1, 3, 5, 10}, {0.035, 0.037, 0.04, 0.042}),
+        tree_(std::make_unique<HullWhitePropagator>(0.1, 0.01, 0.25),
+              curve_,
+              7.) {}
+
+  // The fixed leg from `start` onwards (coupons after it, and the notional).
+  InterestRateSwap bondFrom(double start) {
+    FixedCashflowInstrument bond(&tree_);
+    std::vector<Cashflow> cashflows;
+    for (int year = static_cast<int>(start) + 1; year <= 7; ++year) {
+      cashflows.push_back({.time_years = static_cast<double>(year),
+                           .amount = year == 7 ? 104. : 4.});
+    }
+    EXPECT_TRUE(bond.setCashflows(cashflows).ok());
+    bond.price();
+    return InterestRateSwap::createBond(std::move(bond));
+  }
+
+  std::vector<ExerciseDate> schedule(std::vector<double> years) {
+    std::vector<ExerciseDate> dates;
+    for (double year : years) {
+      // Exercising on a coupon date enters the swap after that coupon.
+      dates.push_back(
+          {.time_years = year, .cashflow_excluded = year > 2 ? 4. : 0.});
+    }
+    return dates;
+  }
+
+  ZeroSpotCurve curve_;
+  ShortRateTreeCurve tree_;
+};
+
+TEST_F(BermudanSwaptionTest, OneDateIsEuropean) {
+  const InterestRateSwap bond = bondFrom(2);
+  InterestRateDerivative bermudan(&tree_, &bond);
+  InterestRateDerivative european(&tree_, &bond);
+  const VanillaOption put(100, OptionPayoff::Put);
+  const auto price = bermudan.priceBermudan(put, schedule({2}));
+  ASSERT_TRUE(price.ok()) << price.status();
+  EXPECT_NEAR(european.price(put, 2.0), *price, 1e-12);
+}
+
+TEST_F(BermudanSwaptionTest, WorthAtLeastEveryCoterminalEuropean) {
+  const InterestRateSwap bond = bondFrom(2);
+  InterestRateDerivative bermudan(&tree_, &bond);
+  const VanillaOption put(100, OptionPayoff::Put);
+  const auto price = bermudan.priceBermudan(put, schedule({2, 3, 4, 5, 6}));
+  ASSERT_TRUE(price.ok()) << price.status();
+
+  double best_european = 0;
+  for (double start : {2., 3., 4., 5., 6.}) {
+    const InterestRateSwap remaining = bondFrom(start);
+    InterestRateDerivative european(&tree_, &remaining);
+    best_european = std::max(best_european, european.price(put, start));
+  }
+  EXPECT_GT(*price, best_european);
+  // But not by more than the sum of all of them.
+  EXPECT_LT(*price, 5 * best_european);
+}
+
+TEST_F(BermudanSwaptionTest, MoreExerciseDatesAreWorthMore) {
+  const InterestRateSwap bond = bondFrom(2);
+  const VanillaOption put(100, OptionPayoff::Put);
+  InterestRateDerivative some(&tree_, &bond);
+  InterestRateDerivative all(&tree_, &bond);
+  const auto fewer = some.priceBermudan(put, schedule({2, 4}));
+  const auto more = all.priceBermudan(put, schedule({2, 3, 4, 5, 6}));
+  ASSERT_TRUE(fewer.ok() && more.ok());
+  EXPECT_GE(*more, *fewer);
+}
+
+TEST_F(BermudanSwaptionTest, RejectsInvalidSchedules) {
+  const InterestRateSwap bond = bondFrom(2);
+  InterestRateDerivative bermudan(&tree_, &bond);
+  const VanillaOption put(100, OptionPayoff::Put);
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument,
+            bermudan.priceBermudan(put, {}).status().code());
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument,
+            bermudan.priceBermudan(put, schedule({3, 2})).status().code());
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument,
+            bermudan.priceBermudan(put, schedule({2.1})).status().code());
+  EXPECT_EQ(absl::StatusCode::kInvalidArgument,
+            bermudan.priceBermudan(put, schedule({20})).status().code());
+}
+
 }  // namespace smileexplorer
