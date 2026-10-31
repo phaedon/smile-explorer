@@ -1,6 +1,6 @@
 // Reactive parameters for the Greeks and hedging essay.
 
-import {engine, type VanillaPricingRequest} from './engine';
+import {engine, flatVol, type VanillaPricingRequest} from './engine';
 
 export const greeksParams = $state({
   spot: 100,
@@ -24,7 +24,7 @@ export function greeksRequestFor(p: GreeksParams): VanillaPricingRequest {
     tree: {
       model: engine.TreeModel.CoxRossRubinstein,
       spot: p.spot,
-      vol: {model: engine.VolModel.Flat, vol: p.vol, termMaturities: [], termVols: [], smileRange: 0, smileStretch: 0},
+      vol: flatVol(p.vol),
       rate: p.rate,
       drift: 0,
       dtYears: 1 / p.stepsPerYear,
