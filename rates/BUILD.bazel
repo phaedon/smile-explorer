@@ -52,6 +52,12 @@ cc_test(
 )
 
 cc_library(
+    name = "swap_rates",
+    hdrs = ["swap_rates.h"],
+    deps = [":rates_curve"],
+)
+
+cc_library(
     name = "zero_curve",
     srcs = ["zero_curve.cpp"],
     hdrs = ["zero_curve.h"],
