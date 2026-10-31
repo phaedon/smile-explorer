@@ -12,14 +12,19 @@ cc_library(
         "pricing_api.cpp",
         "rates_options_api.cpp",
         "short_rate_api.cpp",
+        "smile_api.cpp",
     ],
     hdrs = [
         "greeks_api.h",
         "pricing_api.h",
         "rates_options_api.h",
         "short_rate_api.h",
+        "smile_api.h",
     ],
     deps = [
+        "//calibration:smile_calibration",
+        "//volatility:dupire_local_vol",
+        "//volatility:ssvi",
         "//calibration:hull_white_calibration",
         "//derivatives:bachelier",
         "//derivatives:hull_white_analytic",
@@ -88,6 +93,16 @@ cc_test(
     deps = [
         ":pricing_api",
         "//rates:zero_curve",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "smile_api_test",
+    srcs = ["smile_api_test.cpp"],
+    deps = [
+        ":pricing_api",
         "@abseil-cpp//absl/status",
         "@googletest//:gtest_main",
     ],

@@ -31,6 +31,10 @@ enum class VolModel {
   // A local volatility skew in the asset price. Requires the local volatility
   // tree model.
   kSigmoidSmile,
+  // Local volatility from an SSVI implied-vol surface, by Dupire's formula
+  // (see api/smile_api.h to fit one to quotes). Requires the local
+  // volatility tree model.
+  kSsviLocalVol,
 };
 
 // Annualised lognormal volatilities, as decimals (0.16 == 16%).
@@ -46,6 +50,12 @@ struct VolSpec {
   //   sigma(S) = vol + smile_range / (1 + exp(smile_stretch * (S - spot)))
   double smile_range = 0.0;
   double smile_stretch = 0.0;
+  // kSsviLocalVol: the at-the-money implied vols are term_vols at
+  // term_maturities, and these are SSVI's other parameters (rho in (-1, 1),
+  // eta > 0, gamma in (0, 1)). `vol` must still be positive but is unused.
+  double ssvi_rho = 0.0;
+  double ssvi_eta = 0.0;
+  double ssvi_gamma = 0.0;
 };
 
 // A recombining binomial tree for a single asset, discounted on a flat curve.

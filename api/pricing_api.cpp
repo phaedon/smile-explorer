@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
@@ -15,6 +16,8 @@
 #include "trees/binomial_tree.h"
 #include "trees/propagators.h"
 #include "trees/stochastic_tree_model.h"
+#include "volatility/dupire_local_vol.h"
+#include "volatility/ssvi.h"
 #include "volatility/volatility.h"
 
 namespace smileexplorer::api {
@@ -35,7 +38,8 @@ absl::Status validateVol(const VolSpec& vol) {
   switch (vol.model) {
     case VolModel::kFlat:
       return absl::OkStatus();
-    case VolModel::kTermStructure: {
+    case VolModel::kTermStructure:
+    case VolModel::kSsviLocalVol: {
       const auto& t = vol.term_maturities;
       const auto& v = vol.term_vols;
       if (t.empty() || t.size() != v.size()) {
@@ -59,6 +63,12 @@ absl::Status validateVol(const VolSpec& vol) {
                            t[k],
                            "y is negative: implied vols can't fall that fast"));
         }
+      }
+      if (vol.model == VolModel::kSsviLocalVol &&
+          (!(std::abs(vol.ssvi_rho) < 1) || !(vol.ssvi_eta > 0) ||
+           !(vol.ssvi_gamma > 0 && vol.ssvi_gamma < 1))) {
+        return absl::InvalidArgumentError(
+            "SSVI needs rho in (-1, 1), eta > 0 and gamma in (0, 1)");
       }
       return absl::OkStatus();
     }
@@ -86,7 +96,8 @@ absl::Status validate(const VanillaPricingRequest& request) {
     return absl::InvalidArgumentError(
         "the local volatility tree needs a flat or smile vol");
   }
-  if (!local_vol && tree.vol.model == VolModel::kSigmoidSmile) {
+  if (!local_vol && (tree.vol.model == VolModel::kSigmoidSmile ||
+                     tree.vol.model == VolModel::kSsviLocalVol)) {
     return absl::InvalidArgumentError(
         "a vol smile needs the local volatility tree model");
   }
@@ -107,6 +118,16 @@ absl::Status validate(const VanillaPricingRequest& request) {
 
 PiecewiseTermStructureVol termStructure(const VolSpec& vol) {
   return PiecewiseTermStructureVol(vol.term_maturities, vol.term_vols);
+}
+
+SsviSurface ssviSurface(const VolSpec& vol) {
+  std::vector<double> thetas;
+  for (size_t k = 0; k < vol.term_maturities.size(); ++k) {
+    thetas.push_back(vol.term_vols[k] * vol.term_vols[k] *
+                     vol.term_maturities[k]);
+  }
+  return SsviSurface(
+      vol.ssvi_rho, vol.ssvi_eta, vol.ssvi_gamma, vol.term_maturities, thetas);
 }
 
 SigmoidSmileVol smile(const VolSpec& vol, double spot) {
@@ -315,6 +336,27 @@ absl::StatusOr<VanillaPricingResult> priceWithVol(
                          Volatility(smile_vol),
                          smile_vol(request.tree.spot));
     }
+    case VolModel::kSsviLocalVol: {
+      // Only the local volatility tree takes a vol that depends on time and
+      // the asset price (validate() rejects other combinations).
+      if constexpr (!std::is_same_v<PropagatorT, LocalVolatilityPropagator>) {
+        return absl::InvalidArgumentError(
+            "a vol smile needs the local volatility tree model");
+      } else {
+        // The reference price is Black-Scholes at the surface's implied vol
+        // for this strike and expiry: the market price the tree should match.
+        const SsviSurface surface = ssviSurface(vol);
+        const double t = request.option.expiry_years;
+        const double forward =
+            request.tree.spot * std::exp(request.tree.rate * t);
+        return priceOnTree(
+            inputs,
+            propagator,
+            Volatility(
+                DupireLocalVol(surface, request.tree.spot, request.tree.rate)),
+            surface.impliedVol(std::log(request.option.strike / forward), t));
+      }
+    }
   }
   return absl::InvalidArgumentError("unknown vol model");
 }
@@ -421,6 +463,10 @@ absl::StatusOr<std::vector<double>> evaluateVol(const VolSpec& vol,
       for (double s : xs) result.push_back(smile_vol(s));
       break;
     }
+    case VolModel::kSsviLocalVol:
+      return absl::InvalidArgumentError(
+          "SSVI local vol depends on time as well as the asset price: use "
+          "smileSurfaces");
   }
   return result;
 }
