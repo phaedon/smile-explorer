@@ -233,7 +233,10 @@
       orbit.enablePan = false;
       orbit.minDistance = 3;
       orbit.maxDistance = 9;
-      orbit.maxPolarAngle = Math.PI / 2 - 0.05;
+      // Keep the view above the floor and away from edge-on, where the axis
+      // labels would pile up.
+      orbit.minPolarAngle = 0.35;
+      orbit.maxPolarAngle = 1.25;
       orbit.addEventListener('change', render);
       orbit.update();
       controls = orbit;
