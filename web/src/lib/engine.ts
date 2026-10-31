@@ -54,6 +54,9 @@ export function flatVol(vol: number): VolSpec {
     termVols: [],
     smileRange: 0,
     smileStretch: 0,
+    ssviRho: 0,
+    ssviEta: 0,
+    ssviGamma: 0,
   };
 }
 

@@ -27,6 +27,9 @@ const flatVol = (vol) => ({
   termVols: [],
   smileRange: 0,
   smileStretch: 0,
+  ssviRho: 0,
+  ssviEta: 0,
+  ssviGamma: 0,
 });
 
 function request({
@@ -247,6 +250,27 @@ const calibrated = engine.calibrateHullWhite({
 });
 assertNear(calibrated.params.meanReversion, 0.15, 1e-4, 'calibrated a');
 assertNear(calibrated.params.sigma, 0.011, 1e-6, 'calibrated sigma');
+
+// The smile: quotes -> SSVI -> Dupire local vol -> tree -> implied vols.
+const smileExpiries = [0.25, 0.5, 1, 2];
+const smileStrikes = [70, 80, 90, 95, 100, 105, 110, 120, 130];
+const smileVols = smileExpiries.flatMap((t, i) => smileStrikes.map((k) => {
+  const m = Math.log(k / (100 * Math.exp(0.02 * t))) / Math.sqrt(t);
+  return [0.22, 0.20, 0.19, 0.185][i] - 0.06 * m + 0.02 * m * m;
+}));
+const smileFit = engine.calibrateSmile({
+  spot: 100, rate: 0.02, expiries: smileExpiries, strikes: smileStrikes,
+  vols: smileVols,
+});
+assert.ok(smileFit.butterflyOk && smileFit.rmsError < 0.002, 'SSVI fit');
+const smileGrid = {
+  spot: 100, rate: 0.02,
+  ssvi: {rho: smileFit.rho, eta: smileFit.eta, gamma: smileFit.gamma,
+         expiries: smileExpiries, thetas: [...smileFit.thetas]},
+  strikes: smileStrikes, times: smileExpiries,
+};
+const repriced = engine.repriceSmile({grid: smileGrid, stepsPerYear: 200});
+assert.ok(repriced.rmsError < 0.001, `smile repriced on the tree (${repriced.rmsError})`);
 
 // Invalid requests throw a JS Error.
 assert.throws(

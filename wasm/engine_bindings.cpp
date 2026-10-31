@@ -18,6 +18,7 @@
 #include "api/pricing_api.h"
 #include "api/rates_options_api.h"
 #include "api/short_rate_api.h"
+#include "api/smile_api.h"
 
 namespace smileexplorer::api {
 namespace {
@@ -56,6 +57,9 @@ struct JsVolSpec {
   NumberArray term_vols{val::array()};
   double smile_range = 0.0;
   double smile_stretch = 0.0;
+  double ssvi_rho = 0.0;
+  double ssvi_eta = 0.0;
+  double ssvi_gamma = 0.0;
 
   VolSpec toCpp() const {
     return {.model = model,
@@ -63,7 +67,10 @@ struct JsVolSpec {
             .term_maturities = toVector(term_maturities),
             .term_vols = toVector(term_vols),
             .smile_range = smile_range,
-            .smile_stretch = smile_stretch};
+            .smile_stretch = smile_stretch,
+            .ssvi_rho = ssvi_rho,
+            .ssvi_eta = ssvi_eta,
+            .ssvi_gamma = ssvi_gamma};
   }
 };
 
@@ -436,6 +443,95 @@ struct JsModelVolsRequest {
   int fixed_payments_per_year = 1;
 };
 
+struct JsSmileQuotes {
+  double spot = 0.0;
+  double rate = 0.0;
+  NumberArray expiries{val::array()};
+  NumberArray strikes{val::array()};
+  // NaN where there is no quote.
+  NumberArray vols{val::array()};
+
+  SmileQuotes toCpp() const {
+    return {.spot = spot,
+            .rate = rate,
+            .expiries = toVector(expiries),
+            .strikes = toVector(strikes),
+            .vols = toVector(vols)};
+  }
+};
+
+struct JsSmileFit {
+  double rho = 0.0;
+  double eta = 0.0;
+  double gamma = 0.0;
+  Float64Array thetas{val::null()};
+  bool thetas_adjusted = false;
+  Float64Array fitted_vols{val::null()};
+  Float64Array residuals{val::null()};
+  double rms_error = 0.0;
+  bool butterfly_ok = false;
+  bool calendar_ok = false;
+};
+
+JsSmileFit toJs(const SmileFit& f) {
+  return {.rho = f.rho,
+          .eta = f.eta,
+          .gamma = f.gamma,
+          .thetas = toFloat64Array(f.thetas),
+          .thetas_adjusted = f.thetas_adjusted,
+          .fitted_vols = toFloat64Array(f.fitted_vols),
+          .residuals = toFloat64Array(f.residuals),
+          .rms_error = f.rms_error,
+          .butterfly_ok = f.butterfly_ok,
+          .calendar_ok = f.calendar_ok};
+}
+
+struct JsSsviSpec {
+  double rho = 0.0;
+  double eta = 0.0;
+  double gamma = 0.0;
+  NumberArray expiries{val::array()};
+  NumberArray thetas{val::array()};
+};
+
+struct JsSmileGridRequest {
+  double spot = 0.0;
+  double rate = 0.0;
+  JsSsviSpec ssvi;
+  NumberArray strikes{val::array()};
+  NumberArray times{val::array()};
+
+  SmileGridRequest toCpp() const {
+    return {.spot = spot,
+            .rate = rate,
+            .ssvi = {.rho = ssvi.rho,
+                     .eta = ssvi.eta,
+                     .gamma = ssvi.gamma,
+                     .expiries = toVector(ssvi.expiries),
+                     .thetas = toVector(ssvi.thetas)},
+            .strikes = toVector(strikes),
+            .times = toVector(times)};
+  }
+};
+
+struct JsSmileSurfaces {
+  Float64Array implied_vols{val::null()};
+  Float64Array local_vols{val::null()};
+  int clamped = 0;
+};
+
+struct JsRepriceRequest {
+  JsSmileGridRequest grid;
+  int steps_per_year = 0;
+};
+
+struct JsRepriceResult {
+  Float64Array tree_vols{val::null()};
+  Float64Array surface_vols{val::null()};
+  Float64Array residuals{val::null()};
+  double rms_error = 0.0;
+};
+
 // Unwraps a StatusOr, converting its value with `convert`, or throws a JS
 // Error with the status message.
 template <typename T, typename ConvertFn>
@@ -517,6 +613,36 @@ Float64Array jsModelNormalVols(const JsModelVolsRequest& request) {
                       toFloat64Array);
 }
 
+JsSmileFit jsCalibrateSmile(const JsSmileQuotes& quotes) {
+  return valueOrThrow(calibrateSmile(quotes.toCpp()),
+                      [](const SmileFit& f) { return toJs(f); });
+}
+
+JsSmileSurfaces jsSmileSurfaces(const JsSmileGridRequest& request) {
+  return valueOrThrow(
+      smileSurfaces(request.toCpp()), [](const SmileSurfaces& s) {
+        return JsSmileSurfaces{.implied_vols = toFloat64Array(s.implied_vols),
+                               .local_vols = toFloat64Array(s.local_vols),
+                               .clamped = s.clamped};
+      });
+}
+
+JsRepriceResult jsRepriceSmile(const JsRepriceRequest& request) {
+  return valueOrThrow(repriceSmile({.grid = request.grid.toCpp(),
+                                    .steps_per_year = request.steps_per_year}),
+                      [](const RepriceResult& r) {
+                        return JsRepriceResult{
+                            .tree_vols = toFloat64Array(r.tree_vols),
+                            .surface_vols = toFloat64Array(r.surface_vols),
+                            .residuals = toFloat64Array(r.residuals),
+                            .rms_error = r.rms_error};
+                      });
+}
+
+Float64Array jsImpliedDensity(const JsSmileGridRequest& request) {
+  return valueOrThrow(impliedDensity(request.toCpp()), toFloat64Array);
+}
+
 Float64Array jsEvaluateCurve(const JsRateCurveSpec& curve,
                              const NumberArray& times) {
   return valueOrThrow(evaluateCurve(curve.toCpp(), toVector(times)),
@@ -557,7 +683,8 @@ EMSCRIPTEN_BINDINGS(smileexplorer) {
   em::enum_<VolModel>("VolModel")
       .value("Flat", VolModel::kFlat)
       .value("TermStructure", VolModel::kTermStructure)
-      .value("SigmoidSmile", VolModel::kSigmoidSmile);
+      .value("SigmoidSmile", VolModel::kSigmoidSmile)
+      .value("SsviLocalVol", VolModel::kSsviLocalVol);
 
   em::value_object<JsVolSpec>("VolSpec")
       .field("model", &JsVolSpec::model)
@@ -565,7 +692,10 @@ EMSCRIPTEN_BINDINGS(smileexplorer) {
       .field("termMaturities", &JsVolSpec::term_maturities)
       .field("termVols", &JsVolSpec::term_vols)
       .field("smileRange", &JsVolSpec::smile_range)
-      .field("smileStretch", &JsVolSpec::smile_stretch);
+      .field("smileStretch", &JsVolSpec::smile_stretch)
+      .field("ssviRho", &JsVolSpec::ssvi_rho)
+      .field("ssviEta", &JsVolSpec::ssvi_eta)
+      .field("ssviGamma", &JsVolSpec::ssvi_gamma);
 
   em::value_object<JsBinomialTreeSpec>("BinomialTreeSpec")
       .field("model", &JsBinomialTreeSpec::model)
@@ -825,6 +955,58 @@ EMSCRIPTEN_BINDINGS(smileexplorer) {
   em::function("priceCap", &jsPriceCap);
   em::function("calibrateHullWhite", &jsCalibrateHullWhite);
   em::function("modelNormalVols", &jsModelNormalVols);
+  em::value_object<JsSmileQuotes>("SmileQuotes")
+      .field("spot", &JsSmileQuotes::spot)
+      .field("rate", &JsSmileQuotes::rate)
+      .field("expiries", &JsSmileQuotes::expiries)
+      .field("strikes", &JsSmileQuotes::strikes)
+      .field("vols", &JsSmileQuotes::vols);
+
+  em::value_object<JsSmileFit>("SmileFit")
+      .field("rho", &JsSmileFit::rho)
+      .field("eta", &JsSmileFit::eta)
+      .field("gamma", &JsSmileFit::gamma)
+      .field("thetas", &JsSmileFit::thetas)
+      .field("thetasAdjusted", &JsSmileFit::thetas_adjusted)
+      .field("fittedVols", &JsSmileFit::fitted_vols)
+      .field("residuals", &JsSmileFit::residuals)
+      .field("rmsError", &JsSmileFit::rms_error)
+      .field("butterflyOk", &JsSmileFit::butterfly_ok)
+      .field("calendarOk", &JsSmileFit::calendar_ok);
+
+  em::value_object<JsSsviSpec>("SsviSpec")
+      .field("rho", &JsSsviSpec::rho)
+      .field("eta", &JsSsviSpec::eta)
+      .field("gamma", &JsSsviSpec::gamma)
+      .field("expiries", &JsSsviSpec::expiries)
+      .field("thetas", &JsSsviSpec::thetas);
+
+  em::value_object<JsSmileGridRequest>("SmileGridRequest")
+      .field("spot", &JsSmileGridRequest::spot)
+      .field("rate", &JsSmileGridRequest::rate)
+      .field("ssvi", &JsSmileGridRequest::ssvi)
+      .field("strikes", &JsSmileGridRequest::strikes)
+      .field("times", &JsSmileGridRequest::times);
+
+  em::value_object<JsSmileSurfaces>("SmileSurfaces")
+      .field("impliedVols", &JsSmileSurfaces::implied_vols)
+      .field("localVols", &JsSmileSurfaces::local_vols)
+      .field("clamped", &JsSmileSurfaces::clamped);
+
+  em::value_object<JsRepriceRequest>("RepriceRequest")
+      .field("grid", &JsRepriceRequest::grid)
+      .field("stepsPerYear", &JsRepriceRequest::steps_per_year);
+
+  em::value_object<JsRepriceResult>("RepriceResult")
+      .field("treeVols", &JsRepriceResult::tree_vols)
+      .field("surfaceVols", &JsRepriceResult::surface_vols)
+      .field("residuals", &JsRepriceResult::residuals)
+      .field("rmsError", &JsRepriceResult::rms_error);
+
+  em::function("calibrateSmile", &jsCalibrateSmile);
+  em::function("smileSurfaces", &jsSmileSurfaces);
+  em::function("repriceSmile", &jsRepriceSmile);
+  em::function("impliedDensity", &jsImpliedDensity);
   em::function("priceVanilla", &jsPriceVanilla);
   em::function("priceBondOption", &jsPriceBondOption);
   em::function("buildHullWhiteTree", &jsBuildHullWhiteTree);

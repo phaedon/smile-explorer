@@ -13,6 +13,9 @@ export function termSpec(p: {termVols: number[]}): VolSpec {
     termVols: [...p.termVols],
     smileRange: 0,
     smileStretch: 0,
+    ssviRho: 0,
+    ssviEta: 0,
+    ssviGamma: 0,
   };
 }
 
@@ -29,5 +32,8 @@ export function smileSpec(p: {
     termVols: [],
     smileRange: p.smileRange,
     smileStretch: p.smileStretch,
+    ssviRho: 0,
+    ssviEta: 0,
+    ssviGamma: 0,
   };
 }
