@@ -73,6 +73,25 @@ cc_test(
 )
 
 cc_library(
+    name = "hull_white_analytic",
+    hdrs = ["hull_white_analytic.h"],
+    deps = [
+        ":hull_white_bond_option",
+        "//rates:rates_curve",
+    ],
+)
+
+cc_test(
+    name = "hull_white_analytic_test",
+    srcs = ["hull_white_analytic_test.cpp"],
+    deps = [
+        ":hull_white_analytic",
+        "//rates:zero_curve",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "interest_rate_derivative",
     hdrs = ["interest_rate_derivative.h"],
     deps = [
