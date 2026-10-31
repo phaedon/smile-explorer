@@ -20,3 +20,17 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "ssvi",
+    hdrs = ["ssvi.h"],
+)
+
+cc_test(
+    name = "ssvi_test",
+    srcs = ["ssvi_test.cpp"],
+    deps = [
+        ":ssvi",
+        "@googletest//:gtest_main",
+    ],
+)
