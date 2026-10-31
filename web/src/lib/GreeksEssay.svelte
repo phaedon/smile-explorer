@@ -524,8 +524,7 @@
 
   <footer>
     Built with <a href="https://github.com/phaedon/smile-explorer">smile-explorer</a>,
-    following Hull's <i>Options, Futures, and Other Derivatives</i> and
-    Taleb's <i>Dynamic Hedging</i>.
+    following Hull's <i>Options, Futures, and Other Derivatives</i>.
   </footer>
 </article>
 
