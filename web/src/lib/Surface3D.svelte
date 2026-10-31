@@ -24,6 +24,7 @@
     yFormat = (v: number) => String(v),
     zFormat = (v: number) => String(v),
     height = 360,
+    points = [],
     ariaLabel,
   }: {
     xs: number[];
@@ -37,6 +38,9 @@
     yFormat?: (v: number) => string;
     zFormat?: (v: number) => string;
     height?: number;
+    // Data points to show against the surface (market quotes, say), as small
+    // spheres in the second series colour.
+    points?: {x: number; y: number; z: number}[];
     ariaLabel: string;
   } = $props();
 
@@ -68,6 +72,12 @@
       if (Number.isFinite(v)) {
         lo = Math.min(lo, v);
         hi = Math.max(hi, v);
+      }
+    }
+    for (const p of points) {
+      if (Number.isFinite(p.z)) {
+        lo = Math.min(lo, p.z);
+        hi = Math.max(hi, p.z);
       }
     }
     return lo < hi ? [lo, hi] : [lo - 1, lo + 1];
@@ -171,6 +181,20 @@
 
     surface = new T.Group();
     surface.add(mesh, lines, axes);
+
+    if (points.length > 0) {
+      const dots = new T.InstancedMesh(
+        new T.SphereGeometry(0.03, 12, 8),
+        new T.MeshBasicMaterial({color: new T.Color(token('--series-2'))}),
+        points.length,
+      );
+      const matrix = new T.Matrix4();
+      points.forEach((p, k) => {
+        matrix.makeTranslation(nx(p.x), nh(p.z), nz(p.y));
+        dots.setMatrixAt(k, matrix);
+      });
+      surface.add(dots);
+    }
     scene.add(surface);
   }
 
@@ -266,6 +290,7 @@
     void values;
     void xs;
     void ys;
+    void points;
     if (status !== 'ready') return;
     buildSurface();
     render();
