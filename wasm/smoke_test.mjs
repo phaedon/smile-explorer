@@ -210,6 +210,33 @@ const hedge = (seed) => engine.simulateDeltaHedge({
 assert.deepEqual([...hedge(3).pnl], [...hedge(3).pnl]);
 assert.ok(Math.abs(hedge(3).mean) < 0.1 * hedge(3).premium, 'hedge mean');
 
+// A 2y x 5y payer swaption, on the tree and by Jamshidian, and calibration
+// recovering the parameters behind a set of quotes.
+const rateCurve = {maturities: [0.5, 1, 2, 5, 10],
+                   rates: [0.03, 0.032, 0.035, 0.04, 0.043]};
+const swaption = engine.priceSwaption({
+  tree: {meanReversion: 0.1, sigma: 0.01, dtYears: 1 / 24, horizonYears: 0,
+         curve: rateCurve, bondFace: 0},
+  swaption: {expiryYears: 2, tenorYears: 5, fixedPaymentsPerYear: 1,
+             atTheMoney: true, fixedRate: 0, notional: 100, isPayer: true},
+});
+assertNear(swaption.option.price, swaption.option.analyticPrice,
+           0.003 * swaption.option.analyticPrice, 'swaption tree vs closed form');
+const quotes = [1, 2, 3, 4].map((expiry) => ({
+  type: engine.RateOptionType.Swaption, expiry, tenor: 5 - expiry, normalVol: 0,
+}));
+const modelVols = engine.modelNormalVols({
+  curve: rateCurve, params: {meanReversion: 0.15, sigma: 0.011}, quotes,
+  fixedPaymentsPerYear: 1,
+});
+const calibrated = engine.calibrateHullWhite({
+  curve: rateCurve,
+  quotes: quotes.map((q, i) => ({...q, normalVol: modelVols[i]})),
+  fixedPaymentsPerYear: 1,
+});
+assertNear(calibrated.params.meanReversion, 0.15, 1e-4, 'calibrated a');
+assertNear(calibrated.params.sigma, 0.011, 1e-6, 'calibrated sigma');
+
 // Invalid requests throw a JS Error.
 assert.throws(
     () => engine.priceVanilla(request({expiryYears: -1})), /expiry_years/);
