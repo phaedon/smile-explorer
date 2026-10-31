@@ -218,10 +218,21 @@ const swaption = engine.priceSwaption({
   tree: {meanReversion: 0.1, sigma: 0.01, dtYears: 1 / 24, horizonYears: 0,
          curve: rateCurve, bondFace: 0},
   swaption: {expiryYears: 2, tenorYears: 5, fixedPaymentsPerYear: 1,
-             atTheMoney: true, fixedRate: 0, notional: 100, isPayer: true},
+             atTheMoney: true, fixedRate: 0, notional: 100, isPayer: true,
+             isBermudan: false},
 });
 assertNear(swaption.option.price, swaption.option.analyticPrice,
            0.003 * swaption.option.analyticPrice, 'swaption tree vs closed form');
+const bermudan = engine.priceSwaption({
+  tree: {meanReversion: 0.1, sigma: 0.01, dtYears: 1 / 12, horizonYears: 0,
+         curve: rateCurve, bondFace: 0},
+  swaption: {expiryYears: 2, tenorYears: 5, fixedPaymentsPerYear: 1,
+             atTheMoney: true, fixedRate: 0, notional: 100, isPayer: true,
+             isBermudan: true},
+});
+assert.equal(bermudan.exerciseTimes.length, 5);
+assert.ok(bermudan.option.price > Math.max(...bermudan.coterminalEuropeanPrices),
+          'Bermudan exceeds its co-terminal Europeans');
 const quotes = [1, 2, 3, 4].map((expiry) => ({
   type: engine.RateOptionType.Swaption, expiry, tenor: 5 - expiry, normalVol: 0,
 }));
