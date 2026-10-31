@@ -41,7 +41,11 @@ function treeSpec(p: SwaptionParams, stepsPerYear: number) {
   };
 }
 
-export function swaptionRequestFor(p: SwaptionParams, stepsPerYear = p.stepsPerYear): SwaptionRequest {
+export function swaptionRequestFor(
+  p: SwaptionParams,
+  stepsPerYear = p.stepsPerYear,
+  isBermudan = false,
+): SwaptionRequest {
   return {
     tree: treeSpec(p, stepsPerYear),
     swaption: {
@@ -52,6 +56,7 @@ export function swaptionRequestFor(p: SwaptionParams, stepsPerYear = p.stepsPerY
       fixedRate: 0,
       notional: 100,
       isPayer: p.isPayer,
+      isBermudan,
     },
   };
 }

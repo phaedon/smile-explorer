@@ -181,7 +181,7 @@
 
   {#if marked}
     {#each ys as v, n (n)}
-      {#if marked[n]}
+      {#if marked[n] && shown(sliceOf[n])}
         <circle class="mark" cx={x(sliceOf[n])} cy={y(v)} r={radius + 2.5} />
       {/if}
     {/each}
