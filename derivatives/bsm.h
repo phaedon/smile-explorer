@@ -100,6 +100,66 @@ inline double put_theta(
          (div * S * bsm_vals.e_neg_bt * normsdist(-bsm_vals.d1));
 }
 
+// Second-order Greeks. Like the functions above, these take t as the time to
+// expiry, but unlike vega above they are per unit of vol (not per vol point),
+// and charm and colour are rates of change per year of calendar time, as the
+// option ages (so t shrinks).
+
+// Vanna: the change in delta as vol changes, d(delta)/d(vol), which is also
+// d(vega)/d(spot). The same for calls and puts.
+inline double vanna(
+    double S, double K, double vol, double t, double r, double div) {
+  const auto bsm_vals = calculateBSMIntermediates(S, K, vol, t, r, div);
+  return -bsm_vals.e_neg_bt * normpdf(bsm_vals.d1) * bsm_vals.d2 / vol;
+}
+
+// Volga (or vomma): the change in vega as vol changes, d(vega)/d(vol). The
+// same for calls and puts.
+inline double volga(
+    double S, double K, double vol, double t, double r, double div) {
+  const auto bsm_vals = calculateBSMIntermediates(S, K, vol, t, r, div);
+  return S * bsm_vals.e_neg_bt * normpdf(bsm_vals.d1) * std::sqrt(t) *
+         bsm_vals.d1 * bsm_vals.d2 / vol;
+}
+
+// The part of charm common to calls and puts.
+inline double charmCommon(const BSMIntermediates& bsm_vals,
+                          double vol,
+                          double t,
+                          double r,
+                          double div) {
+  const double nu = vol * std::sqrt(t);
+  return -bsm_vals.e_neg_bt * normpdf(bsm_vals.d1) *
+         (2 * (r - div) * t - bsm_vals.d2 * nu) / (2 * t * nu);
+}
+
+// Charm: the change in delta as time passes, d(delta)/d(calendar time).
+inline double call_charm(
+    double S, double K, double vol, double t, double r, double div) {
+  const auto bsm_vals = calculateBSMIntermediates(S, K, vol, t, r, div);
+  return div * bsm_vals.e_neg_bt * normsdist(bsm_vals.d1) +
+         charmCommon(bsm_vals, vol, t, r, div);
+}
+
+inline double put_charm(
+    double S, double K, double vol, double t, double r, double div) {
+  const auto bsm_vals = calculateBSMIntermediates(S, K, vol, t, r, div);
+  return -div * bsm_vals.e_neg_bt * normsdist(-bsm_vals.d1) +
+         charmCommon(bsm_vals, vol, t, r, div);
+}
+
+// Colour: the change in gamma as time passes, d(gamma)/d(calendar time). The
+// same for calls and puts. Near expiry it is large and positive at the money,
+// where gamma spikes, and negative away from it.
+inline double colour(
+    double S, double K, double vol, double t, double r, double div) {
+  const auto bsm_vals = calculateBSMIntermediates(S, K, vol, t, r, div);
+  const double nu = vol * std::sqrt(t);
+  return bsm_vals.e_neg_bt * normpdf(bsm_vals.d1) / (2 * S * t * nu) *
+         (2 * div * t + 1 +
+          (2 * (r - div) * t - bsm_vals.d2 * nu) * bsm_vals.d1 / nu);
+}
+
 }  // namespace smileexplorer
 
 #endif  // SMILE_EXPLORER_DERIVATIVES_BSM_
