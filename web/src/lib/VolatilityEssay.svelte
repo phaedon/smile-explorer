@@ -110,6 +110,9 @@
   let impliedSmile = $state<
     {value: {x: number; y: number}[]; error?: undefined} | {value?: undefined; error: string} | null
   >(null);
+  smileWorker.onerror = (e) => {
+    impliedSmile = {error: `the smile failed to load (${e.message || 'worker error'})`};
+  };
   smileWorker.onmessage = (e: MessageEvent<SmileResponse>) => {
     if (e.data.id !== smileRequestId) return;
     impliedSmile = e.data.error ? {error: e.data.error} : {value: e.data.points!};
