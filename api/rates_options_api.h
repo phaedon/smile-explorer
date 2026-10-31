@@ -27,6 +27,9 @@ struct SwaptionSpec {
   double notional = 100.0;
   // A payer swaption is the right to pay fixed; a receiver, to receive it.
   bool is_payer = true;
+  // A Bermudan can be exercised at expiry or on any later fixed payment date
+  // before the last, into the rest of the swap (at the same fixed rate).
+  bool is_bermudan = false;
 };
 
 // The tree's horizon_years and bond_face are ignored: the tree runs to the end
@@ -47,9 +50,14 @@ struct SwaptionResult {
   double par_rate = 0.0;
   double annuity = 0.0;
   std::vector<double> payment_times;
-  // The tree and closed-form prices as normal vols.
+  // The tree and closed-form prices as normal vols. For a Bermudan, which
+  // has no closed form, analytic prices and vols are NaN.
   double normal_vol = 0.0;
   double analytic_normal_vol = 0.0;
+  // A Bermudan's exercise dates, and for each, the European swaption
+  // exercisable only then into the rest of the swap, priced on the same tree.
+  std::vector<double> exercise_times;
+  std::vector<double> coterminal_european_prices;
 };
 
 absl::StatusOr<SwaptionResult> priceSwaption(const SwaptionRequest& request);

@@ -110,32 +110,68 @@ absl::StatusOr<SwaptionResult> priceSwaption(const SwaptionRequest& request) {
         "the expiry doesn't fall on one of the tree's steps");
   }
 
+  const BondOptionSpec option_spec{.strike = s.notional,
+                                   .expiry_years = s.expiry_years,
+                                   .is_call = !s.is_payer};
+  // A Bermudan's exercise dates: expiry, then each fixed payment date but
+  // the last. Exercising on a payment date enters the swap after that
+  // date's coupon, which is excluded from the bond's value there.
+  std::vector<ExerciseDate> dates;
+  if (s.is_bermudan) {
+    dates.push_back({.time_years = s.expiry_years});
+    for (size_t k = 0; k + 1 < cashflows.size(); ++k) {
+      dates.push_back({.time_years = cashflows[k].time_years,
+                       .cashflow_excluded = cashflows[k].amount});
+    }
+  }
   absl::StatusOr<BondOptionResult> option =
       optionOnBond(*fitted,
-                   {.strike = s.notional,
-                    .expiry_years = s.expiry_years,
-                    .is_call = !s.is_payer},
-                   tree_spec.dt_years);
+                   option_spec,
+                   tree_spec.dt_years,
+                   s.is_bermudan ? &dates : nullptr);
   if (!option.ok()) return option.status();
-  std::vector<double> amounts;
-  for (const Cashflow& c : cashflows) amounts.push_back(c.amount);
-  option->analytic_price = hullWhiteCouponBondOption(curve,
-                                                     tree_spec.mean_reversion,
-                                                     tree_spec.sigma,
-                                                     s.expiry_years,
-                                                     result.payment_times,
-                                                     amounts,
-                                                     s.notional,
-                                                     !s.is_payer);
+  if (s.is_bermudan) {
+    option->analytic_price = kNaN;
+    // Each co-terminal European: the option on the rest of the bond.
+    for (size_t k = 0; k < dates.size(); ++k) {
+      FixedCashflowInstrument rest(fitted->tree_curve.get());
+      const std::vector<Cashflow> remaining(cashflows.begin() + k,
+                                            cashflows.end());
+      if (absl::Status status = rest.setCashflows(remaining); !status.ok()) {
+        return status;
+      }
+      rest.price();
+      const InterestRateSwap underlying = InterestRateSwap::createBond(rest);
+      InterestRateDerivative european(fitted->tree_curve.get(), &underlying);
+      result.exercise_times.push_back(dates[k].time_years);
+      result.coterminal_european_prices.push_back(european.price(
+          VanillaOption(s.notional,
+                        s.is_payer ? OptionPayoff::Put : OptionPayoff::Call),
+          dates[k].time_years));
+    }
+  } else {
+    std::vector<double> amounts;
+    for (const Cashflow& c : cashflows) amounts.push_back(c.amount);
+    option->analytic_price = hullWhiteCouponBondOption(curve,
+                                                       tree_spec.mean_reversion,
+                                                       tree_spec.sigma,
+                                                       s.expiry_years,
+                                                       result.payment_times,
+                                                       amounts,
+                                                       s.notional,
+                                                       !s.is_payer);
+  }
   option->tree = std::move(fitted->result);
 
   // A payer swaption is a call on the swap rate.
   const double scale = s.notional * result.annuity;
-  result.normal_vol = normalVol(option->price / scale,
-                                result.par_rate,
-                                result.fixed_rate,
-                                s.expiry_years,
-                                s.is_payer);
+  // A Bermudan isn't quoted as a vol: it isn't a European on one swap.
+  result.normal_vol = s.is_bermudan ? kNaN
+                                    : normalVol(option->price / scale,
+                                                result.par_rate,
+                                                result.fixed_rate,
+                                                s.expiry_years,
+                                                s.is_payer);
   result.analytic_normal_vol = normalVol(option->analytic_price / scale,
                                          result.par_rate,
                                          result.fixed_rate,
