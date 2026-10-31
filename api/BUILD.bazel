@@ -7,6 +7,8 @@ cc_library(
     name = "pricing_api",
     srcs = [
         "greeks_api.cpp",
+        "hull_white_tree.cpp",
+        "hull_white_tree.h",
         "pricing_api.cpp",
         "short_rate_api.cpp",
     ],
