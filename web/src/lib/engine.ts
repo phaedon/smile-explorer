@@ -7,6 +7,8 @@ import createEngine from './engine/engine_lib.js';
 import type {
   BondOptionRequest,
   BondOptionResult,
+  CapResult,
+  SwaptionResult,
   DeltaHedgeResult,
   GreeksResult,
   FxVanillaPricingRequest,
@@ -21,6 +23,8 @@ import type {
 export type {
   BondOptionRequest,
   BondOptionResult,
+  CapResult,
+  SwaptionResult,
   DeltaHedgeResult,
   GreeksResult,
   FxVanillaPricingRequest,
