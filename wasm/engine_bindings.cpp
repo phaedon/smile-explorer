@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
+#include "api/greeks_api.h"
 #include "api/pricing_api.h"
 #include "api/short_rate_api.h"
 
@@ -253,6 +254,81 @@ JsBondOptionResult toJs(const BondOptionResult& r) {
   };
 }
 
+struct JsGreekSurfaceRequest {
+  Greek greek = Greek::kGamma;
+  double strike = 0.0;
+  double vol = 0.0;
+  double rate = 0.0;
+  bool is_call = true;
+  NumberArray spots{val::array()};
+  NumberArray expiries{val::array()};
+
+  GreekSurfaceRequest toCpp() const {
+    return {.greek = greek,
+            .strike = strike,
+            .vol = vol,
+            .rate = rate,
+            .is_call = is_call,
+            .spots = toVector(spots),
+            .expiries = toVector(expiries)};
+  }
+};
+
+// The seed is a plain number in JS (Embind would map uint64_t to a BigInt).
+struct JsDeltaHedgeRequest {
+  double spot = 0.0;
+  double strike = 0.0;
+  double expiry_years = 0.0;
+  bool is_call = true;
+  double implied_vol = 0.0;
+  double realised_vol = 0.0;
+  double rate = 0.0;
+  int rebalances = 0;
+  int paths = 0;
+  double seed = 1;
+
+  DeltaHedgeRequest toCpp() const {
+    return {.spot = spot,
+            .strike = strike,
+            .expiry_years = expiry_years,
+            .is_call = is_call,
+            .implied_vol = implied_vol,
+            .realised_vol = realised_vol,
+            .rate = rate,
+            .rebalances = rebalances,
+            .paths = paths,
+            .seed = static_cast<uint64_t>(seed)};
+  }
+};
+
+struct JsDeltaHedgeResult {
+  Float64Array pnl{val::null()};
+  double mean = 0.0;
+  double stddev = 0.0;
+  double premium = 0.0;
+  Float64Array times{val::null()};
+  Float64Array spots{val::null()};
+  Float64Array deltas{val::null()};
+  Float64Array cumulative_pnl{val::null()};
+  Float64Array cumulative_theta{val::null()};
+  Float64Array cumulative_gamma{val::null()};
+};
+
+JsDeltaHedgeResult toJs(const DeltaHedgeResult& r) {
+  return {
+      .pnl = toFloat64Array(r.pnl),
+      .mean = r.mean,
+      .stddev = r.stddev,
+      .premium = r.premium,
+      .times = toFloat64Array(r.times),
+      .spots = toFloat64Array(r.spots),
+      .deltas = toFloat64Array(r.deltas),
+      .cumulative_pnl = toFloat64Array(r.cumulative_pnl),
+      .cumulative_theta = toFloat64Array(r.cumulative_theta),
+      .cumulative_gamma = toFloat64Array(r.cumulative_gamma),
+  };
+}
+
 // Unwraps a StatusOr, converting its value with `convert`, or throws a JS
 // Error with the status message.
 template <typename T, typename ConvertFn>
@@ -287,6 +363,22 @@ JsHullWhiteTreeResult jsBuildHullWhiteTree(const JsHullWhiteTreeSpec& spec) {
 JsBondOptionResult jsPriceBondOption(const JsBondOptionRequest& request) {
   return valueOrThrow(priceBondOption(request.toCpp()),
                       [](const BondOptionResult& r) { return toJs(r); });
+}
+
+GreeksResult jsComputeGreeks(const JsVanillaPricingRequest& request,
+                             double vol_bump,
+                             double rate_bump) {
+  return valueOrThrow(computeGreeks(request.toCpp(), vol_bump, rate_bump),
+                      [](const GreeksResult& r) { return r; });
+}
+
+Float64Array jsGreekSurface(const JsGreekSurfaceRequest& request) {
+  return valueOrThrow(greekSurface(request.toCpp()), toFloat64Array);
+}
+
+JsDeltaHedgeResult jsSimulateDeltaHedge(const JsDeltaHedgeRequest& request) {
+  return valueOrThrow(simulateDeltaHedge(request.toCpp()),
+                      [](const DeltaHedgeResult& r) { return toJs(r); });
 }
 
 Float64Array jsEvaluateCurve(const JsRateCurveSpec& curve,
@@ -440,6 +532,71 @@ EMSCRIPTEN_BINDINGS(smileexplorer) {
       .field("exerciseValues", &JsBondOptionResult::exercise_values)
       .field("continuationValues", &JsBondOptionResult::continuation_values);
 
+  em::enum_<Greek>("Greek")
+      .value("Price", Greek::kPrice)
+      .value("Delta", Greek::kDelta)
+      .value("Gamma", Greek::kGamma)
+      .value("Theta", Greek::kTheta)
+      .value("Vega", Greek::kVega)
+      .value("Vanna", Greek::kVanna)
+      .value("Volga", Greek::kVolga)
+      .value("Charm", Greek::kCharm)
+      .value("Colour", Greek::kColour);
+
+  em::value_object<Greeks>("Greeks")
+      .field("delta", &Greeks::delta)
+      .field("gamma", &Greeks::gamma)
+      .field("theta", &Greeks::theta)
+      .field("vega", &Greeks::vega)
+      .field("rho", &Greeks::rho);
+
+  em::value_object<GreeksResult>("GreeksResult")
+      .field("price", &GreeksResult::price)
+      .field("tree", &GreeksResult::tree)
+      .field("closedForm", &GreeksResult::closed_form)
+      .field("vanna", &GreeksResult::vanna)
+      .field("volga", &GreeksResult::volga)
+      .field("charm", &GreeksResult::charm)
+      .field("colour", &GreeksResult::colour)
+      .field("volBump", &GreeksResult::vol_bump)
+      .field("rateBump", &GreeksResult::rate_bump);
+
+  em::value_object<JsGreekSurfaceRequest>("GreekSurfaceRequest")
+      .field("greek", &JsGreekSurfaceRequest::greek)
+      .field("strike", &JsGreekSurfaceRequest::strike)
+      .field("vol", &JsGreekSurfaceRequest::vol)
+      .field("rate", &JsGreekSurfaceRequest::rate)
+      .field("isCall", &JsGreekSurfaceRequest::is_call)
+      .field("spots", &JsGreekSurfaceRequest::spots)
+      .field("expiries", &JsGreekSurfaceRequest::expiries);
+
+  em::value_object<JsDeltaHedgeRequest>("DeltaHedgeRequest")
+      .field("spot", &JsDeltaHedgeRequest::spot)
+      .field("strike", &JsDeltaHedgeRequest::strike)
+      .field("expiryYears", &JsDeltaHedgeRequest::expiry_years)
+      .field("isCall", &JsDeltaHedgeRequest::is_call)
+      .field("impliedVol", &JsDeltaHedgeRequest::implied_vol)
+      .field("realisedVol", &JsDeltaHedgeRequest::realised_vol)
+      .field("rate", &JsDeltaHedgeRequest::rate)
+      .field("rebalances", &JsDeltaHedgeRequest::rebalances)
+      .field("paths", &JsDeltaHedgeRequest::paths)
+      .field("seed", &JsDeltaHedgeRequest::seed);
+
+  em::value_object<JsDeltaHedgeResult>("DeltaHedgeResult")
+      .field("pnl", &JsDeltaHedgeResult::pnl)
+      .field("mean", &JsDeltaHedgeResult::mean)
+      .field("stddev", &JsDeltaHedgeResult::stddev)
+      .field("premium", &JsDeltaHedgeResult::premium)
+      .field("times", &JsDeltaHedgeResult::times)
+      .field("spots", &JsDeltaHedgeResult::spots)
+      .field("deltas", &JsDeltaHedgeResult::deltas)
+      .field("cumulativePnl", &JsDeltaHedgeResult::cumulative_pnl)
+      .field("cumulativeTheta", &JsDeltaHedgeResult::cumulative_theta)
+      .field("cumulativeGamma", &JsDeltaHedgeResult::cumulative_gamma);
+
+  em::function("computeGreeks", &jsComputeGreeks);
+  em::function("greekSurface", &jsGreekSurface);
+  em::function("simulateDeltaHedge", &jsSimulateDeltaHedge);
   em::function("priceVanilla", &jsPriceVanilla);
   em::function("priceBondOption", &jsPriceBondOption);
   em::function("buildHullWhiteTree", &jsBuildHullWhiteTree);

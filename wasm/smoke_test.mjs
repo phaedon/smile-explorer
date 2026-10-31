@@ -185,6 +185,31 @@ assert.ok(bondOption(true).price > bondEuro.price,
           'American bond put should exceed European');
 assert.equal(bondEuro.expiryIndex, 12);
 
+// Greeks off the tree agree with the closed forms.
+const greeks = engine.computeGreeks(request({dtYears: 1 / 360.}), 0.01, 0.0001);
+assertNear(greeks.tree.delta, greeks.closedForm.delta, 0.005, 'tree delta');
+assertNear(greeks.tree.vega, greeks.closedForm.vega, 0.01 * greeks.closedForm.vega,
+           'tree vega');
+const gammas = engine.greekSurface({
+  greek: engine.Greek.Gamma,
+  strike: 100,
+  vol: 0.2,
+  rate: 0,
+  isCall: true,
+  spots: [90, 100, 110],
+  expiries: [0.05, 1],
+});
+assert.equal(gammas.length, 6);
+assert.ok(gammas[1] > gammas[4], 'ATM gamma grows near expiry');
+
+// Delta hedging is reproducible for a given seed.
+const hedge = (seed) => engine.simulateDeltaHedge({
+  spot: 100, strike: 100, expiryYears: 0.25, isCall: true, impliedVol: 0.2,
+  realisedVol: 0.2, rate: 0, rebalances: 50, paths: 500, seed,
+});
+assert.deepEqual([...hedge(3).pnl], [...hedge(3).pnl]);
+assert.ok(Math.abs(hedge(3).mean) < 0.1 * hedge(3).premium, 'hedge mean');
+
 // Invalid requests throw a JS Error.
 assert.throws(
     () => engine.priceVanilla(request({expiryYears: -1})), /expiry_years/);
