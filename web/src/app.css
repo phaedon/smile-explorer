@@ -1,5 +1,6 @@
 /* Design tokens. Chart roles follow the dataviz reference palette. */
 :root {
+  --bar-height: 48px;
   color-scheme: light;
   --surface: #fcfcfb;
   --surface-raised: #f4f3ef;
@@ -192,7 +193,8 @@ button {
 }
 .essay .error.sticky {
   position: sticky;
-  top: 8px;
+  /* Below the sticky contents bar. */
+  top: calc(var(--bar-height) + 8px);
   z-index: 1;
 }
 .essay button.inline {

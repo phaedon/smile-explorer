@@ -36,8 +36,8 @@ Actions tab). It needs Pages enabled once in the repository settings, with
   `hwParams.svelte.ts`, `bondParams.svelte.ts`, `greeksParams.svelte.ts`,
   `swaptionParams.svelte.ts`: each essay's shared, reactive parameters behind
   every figure and draggable number.
-- `src/App.svelte`: navigation between essays (hash routes, e.g.
-  `#/volatility`).
+- `src/App.svelte`: the essays' order and grouping, the contents menu, and
+  previous/next links (hash routes, e.g. `#/volatility`).
 - `src/lib/BinomialEssay.svelte`, `VolatilityEssay.svelte`, `FxEssay.svelte`,
   `HullWhiteEssay.svelte`, `BondOptionEssay.svelte`, `GreeksEssay.svelte`,
   `SwaptionEssay.svelte`: the essays (`#/binomial`, `#/volatility`, `#/fx`,
