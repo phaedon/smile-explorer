@@ -2,7 +2,10 @@
 // full, and a sweep over rebalancing frequencies for the error-vs-frequency
 // chart.
 
-import {engine} from './engine';
+// The engine is imported when the first message arrives, not at the top of
+// the module: a static import would delay registering onmessage until the
+// WebAssembly had loaded, and messages arriving before then would be lost.
+const engineModule = import('./engine');
 
 // Plain numbers only, so that the messages survive structured cloning.
 export type HedgeRequest = {
@@ -36,9 +39,10 @@ export type HedgeResponse =
     }
   | {id: number; error: string};
 
-self.onmessage = (e: MessageEvent<HedgeRequest>) => {
+self.onmessage = async (e: MessageEvent<HedgeRequest>) => {
   const {id, sweep, ...spec} = e.data;
   try {
+    const {engine} = await engineModule;
     const run = (rebalances: number, paths: number) =>
       engine.simulateDeltaHedge({...spec, rebalances, paths, seed: 1});
     const main = run(spec.rebalances, spec.paths);

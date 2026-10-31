@@ -131,6 +131,9 @@
   hedgeWorker.onmessage = (e: MessageEvent<HedgeResponse>) => {
     if (e.data.id === hedgeId) hedge = e.data;
   };
+  hedgeWorker.onerror = (e) => {
+    hedge = {id: hedgeId, error: `the simulation failed to load (${e.message || 'worker error'})`};
+  };
   $effect(() => {
     const request: HedgeRequest = {
       id: ++hedgeId,

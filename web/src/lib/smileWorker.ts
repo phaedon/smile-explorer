@@ -1,8 +1,10 @@
 // Computes implied-vol smiles off the main thread: each one prices a European
 // call per strike on a fine local-vol tree, then inverts Black-Scholes.
 
-import {engine} from './engine';
-import {smileSpec} from './volSpecs';
+// The engine is imported when the first message arrives, not at the top of
+// the module: a static import would delay registering onmessage until the
+// WebAssembly had loaded, and messages arriving before then would be lost.
+const modules = Promise.all([import('./engine'), import('./volSpecs')]);
 
 // Plain numbers only: Embind enums (like VolModel) don't survive
 // postMessage's structured clone, so the worker builds the VolSpec itself.
@@ -22,10 +24,11 @@ export type SmileResponse =
   | {id: number; points: {x: number; y: number}[]; error?: undefined}
   | {id: number; points?: undefined; error: string};
 
-self.onmessage = (e: MessageEvent<SmileRequest>) => {
+self.onmessage = async (e: MessageEvent<SmileRequest>) => {
   const {id, spot, rate, expiryYears, dtYears, strikes} = e.data;
   let response: SmileResponse;
   try {
+    const [{engine}, {smileSpec}] = await modules;
     const vol = smileSpec(e.data);
     const points = strikes.map((strike) => {
       const r = engine.priceVanilla({
