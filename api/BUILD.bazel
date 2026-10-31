@@ -6,14 +6,17 @@ package(default_visibility = ["//visibility:public"])
 cc_library(
     name = "pricing_api",
     srcs = [
+        "greeks_api.cpp",
         "pricing_api.cpp",
         "short_rate_api.cpp",
     ],
     hdrs = [
+        "greeks_api.h",
         "pricing_api.h",
         "short_rate_api.h",
     ],
     deps = [
+        "//derivatives:bsm",
         "//derivatives:derivative",
         "//derivatives:hull_white_bond_option",
         "//derivatives:interest_rate_derivative",
@@ -55,6 +58,17 @@ cc_test(
     srcs = ["short_rate_api_test.cpp"],
     deps = [
         ":pricing_api",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "greeks_api_test",
+    srcs = ["greeks_api_test.cpp"],
+    deps = [
+        ":pricing_api",
+        "//derivatives:bsm",
         "@abseil-cpp//absl/status",
         "@googletest//:gtest_main",
     ],
