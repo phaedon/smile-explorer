@@ -6,6 +6,7 @@
   import HullWhiteEssay from './lib/HullWhiteEssay.svelte';
   import SmileEssay from './lib/SmileEssay.svelte';
   import SwaptionEssay from './lib/SwaptionEssay.svelte';
+  import TarfEssay from './lib/TarfEssay.svelte';
   import VolatilityEssay from './lib/VolatilityEssay.svelte';
 
   // The essays, in reading order, grouped by theme. The ids are the URLs
@@ -37,6 +38,12 @@
           title: 'Currency options',
           blurb: 'An exchange rate on two interest rate curves.',
           component: FxEssay,
+        },
+        {
+          id: 'tarf',
+          title: 'Target redemption forwards',
+          blurb: 'A better FX rate with a catch, priced by Monte Carlo, path by path.',
+          component: TarfEssay,
         },
       ],
     },
