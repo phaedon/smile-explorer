@@ -137,29 +137,6 @@ SigmoidSmileVol smile(const VolSpec& vol, double spot) {
           .center = spot};
 }
 
-absl::Status validateCurve(const RateCurveSpec& curve, std::string_view name) {
-  const auto& t = curve.maturities;
-  const auto& r = curve.rates;
-  if (t.empty() || std::ssize(t) > kMaxCurvePoints || t.size() != r.size()) {
-    return absl::InvalidArgumentError(
-        absl::StrCat(name,
-                     " curve: maturities and rates must have equal length, "
-                     "between 1 and ",
-                     kMaxCurvePoints));
-  }
-  for (size_t k = 0; k < t.size(); ++k) {
-    if (!std::isfinite(r[k])) {
-      return absl::InvalidArgumentError(
-          absl::StrCat(name, " curve: rates must be finite"));
-    }
-    if (!(t[k] > (k == 0 ? 0.0 : t[k - 1]))) {
-      return absl::InvalidArgumentError(absl::StrCat(
-          name, " curve: maturities must be positive and strictly increasing"));
-    }
-  }
-  return absl::OkStatus();
-}
-
 ZeroSpotCurve zeroCurve(const RateCurveSpec& curve) {
   return ZeroSpotCurve(curve.maturities, curve.rates);
 }
@@ -362,6 +339,29 @@ absl::StatusOr<VanillaPricingResult> priceWithVol(
 }
 
 }  // namespace
+
+absl::Status validateCurve(const RateCurveSpec& curve, std::string_view name) {
+  const auto& t = curve.maturities;
+  const auto& r = curve.rates;
+  if (t.empty() || std::ssize(t) > kMaxCurvePoints || t.size() != r.size()) {
+    return absl::InvalidArgumentError(
+        absl::StrCat(name,
+                     " curve: maturities and rates must have equal length, "
+                     "between 1 and ",
+                     kMaxCurvePoints));
+  }
+  for (size_t k = 0; k < t.size(); ++k) {
+    if (!std::isfinite(r[k])) {
+      return absl::InvalidArgumentError(
+          absl::StrCat(name, " curve: rates must be finite"));
+    }
+    if (!(t[k] > (k == 0 ? 0.0 : t[k - 1]))) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          name, " curve: maturities must be positive and strictly increasing"));
+    }
+  }
+  return absl::OkStatus();
+}
 
 absl::StatusOr<VanillaPricingResult> priceVanilla(
     const VanillaPricingRequest& request) {

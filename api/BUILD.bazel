@@ -13,6 +13,7 @@ cc_library(
         "rates_options_api.cpp",
         "short_rate_api.cpp",
         "smile_api.cpp",
+        "tarf_api.cpp",
     ],
     hdrs = [
         "greeks_api.h",
@@ -20,6 +21,7 @@ cc_library(
         "rates_options_api.h",
         "short_rate_api.h",
         "smile_api.h",
+        "tarf_api.h",
     ],
     deps = [
         "//calibration:smile_calibration",
@@ -33,6 +35,7 @@ cc_library(
         "//derivatives:derivative",
         "//derivatives:hull_white_bond_option",
         "//derivatives:interest_rate_derivative",
+        "//derivatives:target_redemption_forward",
         "//derivatives:vanilla_option",
         "//instruments/swaps:fixed_cashflow_instrument",
         "//instruments/swaps:interest_rate_swap",
@@ -103,6 +106,18 @@ cc_test(
     srcs = ["smile_api_test.cpp"],
     deps = [
         ":pricing_api",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "tarf_api_test",
+    srcs = ["tarf_api_test.cpp"],
+    deps = [
+        ":pricing_api",
+        "//derivatives:target_redemption_forward",
+        "//rates:zero_curve",
         "@abseil-cpp//absl/status",
         "@googletest//:gtest_main",
     ],
