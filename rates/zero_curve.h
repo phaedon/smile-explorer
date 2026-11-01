@@ -2,13 +2,14 @@
 #define SMILEEXPLORER_RATES_ZERO_CURVE_H_
 
 #include <algorithm>
-#include <boost/math/interpolators/pchip.hpp>
+#include <cmath>
 #include <memory>
 #include <optional>
 #include <ranges>
 #include <vector>
 
 #include "absl/log/log.h"
+#include "rates/monotone_cubic.h"
 #include "rates/rates_curve.h"
 
 namespace smileexplorer {
@@ -47,8 +48,7 @@ inline bool areAllSpacingsIntegerMultiplesOf(const std::vector<double>& grid,
   return true;
 }
 
-using SplineInterpolator =
-    boost::math::interpolators::pchip<std::vector<double>>;
+using SplineInterpolator = MonotoneCubicInterpolator;
 
 class ZeroSpotCurve : public RatesCurve {
  public:
