@@ -1,7 +1,24 @@
 # Example for referencing a custom BCR branch:
 #query --registry=https://raw.githubusercontent.com/phaedon/bazel-central-registry/implot3d
 #build --registry=https://raw.githubusercontent.com/phaedon/bazel-central-registry/implot3d
-build --cxxopt=-std=c++20 --cxxopt=-Werror=return-type --copt=-Wsign-compare
+# Flags per host OS: build:linux, build:macos and build:windows below.
+common --enable_platform_specific_config
+
+build:linux --cxxopt=-std=c++20 --cxxopt=-Werror=return-type --copt=-Wsign-compare
+build:macos --cxxopt=-std=c++20 --cxxopt=-Werror=return-type --copt=-Wsign-compare
+
+# Windows builds with clang-cl: the same Clang front end as on Linux and
+# macOS, behind an MSVC-compatible driver, with the MSVC standard library and
+# linker. It needs LLVM installed (found via BAZEL_LLVM, or in its default
+# location), alongside Visual Studio or its Build Tools. Its flags are spelled
+# the MSVC way (/std:c++20), but it understands Clang's warning flags.
+build:windows --extra_toolchains=@local_config_cc//:cc-toolchain-x64_windows-clang-cl
+build:windows --extra_execution_platforms=//:x64_windows-clang-cl
+build:windows --cxxopt=/std:c++20 --host_cxxopt=/std:c++20
+build:windows --cxxopt=-Werror=return-type --copt=-Wsign-compare
+# Some comments aren't ASCII; and <windows.h>, pulled in by dependencies,
+# would otherwise define min and max macros that break std::min/std::max.
+build:windows --copt=/utf-8 --copt=/DNOMINMAX
 # Required after Xcode reinstall: the old Command Line Tools SDK headers
 # have availability annotations that trip up abseil/std::variant/std::optional
 # without an explicit minimum OS target. macOS 26 is the actual host OS.
@@ -21,9 +38,12 @@ build --features=wasm_exceptions
 # APIs when it doesn't detect pthreads, as in Emscripten's single-threaded
 # build. Emscripten provides no-op pthread mutex stubs, so point it at those.
 # The empty value matches boost's own definition, so host builds are unchanged.
-build --per_file_copt=.*boost\.container.*@-DBOOST_HAS_PTHREADS=
+# The Emscripten build runs on Linux and macOS hosts; on Windows, boost must
+# keep using the Win32 APIs.
+build:linux --per_file_copt=.*boost\.container.*@-DBOOST_HAS_PTHREADS=
+build:macos --per_file_copt=.*boost\.container.*@-DBOOST_HAS_PTHREADS=
 
-# AddressSanitizer: bazel test --config=asan ...
+# AddressSanitizer (Linux and macOS): bazel test --config=asan ...
 build:asan --copt=-fsanitize=address --copt=-fno-omit-frame-pointer --linkopt=-fsanitize=address
 # Only build what the tests need. The GUI deps don't build under ASan on Linux:
 # xkbcommon (via glfw) detects strndup with a configure-style check that doesn't
