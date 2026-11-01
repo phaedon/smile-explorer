@@ -311,6 +311,45 @@ console.log(
     `valuation ${tarfValuationMs.toFixed(0)} ms, knocked out ${
         [...batches[0].knockoutFixings].filter((k) => k >= 0).length}/250`);
 
+// Natural gas: a mean-reverting tree fitted to a seasonal futures curve.
+const gasTimes = Array.from({length: 24}, (_, m) => (m + 1) / 12);
+const gas = {
+  spot: 3.0,
+  futuresTimes: gasTimes,
+  futuresPrices: gasTimes.map(
+      (t) => 3.2 * (1 + 0.25 * Math.cos(2 * Math.PI * (t - 2 / 12)))),
+  rate: 0.04, meanReversion: 1.5, sigma: 0.6, stepsPerMonth: 4,
+  horizonYears: 2,
+};
+let gasStart = performance.now();
+const gasTree = engine.buildCommodityTree(gas);
+const gasTreeMs = performance.now() - gasStart;
+assert.equal(gasTree.times.length, 97);
+for (let t = 0; t < gasTree.times.length; ++t) {
+  assertNear(gasTree.expectedSpots[t] / gasTree.curvePrices[t], 1, 1e-12,
+             `gas tree fitted at slice ${t}`);
+}
+assert.ok(gasTree.futuresVols[0] > gasTree.futuresVols[23],
+          'near futures are more volatile');
+gasStart = performance.now();
+// At four steps a month the tree is a percent or two off; at sixteen, much
+// closer.
+const gasOption = engine.priceCommodityOption({
+  commodity: {...gas, stepsPerMonth: 16},
+  option: {deliveryYears: 3 / 12, expiryYears: 3 / 12, strike: 3.9,
+           isCall: true, isAmerican: true}});
+const gasOptionMs = performance.now() - gasStart;
+assertNear(gasOption.europeanPrice / gasOption.blackPrice, 1, 0.01,
+           'gas option on the tree vs Black-76');
+assert.ok(gasOption.price >= gasOption.europeanPrice);
+assert.throws(() => engine.buildCommodityTree({...gas, sigma: 0}), /sigma/);
+console.log(
+    `Gas: Feb call ${gasOption.europeanPrice.toFixed(4)} on the tree ` +
+    `(Black-76 ${gasOption.blackPrice.toFixed(4)}, vol ${
+        (gasOption.impliedVol * 100).toFixed(1)}%), American ${
+        gasOption.price.toFixed(4)}; tree ${gasTreeMs.toFixed(1)} ms, ` +
+    `option ${gasOptionMs.toFixed(1)} ms`);
+
 // Invalid requests throw a JS Error.
 assert.throws(
     () => engine.priceVanilla(request({expiryYears: -1})), /expiry_years/);
