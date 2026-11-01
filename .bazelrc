@@ -19,6 +19,14 @@ build:windows --cxxopt=-Werror=return-type --copt=-Wsign-compare
 # Some comments aren't ASCII; and <windows.h>, pulled in by dependencies,
 # would otherwise define min and max macros that break std::min/std::max.
 build:windows --copt=/utf-8 --copt=/DNOMINMAX
+# The toolchain defines _WIN32_WINNT as Windows 7 (0x0601) by default, and
+# dependencies redefine it as Windows 10, warning on every file. Target
+# Windows 10 from the start, so the definitions agree.
+common:windows --repo_env=BAZEL_WIN32_WINNT=/D_WIN32_WINNT=0x0A00
+# Tests and the explorer read data files by their paths in the runfiles tree,
+# which Bazel only creates on Windows when asked (it needs permission to
+# create symlinks: Developer Mode, or an administrator shell).
+build:windows --enable_runfiles
 # Required after Xcode reinstall: the old Command Line Tools SDK headers
 # have availability annotations that trip up abseil/std::variant/std::optional
 # without an explicit minimum OS target. macOS 26 is the actual host OS.
