@@ -66,6 +66,39 @@ jobs:
       - name: Run Tests with Bazel
         run: |
           bazel test //... --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+  build_windows:
+    runs-on: windows-latest
+
+    env:
+      # The runner image has LLVM installed here; Bazel's auto-configured
+      # clang-cl toolchain (see .bazelrc) finds it through this variable.
+      BAZEL_LLVM: C:\Program Files\LLVM
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Bazel
+        uses: bazel-contrib/setup-bazel@0.14.0
+        with:
+          # Avoid downloading Bazel every time.
+          bazelisk-cache: true
+          # Store build cache per workflow.
+          disk-cache: ${{ github.workflow }}
+          # Share repository cache between workflows.
+          repository-cache: true
+
+      # A short output root keeps Bazel's paths under Windows' length limit.
+      - name: Build with Bazel
+        shell: bash
+        run: |
+          bazel --output_user_root=C:/b build //...
+
+      - name: Run Tests with Bazel
+        shell: bash
+        run: |
+          bazel --output_user_root=C:/b test //...
+
   build_wasm:
     runs-on: ubuntu-latest
 
