@@ -364,7 +364,7 @@ TEST(PricingApiTest, ForwardGrowthGivesUpProbs) {
   const auto result = priceFxVanilla(hullFxRequest());
   ASSERT_TRUE(result.ok()) << result.status();
   const int T = result->expiry_index;
-  ASSERT_EQ(result->forward_growth.size(), T + 1);
+  ASSERT_EQ(result->forward_growth.size(), static_cast<size_t>(T + 1));
   EXPECT_TRUE(std::isnan(result->forward_growth[T]));
   for (int t = 0; t < T; ++t) {
     const double dt = result->times[t + 1] - result->times[t];
