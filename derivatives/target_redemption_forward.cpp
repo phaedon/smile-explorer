@@ -1,4 +1,8 @@
 #include "target_redemption_forward.h"
+
+#include <algorithm>
+#include <limits>
+
 namespace smileexplorer {
 
 /*
@@ -42,90 +46,101 @@ double weightedAvgForward(double spot,
   return sumproduct / df_sum;
 }
 
-void TargetRedemptionForward::processSettlement(
-    PathState& state,
-    const RatesCurve& foreign_rates,
-    const RatesCurve& domestic_rates) const {
-  double payment_amount =
-      directionFactor() * specs_.notional * (state.current_fx - specs_.strike);
-
-  // If we reach the target on this payment date, then the current payment is
-  // truncated to deliver the exact amount remaining to hit the target.
-  if (state.cumulative_profit + payment_amount > specs_.target) {
-    state.trigger_reached = true;
-    payment_amount = specs_.target - state.cumulative_profit;
-  }
-
-  if (payment_amount > 0) {
-    state.cumulative_profit += payment_amount;
-  }
-
-  // Discount the payment amount on the domestic curve.
-  const double discounted_pmt =
-      payment_amount * domestic_rates.df(state.current_time);
-  state.npv += discounted_pmt;
-
-  // Reset to the next period.
-  state.timesteps_since_last_settlement = 0;
-
-  // And look up the forward interest rates for the next simulation period (we
-  // don't do this at each time step to avoid computing these excessively, in
-  // case dt is very small).
-  state.fwd_int_rate_domestic = domestic_rates.forwardRate(
-      state.current_time,
-      state.current_time + specs_.settlement_date_frequency);
-  state.fwd_int_rate_foreign = foreign_rates.forwardRate(
-      state.current_time,
-      state.current_time + specs_.settlement_date_frequency);
+std::mt19937_64 tarfRng(uint64_t seed, uint64_t stream) {
+  std::seed_seq seq{static_cast<uint32_t>(seed),
+                    static_cast<uint32_t>(seed >> 32),
+                    static_cast<uint32_t>(stream),
+                    static_cast<uint32_t>(stream >> 32)};
+  return std::mt19937_64(seq);
 }
 
-double TargetRedemptionForward::path(double spot,
-                                     double sigma,
-                                     double dt,
-                                     const RatesCurve& foreign_rates,
-                                     const RatesCurve& domestic_rates) const {
-  PathState state;
-  state.current_fx = spot;
+TarfBatch TargetRedemptionForward::simulate(double spot,
+                                            double sigma,
+                                            int steps_per_settlement,
+                                            size_t num_paths,
+                                            const RatesCurve& foreign_rates,
+                                            const RatesCurve& domestic_rates,
+                                            uint64_t seed,
+                                            uint64_t stream,
+                                            size_t recorded_paths) const {
+  constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
+  TarfBatch batch;
+  const int n = numSettlements();
+  const int m = std::max(1, steps_per_settlement);
+  const double period = specs_.settlement_date_frequency;
+  const double dt = period / m;
+  const size_t row = static_cast<size_t>(n) * m + 1;
+  recorded_paths = std::min(recorded_paths, num_paths);
 
-  if (dt > specs_.settlement_date_frequency) {
-    // This ensures that dt is (at most) the maximum sensible value. It
-    // shouldn't be larger than the periodic settlements. For example if the
-    // settlements are quarterly (0.25) then dt <= 0.25.
-    dt = specs_.settlement_date_frequency;
+  batch.num_settlements = n;
+  batch.steps_per_settlement = m;
+  batch.dt = dt;
+  batch.npvs.resize(num_paths);
+  batch.knockout_settlements.assign(num_paths, -1);
+  batch.recorded_paths = recorded_paths;
+  batch.spots.assign(recorded_paths * row, kNaN);
+  batch.payments.assign(recorded_paths * n, kNaN);
+  batch.accumulated_profits.assign(recorded_paths * n, kNaN);
+
+  // The drift of log(FX) per timestep, from the forward rates over each
+  // settlement period (looked up once per period rather than per step), and
+  // the discount factor to each settlement. Note that in a production system,
+  // we would use a real calendar which would cause these settlement periods
+  // to vary slightly due to weekends, holidays, and variable month lengths.
+  std::vector<double> log_drift(n);
+  std::vector<double> df(n);
+  for (int i = 0; i < n; ++i) {
+    const double t_init = i * period;
+    const double t_final = (i + 1) * period;
+    const double rd = domestic_rates.forwardRate(t_init, t_final);
+    const double rf = foreign_rates.forwardRate(t_init, t_final);
+    log_drift[i] = (rd - rf - 0.5 * sigma * sigma) * dt;
+    df[i] = domestic_rates.df(t_final);
   }
+  const double diffusion = sigma * std::sqrt(dt);
 
-  // Ensure that dt is an integer fraction of the settlement date frequency
-  // so that it aligns precisely. Note that in a production system, we would
-  // use a real calendar which would cause these settlement periods to vary
-  // slightly due to weekends, holidays, and variable month lengths.
-  auto num_timesteps_in_period =
-      std::round(specs_.settlement_date_frequency / dt);
-  dt = specs_.settlement_date_frequency / num_timesteps_in_period;
+  std::mt19937_64 rng = tarfRng(seed, stream);
+  std::normal_distribution<double> normal;
+  for (size_t p = 0; p < num_paths; ++p) {
+    const bool record = p < recorded_paths;
+    double fx = spot;
+    double cumulative_profit = 0.0;
+    double npv = 0.0;
+    if (record) batch.spots[p * row] = spot;
 
-  state.fwd_int_rate_domestic = domestic_rates.forwardRate(
-      state.current_time,
-      state.current_time + specs_.settlement_date_frequency);
-  state.fwd_int_rate_foreign = foreign_rates.forwardRate(
-      state.current_time,
-      state.current_time + specs_.settlement_date_frequency);
+    for (int i = 0; i < n; ++i) {
+      for (int j = 0; j < m; ++j) {
+        fx *= std::exp(log_drift[i] + diffusion * normal(rng));
+        if (record) batch.spots[p * row + i * m + j + 1] = fx;
+      }
 
-  while (state.current_time < specs_.end_date_years && !state.trigger_reached) {
-    const double z = absl::Gaussian<double>(bitgen_, 0, 1);
-    const double stoch_term = sigma * std::sqrt(dt) * z;
-    const double drift_term =
-        (state.fwd_int_rate_domestic - state.fwd_int_rate_foreign -
-         0.5 * sigma * sigma) *
-        dt;
+      const double gain = directionFactor() * (fx - specs_.strike);
+      double payment =
+          specs_.notional * gain * (gain < 0 ? specs_.leverage : 1.0);
 
-    state.current_time += dt;
-    ++state.timesteps_since_last_settlement;
-    state.current_fx *= std::exp(drift_term + stoch_term);
+      // If we reach the target on this payment date, then the current payment
+      // is truncated to deliver the exact amount remaining to hit the target.
+      bool knocked_out = false;
+      if (cumulative_profit + payment > specs_.target) {
+        knocked_out = true;
+        payment = specs_.target - cumulative_profit;
+      }
+      // Only gains count towards the target.
+      if (payment > 0) cumulative_profit += payment;
+      npv += payment * df[i];
 
-    if (state.timesteps_since_last_settlement == num_timesteps_in_period) {
-      processSettlement(state, foreign_rates, domestic_rates);
+      if (record) {
+        batch.payments[p * n + i] = payment;
+        batch.accumulated_profits[p * n + i] = cumulative_profit;
+      }
+      if (knocked_out) {
+        batch.knockout_settlements[p] = i;
+        break;
+      }
     }
+    batch.npvs[p] = npv;
   }
-  return state.npv;
+  return batch;
 }
 
 TarfPricingResult TargetRedemptionForward::price(
@@ -135,17 +150,30 @@ TarfPricingResult TargetRedemptionForward::price(
     size_t num_paths,
     // Convention: fx rate is quoted as FOR-DOM:
     const RatesCurve& foreign_rates,
-    const RatesCurve& domestic_rates) const {
+    const RatesCurve& domestic_rates,
+    uint64_t seed) const {
   TarfPricingResult result;
   if (num_paths == 0) return result;
 
-  result.path_npvs.reserve(num_paths);
-  result.mean_npv = 0.;
-  for (size_t i = 1; i <= num_paths; ++i) {
-    double path_npv = path(spot, sigma, dt, foreign_rates, domestic_rates);
-    result.path_npvs.push_back(path_npv);
+  // dt shouldn't be larger than the periodic settlements (for example if the
+  // settlements are quarterly, then dt <= 0.25), and is rounded so that it
+  // divides each settlement period exactly.
+  const double period = specs_.settlement_date_frequency;
+  const int steps_per_settlement =
+      dt > 0 ? std::max(1, static_cast<int>(std::round(period / dt))) : 1;
+
+  result.path_npvs = simulate(spot,
+                              sigma,
+                              steps_per_settlement,
+                              num_paths,
+                              foreign_rates,
+                              domestic_rates,
+                              seed)
+                         .npvs;
+  for (size_t i = 0; i < num_paths; ++i) {
     // Compute the online mean at each step for numerical stability.
-    result.mean_npv += (path_npv - result.mean_npv) / static_cast<double>(i);
+    result.mean_npv +=
+        (result.path_npvs[i] - result.mean_npv) / static_cast<double>(i + 1);
   }
   return result;
 }
@@ -155,7 +183,8 @@ double findZeroNPVStrike(const TarfContractSpecs& specs,
                          double sigma,
                          const RatesCurve& foreign_rates,
                          const RatesCurve& domestic_rates,
-                         size_t num_paths) {
+                         size_t num_paths,
+                         uint64_t seed) {
   // TODO: This implementation is more of a placeholder for a more generic
   // bisection strategy that is not tightly coupled to a specific product. As
   // such, this has some hard-coded values (tolerances, etc) which actually need
@@ -175,8 +204,10 @@ double findZeroNPVStrike(const TarfContractSpecs& specs,
   double tolerance_pct =
       0.0001;  // 0.01% difference for starters. Do not hard-code!
 
-  // Relatively coarse timesteps.
-  double dt = specs.settlement_date_frequency * 0.2;
+  // One timestep per settlement: the payments depend only on the FX rate at
+  // the settlements, and each step of the simulation is exact for
+  // lognormal FX, so finer steps would only cost time.
+  double dt = specs.settlement_date_frequency;
 
   // Initial method: bisection.
   while (std::abs(k_high / k_low - 1) > tolerance_pct) {
@@ -184,7 +215,8 @@ double findZeroNPVStrike(const TarfContractSpecs& specs,
 
     double npv_mid =
         tarf_mid
-            .price(spot, sigma, dt, num_paths, foreign_rates, domestic_rates)
+            .price(
+                spot, sigma, dt, num_paths, foreign_rates, domestic_rates, seed)
             .mean_npv;
 
     if (specs.direction == FxTradeDirection::kLong) {

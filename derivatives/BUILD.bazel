@@ -140,8 +140,6 @@ cc_library(
     hdrs = ["target_redemption_forward.h"],
     deps = [
         "//rates:zero_curve",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/random",
     ],
 )
 
@@ -149,6 +147,7 @@ cc_test(
     name = "target_redemption_forward_test",
     srcs = ["target_redemption_forward_test.cpp"],
     deps = [
+        ":bsm",
         ":target_redemption_forward",
         "@googletest//:gtest_main",
     ],

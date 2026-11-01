@@ -2,9 +2,10 @@
 #define SMILEEXPLORER_DERIVATIVES_TARGET_REDEMPTION_FORWARD_H_
 
 #include <cmath>
+#include <cstdint>
+#include <random>
+#include <vector>
 
-#include "absl/log/log.h"
-#include "absl/random/random.h"
 #include "rates/rates_curve.h"
 
 // Pricing model for Target Redemption Forward (TARF)
@@ -37,61 +38,92 @@ struct TarfContractSpecs {
   double settlement_date_frequency;
 
   FxTradeDirection direction;
+
+  // Multiplies the notional on settlements where the customer loses money.
+  // TARFs are commonly sold with a leverage of 2: the customer's losses
+  // accrue at twice the rate of the gains, which in turn are capped by the
+  // target.
+  double leverage = 1.0;
 };
 
 struct TarfPricingResult {
-  double mean_npv;
+  double mean_npv = 0.0;
   std::vector<double> path_npvs;
+};
+
+// The paths simulated by one call to TargetRedemptionForward::simulate. Every
+// path has an NPV and a knockout settlement; the first `recorded_paths` are
+// also recorded in full, for plotting.
+struct TarfBatch {
+  int num_settlements = 0;
+  int steps_per_settlement = 0;
+  // Length of each timestep, in years.
+  double dt = 0.0;
+
+  // NPV of each path, in the domestic currency, discounted on the domestic
+  // curve.
+  std::vector<double> npvs;
+  // The settlement (0 for the first) at which each path reached its target,
+  // or -1 if it never did.
+  std::vector<int> knockout_settlements;
+
+  size_t recorded_paths = 0;
+  // The FX rate at each timestep, including time 0: recorded_paths rows of
+  // num_settlements * steps_per_settlement + 1. NaN after the knockout.
+  std::vector<double> spots;
+  // The (undiscounted) payment at each settlement, positive when the customer
+  // gains: recorded_paths rows of num_settlements. NaN after the knockout.
+  std::vector<double> payments;
+  // The profit accumulated towards the target after each settlement, in the
+  // same layout as `payments`.
+  std::vector<double> accumulated_profits;
 };
 
 class TargetRedemptionForward {
  public:
   TargetRedemptionForward(const TarfContractSpecs& specs) : specs_(specs) {}
 
-  // Initial implementation: Assumes volatility is flat and constant.
-  double path(double spot,
-              double sigma,
-              double dt,
-              const RatesCurve& foreign_rates,
-              const RatesCurve& domestic_rates) const;
+  // Simulates `num_paths` paths of the FX rate under flat vol, with
+  // `steps_per_settlement` timesteps between settlements. The random numbers
+  // come only from `seed` and `stream`, so a run split into batches (one
+  // stream per batch) is reproducible however it is paused and resumed.
+  TarfBatch simulate(double spot,
+                     double sigma,
+                     int steps_per_settlement,
+                     size_t num_paths,
+                     // Convention: fx rate is quoted as FOR-DOM:
+                     const RatesCurve& foreign_rates,
+                     const RatesCurve& domestic_rates,
+                     uint64_t seed,
+                     uint64_t stream = 0,
+                     size_t recorded_paths = 0) const;
 
+  // Assumes volatility is flat and constant. `dt` is rounded so that a whole
+  // number of timesteps fits in each settlement period.
   TarfPricingResult price(double spot,
                           double sigma,
                           double dt,
                           size_t num_paths,
                           // Convention: fx rate is quoted as FOR-DOM:
                           const RatesCurve& foreign_rates,
-                          const RatesCurve& domestic_rates) const;
+                          const RatesCurve& domestic_rates,
+                          uint64_t seed = 1) const;
+
+  int numSettlements() const {
+    return static_cast<int>(
+        std::round(specs_.end_date_years / specs_.settlement_date_frequency));
+  }
 
  private:
   TarfContractSpecs specs_;
-
-  // This is set to "mutable" to enable the pricing methods to retain their
-  // const annotation, while still being able to access the random number
-  // generator (whose internal state is updated every time a random number is
-  // invoked).
-  mutable absl::BitGen bitgen_;
-
-  // Stores the internal state of a single MC simulation path.
-  struct PathState {
-    double cumulative_profit = 0.0;
-    double npv = 0.0;
-    double current_fx = 0.0;
-    double current_time = 0.0;
-    size_t timesteps_since_last_settlement = 0;
-    bool trigger_reached = false;
-    double fwd_int_rate_foreign = 0.0;
-    double fwd_int_rate_domestic = 0.0;
-  };
-
-  void processSettlement(PathState& state,
-                         const RatesCurve& foreign_rates,
-                         const RatesCurve& domestic_rates) const;
 
   double directionFactor() const {
     return specs_.direction == FxTradeDirection::kLong ? 1.0 : -1.0;
   }
 };
+
+// The random-number generator for one stream of a seeded run.
+std::mt19937_64 tarfRng(uint64_t seed, uint64_t stream);
 
 // Returns the weighted average of the forward FX rate, weighted by the
 // discount factors.
@@ -105,13 +137,16 @@ double weightedAvgForward(double spot,
 // a zero NPV at the time of the trade.
 //
 // Note that `specs.strike` is ignored, since the goal is to discover the
-// appropriate strike.
+// appropriate strike. Every candidate strike is priced on the same paths
+// (common random numbers), so the bisection isn't misled by Monte Carlo
+// noise.
 double findZeroNPVStrike(const TarfContractSpecs& specs,
                          double spot,
                          double sigma,
                          const RatesCurve& foreign_rates,
                          const RatesCurve& domestic_rates,
-                         size_t num_paths = 4000);
+                         size_t num_paths = 4000,
+                         uint64_t seed = 1);
 
 }  // namespace smileexplorer
 
