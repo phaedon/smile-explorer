@@ -16,6 +16,10 @@ import type {
   HullWhiteTreeSpec,
   MainModule,
   RateCurveSpec,
+  TarfBatchResult,
+  TarfSpec,
+  TarfSweep,
+  TarfValuation,
   VanillaPricingRequest,
   VanillaPricingResult,
 } from './engine/engine_lib.js';
@@ -31,6 +35,10 @@ export type {
   HullWhiteTreeResult,
   HullWhiteTreeSpec,
   RateCurveSpec,
+  TarfBatchResult,
+  TarfSpec,
+  TarfSweep,
+  TarfValuation,
   VanillaPricingRequest,
   VanillaPricingResult,
 };
