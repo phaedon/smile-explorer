@@ -2,6 +2,7 @@
   import BinomialEssay from './lib/BinomialEssay.svelte';
   import BondOptionEssay from './lib/BondOptionEssay.svelte';
   import FxEssay from './lib/FxEssay.svelte';
+  import GasEssay from './lib/GasEssay.svelte';
   import GreeksEssay from './lib/GreeksEssay.svelte';
   import HullWhiteEssay from './lib/HullWhiteEssay.svelte';
   import SmileEssay from './lib/SmileEssay.svelte';
@@ -67,6 +68,17 @@
           title: 'Calibrating the rate tree',
           blurb: 'Swaptions and caps, fitting the model to quotes, and Bermudans.',
           component: SwaptionEssay,
+        },
+      ],
+    },
+    {
+      name: 'Commodities',
+      pages: [
+        {
+          id: 'gas',
+          title: 'Natural gas',
+          blurb: 'A seasonal futures curve, storage, mean reversion and options on futures.',
+          component: GasEssay,
         },
       ],
     },
