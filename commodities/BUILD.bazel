@@ -1,0 +1,41 @@
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "futures_curve",
+    srcs = ["futures_curve.cpp"],
+    hdrs = ["futures_curve.h"],
+)
+
+cc_test(
+    name = "futures_curve_test",
+    srcs = ["futures_curve_test.cpp"],
+    deps = [
+        ":futures_curve",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "commodity_tree",
+    srcs = ["commodity_tree.cpp"],
+    hdrs = ["commodity_tree.h"],
+    deps = [
+        ":futures_curve",
+        "//trees:hull_white_propagator",
+        "//trees:trinomial_tree",
+    ],
+)
+
+cc_test(
+    name = "commodity_tree_test",
+    srcs = ["commodity_tree_test.cpp"],
+    deps = [
+        ":commodity_tree",
+        ":futures_curve",
+        "//derivatives:bsm",
+        "@googletest//:gtest_main",
+    ],
+)
