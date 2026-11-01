@@ -25,6 +25,7 @@ cc_library(
     hdrs = ["bsm.h"],
     visibility = [
         "//api:__pkg__",
+        "//commodities:__pkg__",
         "//derivatives:__pkg__",
     ],
 )
