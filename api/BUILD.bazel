@@ -6,6 +6,7 @@ package(default_visibility = ["//visibility:public"])
 cc_library(
     name = "pricing_api",
     srcs = [
+        "commodity_api.cpp",
         "greeks_api.cpp",
         "hull_white_tree.cpp",
         "hull_white_tree.h",
@@ -16,6 +17,7 @@ cc_library(
         "tarf_api.cpp",
     ],
     hdrs = [
+        "commodity_api.h",
         "greeks_api.h",
         "pricing_api.h",
         "rates_options_api.h",
@@ -25,6 +27,8 @@ cc_library(
     ],
     deps = [
         "//calibration:smile_calibration",
+        "//commodities:commodity_tree",
+        "//commodities:futures_curve",
         "//volatility:dupire_local_vol",
         "//volatility:ssvi",
         "//calibration:hull_white_calibration",
@@ -118,6 +122,17 @@ cc_test(
         ":pricing_api",
         "//derivatives:target_redemption_forward",
         "//rates:zero_curve",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "commodity_api_test",
+    srcs = ["commodity_api_test.cpp"],
+    deps = [
+        ":pricing_api",
+        "//commodities:commodity_tree",
         "@abseil-cpp//absl/status",
         "@googletest//:gtest_main",
     ],
