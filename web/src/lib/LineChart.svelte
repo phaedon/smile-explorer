@@ -13,6 +13,10 @@
     points: {x: number; y: number}[];
     // Draw markers at the points instead of a line through them.
     dotsOnly?: boolean;
+    dashed?: boolean;
+    // Series with the same group share one legend entry, named after it (the
+    // two edges of a band, say).
+    group?: string;
   };
 
   let {
@@ -38,6 +42,9 @@
   const H = $derived(height);
 
   const all = $derived(series.flatMap((s) => s.points));
+  const legend = $derived(
+    series.filter((s, k) => s.group === undefined || series.findIndex((o) => o.group === s.group) === k),
+  );
   const xDomain = $derived.by(() => {
     const xs = all.map((p) => p.x);
     return [Math.min(...xs), Math.max(...xs)];
@@ -111,11 +118,11 @@
   }
 </script>
 
-{#if series.length > 1}
+{#if legend.length > 1}
   <div class="legend" aria-hidden="true">
-    {#each series as s (s.name)}
+    {#each legend as s (s.group ?? s.name)}
       <span
-        ><i class:dot={s.dotsOnly} style:background={s.color}></i>{s.name}</span
+        ><i class:dot={s.dotsOnly} class:dash={s.dashed} style:--swatch={s.color}></i>{s.group ?? s.name}</span
       >
     {/each}
   </div>
@@ -164,7 +171,7 @@
           <circle class="dot" cx={x(p.x)} cy={y(p.y)} r="5" style:fill={s.color} />
         {/each}
       {:else}
-        <path class="line" d={path(s.points)} style:stroke={s.color} />
+        <path class="line" class:dashed={s.dashed} d={path(s.points)} style:stroke={s.color} />
       {/if}
     {/each}
 
@@ -254,6 +261,15 @@
     border-radius: 2px;
     margin-right: 6px;
     vertical-align: 3px;
+  }
+  .legend i {
+    background: var(--swatch);
+  }
+  .legend i.dash {
+    background: repeating-linear-gradient(90deg, var(--swatch) 0 4px, transparent 4px 7px);
+  }
+  .line.dashed {
+    stroke-dasharray: 6 4;
   }
   .legend i.dot {
     width: 8px;

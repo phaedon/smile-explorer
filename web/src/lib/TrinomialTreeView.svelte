@@ -1,6 +1,7 @@
 <!--
-  A Hull-White trinomial tree: time on the x axis, and on the y axis either
-  the unfitted rate x = j·ΔR or the fitted short rate x + α(t). Each node
+  A trinomial tree: time on the x axis, and on the y axis the unfitted state
+  x = j·Δx, a Hull-White tree's fitted short rate x + α(t), or a commodity
+  tree's price e^(x + α(t)). Each node
   branches to three successors; nodes on the edges, where branching bends
   inwards, are drawn as diamonds. Nodes can be coloured by a per-node value
   (on a ramp from its smallest to its largest value), with only the time slices in [shownFrom, shownTo] treated as computed, so
@@ -10,7 +11,18 @@
 -->
 <script lang="ts">
   import {niceTicks, tickFormat} from './format';
-  import type {HullWhiteTreeResult} from './engine';
+
+  // The parts of a tree result this draws: HullWhiteTreeResult and
+  // CommodityTreeResult both have them.
+  export type TrinomialLayout = {
+    times: Float64Array;
+    sliceOffsets: Int32Array;
+    successorMid: Int32Array;
+    branchStyle: Int32Array;
+    x: Float64Array;
+    shortRates?: Float64Array;
+    spots?: Float64Array;
+  };
 
   let {
     tree,
@@ -21,9 +33,12 @@
     marked = null,
     lastSlice = Number.POSITIVE_INFINITY,
     hovered = $bindable(null),
+    xTicks: xTickValues = null,
+    xFormat = (v: number) => `${v}y`,
   }: {
-    tree: HullWhiteTreeResult;
-    yMode: 'x' | 'rate';
+    tree: TrinomialLayout;
+    // Rates are shown in percent, prices in dollars.
+    yMode: 'x' | 'rate' | 'price';
     // Per-node values to colour by (on a sequential ramp), or null.
     values?: Float64Array | null;
     shownFrom?: number;
@@ -34,6 +49,10 @@
     lastSlice?: number;
     // Index of the hovered node.
     hovered?: number | null;
+    // Times (in years) to label on the x axis, and how; by default, round
+    // numbers of years.
+    xTicks?: number[] | null;
+    xFormat?: (v: number) => string;
   } = $props();
 
   const W = 760;
@@ -45,7 +64,10 @@
   const T = $derived(Math.min(tree.times.length - 1, lastSlice));
   // Nodes are stored slice by slice, so the visible ones are a prefix.
   const ys = $derived(
-    (yMode === 'x' ? tree.x : tree.shortRates).subarray(0, tree.sliceOffsets[T + 1]),
+    (yMode === 'x' ? tree.x : ((yMode === 'rate' ? tree.shortRates : tree.spots) ?? tree.x)).subarray(
+      0,
+      tree.sliceOffsets[T + 1],
+    ),
   );
   const sliceOf = $derived.by(() => {
     const out = new Int32Array(ys.length);
@@ -62,10 +84,20 @@
   const y = (v: number) =>
     PAD.top + (hi > lo ? 1 - (v - lo) / (hi - lo) : 0.5) * (H - PAD.top - PAD.bottom);
 
+  // The closest two nodes in a slice (prices on a commodity tree are closer
+  // at the bottom).
+  const minGap = $derived.by(() => {
+    let gap = Number.POSITIVE_INFINITY;
+    for (let n = 1; n < ys.length; ++n) {
+      if (sliceOf[n] === sliceOf[n - 1]) gap = Math.min(gap, ys[n] - ys[n - 1]);
+    }
+    return gap;
+  });
+
   // Small enough that neighbouring nodes don't touch, in either direction.
   const radius = $derived.by(() => {
     const dx = (W - PAD.left - PAD.right) / Math.max(1, T);
-    const dy = hi > lo ? ((H - PAD.top - PAD.bottom) * tree.dr) / (hi - lo) : 40;
+    const dy = hi > lo && Number.isFinite(minGap) ? ((H - PAD.top - PAD.bottom) * minGap) / (hi - lo) : 40;
     return Math.max(1.2, Math.min(6, dx / 3, dy / 3));
   });
 
@@ -107,9 +139,16 @@
   });
 
   const yTicks = $derived(niceTicks(lo, hi, 5).filter((v) => v >= lo - 1e-12 && v <= hi + 1e-12));
-  // Rates are shown in percent.
-  const yTickFmt = $derived(tickFormat(yTicks.map((v) => Number((v * 100).toPrecision(10)))));
-  const xTicks = $derived(niceTicks(0, tree.times[T], 5));
+  // Rates are shown in percent, prices in dollars.
+  const yScale = $derived(yMode === 'price' ? 1 : 100);
+  const yTickFmt = $derived(tickFormat(yTicks.map((v) => Number((v * yScale).toPrecision(10)))));
+  const yLabel = (v: number) => {
+    const text = yTickFmt(Number((v * yScale).toPrecision(10)));
+    return yMode === 'price' ? `$${text}` : `${text}%`;
+  };
+  const xTicks = $derived(
+    (xTickValues ?? niceTicks(0, tree.times[T], 5)).filter((v) => v <= tree.times[T] + 1e-9),
+  );
 
   function onpointermove(e: PointerEvent) {
     const ctm = svg.getScreenCTM();
@@ -139,12 +178,12 @@
   {#each yTicks as v (v)}
     <line class="grid" x1={PAD.left} x2={W - PAD.right} y1={y(v)} y2={y(v)} />
     <text class="tick" x={PAD.left - 8} y={y(v)} text-anchor="end" dy="0.32em"
-      >{yTickFmt(Number((v * 100).toPrecision(10)))}%</text
+      >{yLabel(v)}</text
     >
   {/each}
   {#each xTicks as v (v)}
     <text class="tick" x={x(0) + (v / tree.times[T]) * (W - PAD.left - PAD.right)} y={H - PAD.bottom + 20} text-anchor="middle"
-      >{v}y</text
+      >{xFormat(v)}</text
     >
   {/each}
 
