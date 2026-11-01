@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
+#include "api/commodity_api.h"
 #include "api/greeks_api.h"
 #include "api/pricing_api.h"
 #include "api/rates_options_api.h"
@@ -613,6 +614,75 @@ struct JsTarfSweep {
   Float64Array weighted_forwards{val::null()};
 };
 
+struct JsCommoditySpec {
+  double spot = 0.0;
+  NumberArray futures_times{val::array()};
+  NumberArray futures_prices{val::array()};
+  double rate = 0.0;
+  double mean_reversion = 0.0;
+  double sigma = 0.0;
+  int steps_per_month = 0;
+  double horizon_years = 0.0;
+
+  CommoditySpec toCpp() const {
+    return {.spot = spot,
+            .futures_times = toVector(futures_times),
+            .futures_prices = toVector(futures_prices),
+            .rate = rate,
+            .mean_reversion = mean_reversion,
+            .sigma = sigma,
+            .steps_per_month = steps_per_month,
+            .horizon_years = horizon_years};
+  }
+};
+
+// The JS-facing counterpart of CommodityTreeResult.
+struct JsCommodityTreeResult {
+  double dx = 0.0;
+  int j_max = 0;
+  Float64Array times{val::null()};
+  Float64Array alphas{val::null()};
+  Float64Array curve_prices{val::null()};
+  Float64Array expected_spots{val::null()};
+  Float64Array spot_q05{val::null()};
+  Float64Array spot_q50{val::null()};
+  Float64Array spot_q95{val::null()};
+  Float64Array gbm_q05{val::null()};
+  Float64Array gbm_q50{val::null()};
+  Float64Array gbm_q95{val::null()};
+  Int32Array slice_offsets{val::null()};
+  Float64Array implied_carry{val::null()};
+  Float64Array futures_vols{val::null()};
+  Float64Array option_vols{val::null()};
+  Int32Array j{val::null()};
+  Float64Array x{val::null()};
+  Float64Array spots{val::null()};
+  Float64Array probabilities{val::null()};
+  Float64Array pu{val::null()};
+  Float64Array pm{val::null()};
+  Float64Array pd{val::null()};
+  Int32Array successor_mid{val::null()};
+  Int32Array branch_style{val::null()};
+};
+
+struct JsCommodityOptionRequest {
+  JsCommoditySpec commodity;
+  CommodityOptionSpec option;
+};
+
+struct JsCommodityOptionResult {
+  int delivery_index = 0;
+  int expiry_index = 0;
+  double futures_price = 0.0;
+  double price = 0.0;
+  double european_price = 0.0;
+  double black_price = 0.0;
+  double implied_vol = 0.0;
+  Float64Array futures_values{val::null()};
+  Float64Array option_values{val::null()};
+  Int32Array exercised{val::null()};
+};
+
 // Unwraps a StatusOr, converting its value with `convert`, or throws a JS
 // Error with the status message.
 template <typename T, typename ConvertFn>
@@ -788,6 +858,58 @@ JsTarfSweep jsSweepTarf(const JsTarfSweepRequest& request) {
                             .zero_cost_strikes = toFloat64Array(strikes),
                             .weighted_forwards = toFloat64Array(forwards)};
                       });
+}
+
+JsCommodityTreeResult jsBuildCommodityTree(const JsCommoditySpec& spec) {
+  return valueOrThrow(buildCommodityTree(spec.toCpp()),
+                      [](const CommodityTreeResult& r) {
+                        return JsCommodityTreeResult{
+                            .dx = r.dx,
+                            .j_max = r.j_max,
+                            .times = toFloat64Array(r.times),
+                            .alphas = toFloat64Array(r.alphas),
+                            .curve_prices = toFloat64Array(r.curve_prices),
+                            .expected_spots = toFloat64Array(r.expected_spots),
+                            .spot_q05 = toFloat64Array(r.spot_q05),
+                            .spot_q50 = toFloat64Array(r.spot_q50),
+                            .spot_q95 = toFloat64Array(r.spot_q95),
+                            .gbm_q05 = toFloat64Array(r.gbm_q05),
+                            .gbm_q50 = toFloat64Array(r.gbm_q50),
+                            .gbm_q95 = toFloat64Array(r.gbm_q95),
+                            .slice_offsets = toInt32Array(r.slice_offsets),
+                            .implied_carry = toFloat64Array(r.implied_carry),
+                            .futures_vols = toFloat64Array(r.futures_vols),
+                            .option_vols = toFloat64Array(r.option_vols),
+                            .j = toInt32Array(r.j),
+                            .x = toFloat64Array(r.x),
+                            .spots = toFloat64Array(r.spots),
+                            .probabilities = toFloat64Array(r.probabilities),
+                            .pu = toFloat64Array(r.pu),
+                            .pm = toFloat64Array(r.pm),
+                            .pd = toFloat64Array(r.pd),
+                            .successor_mid = toInt32Array(r.successor_mid),
+                            .branch_style = toInt32Array(r.branch_style)};
+                      });
+}
+
+JsCommodityOptionResult jsPriceCommodityOption(
+    const JsCommodityOptionRequest& request) {
+  return valueOrThrow(
+      priceCommodityOption(
+          {.commodity = request.commodity.toCpp(), .option = request.option}),
+      [](const CommodityOptionResult& r) {
+        return JsCommodityOptionResult{
+            .delivery_index = r.delivery_index,
+            .expiry_index = r.expiry_index,
+            .futures_price = r.futures_price,
+            .price = r.price,
+            .european_price = r.european_price,
+            .black_price = r.black_price,
+            .implied_vol = r.implied_vol,
+            .futures_values = toFloat64Array(r.futures_values),
+            .option_values = toFloat64Array(r.option_values),
+            .exercised = toInt32Array(r.exercised)};
+      });
 }
 
 }  // namespace
@@ -1195,6 +1317,68 @@ EMSCRIPTEN_BINDINGS(smileexplorer) {
       .field("zeroCostStrikes", &JsTarfSweep::zero_cost_strikes)
       .field("weightedForwards", &JsTarfSweep::weighted_forwards);
 
+  em::value_object<JsCommoditySpec>("CommoditySpec")
+      .field("spot", &JsCommoditySpec::spot)
+      .field("futuresTimes", &JsCommoditySpec::futures_times)
+      .field("futuresPrices", &JsCommoditySpec::futures_prices)
+      .field("rate", &JsCommoditySpec::rate)
+      .field("meanReversion", &JsCommoditySpec::mean_reversion)
+      .field("sigma", &JsCommoditySpec::sigma)
+      .field("stepsPerMonth", &JsCommoditySpec::steps_per_month)
+      .field("horizonYears", &JsCommoditySpec::horizon_years);
+
+  em::value_object<JsCommodityTreeResult>("CommodityTreeResult")
+      .field("dx", &JsCommodityTreeResult::dx)
+      .field("jMax", &JsCommodityTreeResult::j_max)
+      .field("times", &JsCommodityTreeResult::times)
+      .field("alphas", &JsCommodityTreeResult::alphas)
+      .field("curvePrices", &JsCommodityTreeResult::curve_prices)
+      .field("expectedSpots", &JsCommodityTreeResult::expected_spots)
+      .field("spotQ05", &JsCommodityTreeResult::spot_q05)
+      .field("spotQ50", &JsCommodityTreeResult::spot_q50)
+      .field("spotQ95", &JsCommodityTreeResult::spot_q95)
+      .field("gbmQ05", &JsCommodityTreeResult::gbm_q05)
+      .field("gbmQ50", &JsCommodityTreeResult::gbm_q50)
+      .field("gbmQ95", &JsCommodityTreeResult::gbm_q95)
+      .field("sliceOffsets", &JsCommodityTreeResult::slice_offsets)
+      .field("impliedCarry", &JsCommodityTreeResult::implied_carry)
+      .field("futuresVols", &JsCommodityTreeResult::futures_vols)
+      .field("optionVols", &JsCommodityTreeResult::option_vols)
+      .field("j", &JsCommodityTreeResult::j)
+      .field("x", &JsCommodityTreeResult::x)
+      .field("spots", &JsCommodityTreeResult::spots)
+      .field("probabilities", &JsCommodityTreeResult::probabilities)
+      .field("pu", &JsCommodityTreeResult::pu)
+      .field("pm", &JsCommodityTreeResult::pm)
+      .field("pd", &JsCommodityTreeResult::pd)
+      .field("successorMid", &JsCommodityTreeResult::successor_mid)
+      .field("branchStyle", &JsCommodityTreeResult::branch_style);
+
+  em::value_object<CommodityOptionSpec>("CommodityOptionSpec")
+      .field("deliveryYears", &CommodityOptionSpec::delivery_years)
+      .field("expiryYears", &CommodityOptionSpec::expiry_years)
+      .field("strike", &CommodityOptionSpec::strike)
+      .field("isCall", &CommodityOptionSpec::is_call)
+      .field("isAmerican", &CommodityOptionSpec::is_american);
+
+  em::value_object<JsCommodityOptionRequest>("CommodityOptionRequest")
+      .field("commodity", &JsCommodityOptionRequest::commodity)
+      .field("option", &JsCommodityOptionRequest::option);
+
+  em::value_object<JsCommodityOptionResult>("CommodityOptionResult")
+      .field("deliveryIndex", &JsCommodityOptionResult::delivery_index)
+      .field("expiryIndex", &JsCommodityOptionResult::expiry_index)
+      .field("futuresPrice", &JsCommodityOptionResult::futures_price)
+      .field("price", &JsCommodityOptionResult::price)
+      .field("europeanPrice", &JsCommodityOptionResult::european_price)
+      .field("blackPrice", &JsCommodityOptionResult::black_price)
+      .field("impliedVol", &JsCommodityOptionResult::implied_vol)
+      .field("futuresValues", &JsCommodityOptionResult::futures_values)
+      .field("optionValues", &JsCommodityOptionResult::option_values)
+      .field("exercised", &JsCommodityOptionResult::exercised);
+
+  em::function("buildCommodityTree", &jsBuildCommodityTree);
+  em::function("priceCommodityOption", &jsPriceCommodityOption);
   em::function("simulateTarfBatch", &jsSimulateTarfBatch);
   em::function("valueTarf", &jsValueTarf);
   em::function("sweepTarf", &jsSweepTarf);
