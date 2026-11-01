@@ -63,11 +63,11 @@ See [`wasm/README.md`](wasm/README.md) for the WebAssembly API and a small brows
 cd web && npm install && npm run engine && npm run dev
 ```
 
-This library, and the `explorer` binary, works on MacOS and Linux. On Ubuntu, you may need to install these graphics libraries because of the dependency on GLFW and OpenGL3:
+This library, and the `explorer` binary, build on MacOS, Linux and Windows (CI runs the tests on all three). On Ubuntu, you may need to install these graphics libraries because of the dependency on GLFW and OpenGL3:
 
 `sudo apt-get install xorg-dev libgl1-mesa-dev`
 
-(The explorer is not yet supported on Windows, because it uses GLFW, which was recently added to the BCR without Windows support. See the [Bazel build rule here](https://github.com/bazelbuild/bazel-central-registry/blob/main/modules/glfw/3.3.9/patches/add_build_file.patch) for context.)
+On Windows, the build uses clang-cl, so install [LLVM](https://github.com/llvm/llvm-project/releases) alongside Visual Studio (or its Build Tools), and set `BAZEL_LLVM` if LLVM isn't in `C:\Program Files\LLVM`. Bazel creates runfiles trees on Windows here, which needs permission to create symlinks: turn on Developer Mode, or use an administrator shell. The WebAssembly build needs a Linux or MacOS host.
 
 
 ## Binomial trees: A guided tour
