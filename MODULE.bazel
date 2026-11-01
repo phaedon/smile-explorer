@@ -17,4 +17,10 @@ bazel_dep(name = "imgui", version = "1.91.8.bcr.1")
 bazel_dep(name = "implot", version = "0.16")
 bazel_dep(name = "implot3d", version = "0.2")
 bazel_dep(name = "magic_enum", version = "0.9.8")
+bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_cc", version = "0.2.27")
+
+# On Windows, builds use clang-cl from the auto-configured C++ toolchains
+# (see .bazelrc), which are only visible to this module through use_repo.
+cc_configure = use_extension("@rules_cc//cc:extensions.bzl", "cc_configure_extension")
+use_repo(cc_configure, "local_config_cc")
