@@ -75,8 +75,8 @@ TEST_F(FloatingCashflowInstrumentTest, ForwardPropagationWithoutDiscounting_Basi
   EXPECT_TRUE(has_nonzero_values) << "Forward propagation should produce non-zero values";
   
   // Verify the tree has reasonable structure after cashflow setting
-  EXPECT_GT(result_tree.tree_.size(), 1) << "Tree should have multiple time steps";
-  EXPECT_GT(result_tree.tree_[0].size(), 0) << "Tree should have nodes at time 0";
+  EXPECT_GT(result_tree.tree_.size(), 1u) << "Tree should have multiple time steps";
+  EXPECT_GT(result_tree.tree_[0].size(), 0u) << "Tree should have nodes at time 0";
 }
 
 // Test forward propagation probability conservation
