@@ -76,3 +76,18 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "monotone_cubic",
+    srcs = ["monotone_cubic.cpp"],
+    hdrs = ["monotone_cubic.h"],
+)
+
+cc_test(
+    name = "monotone_cubic_test",
+    srcs = ["monotone_cubic_test.cpp"],
+    deps = [
+        ":monotone_cubic",
+        "@googletest//:gtest_main",
+    ],
+)
