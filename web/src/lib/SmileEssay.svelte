@@ -454,9 +454,9 @@
     <p>
       That is a good place to stop. Starting from <a href="#/binomial">a single
       binomial step</a>, these essays have priced options on stocks, currencies
-      and bonds, hedged them, and fitted trees to the market's curves and
-      smiles, every number computed by the same small C++ library, running in
-      your browser.
+      and bonds, hedged them, simulated a path-dependent currency forward, and
+      fitted trees to the market's curves and smiles, every number computed by
+      the same small C++ library, running in your browser.
     </p>
   </section>
 

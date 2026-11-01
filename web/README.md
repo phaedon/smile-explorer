@@ -34,19 +34,26 @@ Actions tab). It needs Pages enabled once in the repository settings, with
   structs in `api/pricing_api.h` via Embind.
 - `src/lib/params.svelte.ts`, `volParams.svelte.ts`, `fxParams.svelte.ts`,
   `hwParams.svelte.ts`, `bondParams.svelte.ts`, `greeksParams.svelte.ts`,
-  `swaptionParams.svelte.ts`, `smileParams.svelte.ts`: each essay's shared,
+  `swaptionParams.svelte.ts`, `smileParams.svelte.ts`, `tarfParams.svelte.ts`:
+  each essay's shared,
   reactive parameters behind every figure and draggable number.
 - `src/App.svelte`: the essays' order and grouping, the contents menu, and
   previous/next links (hash routes, e.g. `#/volatility`).
 - `src/lib/BinomialEssay.svelte`, `VolatilityEssay.svelte`, `FxEssay.svelte`,
   `HullWhiteEssay.svelte`, `BondOptionEssay.svelte`, `GreeksEssay.svelte`,
-  `SwaptionEssay.svelte`, `SmileEssay.svelte`: the essays (`#/binomial`,
-  `#/volatility`, `#/fx`, `#/hull-white`, `#/bond-options`, `#/greeks`,
-  `#/swaptions`, `#/smile`).
+  `SwaptionEssay.svelte`, `SmileEssay.svelte`, `TarfEssay.svelte`: the essays
+  (`#/binomial`, `#/volatility`, `#/fx`, `#/tarf`, `#/hull-white`,
+  `#/bond-options`, `#/greeks`, `#/swaptions`, `#/smile`).
 - `src/lib/smileWorker.ts`, `hedgeWorker.ts`, `calibrationWorker.ts`,
   `smileCalibrationWorker.ts`: implied-vol smiles, delta-hedging
   simulations, Hull-White calibration and smile calibration, computed in
   Web Workers.
+- `src/lib/tarfRun.svelte.ts`, `tarfPathWorker.ts`, `tarfAnalysisWorker.ts`:
+  the TARF essay's live Monte Carlo run. The page pulls paths from a worker
+  a few seeded blocks at a time, so it can pause, step and resume without
+  changing the result, and the zero-cost strike and sweeps run in a second
+  worker. `PathFan.svelte` draws the paths on a canvas as they arrive, and
+  `SimControls.svelte` drives the run.
 - `src/lib/Surface3D.svelte`: a 3D surface (three.js, loaded only when the
   figure scrolls into view), always paired with a 2D view such as
   `Heatmap.svelte` for reading values.
