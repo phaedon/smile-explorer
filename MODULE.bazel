@@ -7,7 +7,6 @@ bazel_dep(name = "abseil-cpp", version = "20260817.0")
 # Required for GLFW support on MacOS.
 bazel_dep(name = "apple_support", version = "2.11.0")
 
-bazel_dep(name = "boost.math", version = "1.90.0.bcr.1")
 bazel_dep(name = "csv-parser", version = "2.3.0")
 bazel_dep(name = "eigen", version = "5.0.1.bcr.3")
 bazel_dep(name = "emsdk", version = "6.0.13")

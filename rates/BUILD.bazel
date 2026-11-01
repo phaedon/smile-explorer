@@ -64,7 +64,7 @@ cc_library(
     deps = [
         ":rates_curve",
         "@abseil-cpp//absl/log",
-        "@boost.math",
+        ":monotone_cubic",
     ],
 )
 
