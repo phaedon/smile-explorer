@@ -19,6 +19,7 @@
 #include "api/rates_options_api.h"
 #include "api/short_rate_api.h"
 #include "api/smile_api.h"
+#include "api/tarf_api.h"
 
 namespace smileexplorer::api {
 namespace {
@@ -532,6 +533,86 @@ struct JsRepriceResult {
   double rms_error = 0.0;
 };
 
+struct JsTarfSpec {
+  double spot = 0.0;
+  double vol = 0.0;
+  JsRateCurveSpec domestic;
+  JsRateCurveSpec foreign;
+  double notional = 0.0;
+  double target = 0.0;
+  double strike = 0.0;
+  double leverage = 0.0;
+  double end_years = 0.0;
+  double fixing_frequency = 0.0;
+  bool is_long = true;
+  int steps_per_fixing = 0;
+
+  TarfSpec toCpp() const {
+    return {.spot = spot,
+            .vol = vol,
+            .domestic = domestic.toCpp(),
+            .foreign = foreign.toCpp(),
+            .notional = notional,
+            .target = target,
+            .strike = strike,
+            .leverage = leverage,
+            .end_years = end_years,
+            .fixing_frequency = fixing_frequency,
+            .is_long = is_long,
+            .steps_per_fixing = steps_per_fixing};
+  }
+};
+
+// As with the delta-hedge request, seeds are plain numbers in JS.
+struct JsTarfBatchRequest {
+  JsTarfSpec tarf;
+  int paths = 0;
+  double seed = 1;
+  int batch_index = 0;
+  int recorded_paths = 0;
+};
+
+struct JsTarfBatchResult {
+  Float64Array times{val::null()};
+  Float64Array fixing_times{val::null()};
+  Float64Array forwards{val::null()};
+  Float64Array discount_factors{val::null()};
+  Float64Array npvs{val::null()};
+  Int32Array knockout_fixings{val::null()};
+  double npv_sum = 0.0;
+  double npv_sum_squares = 0.0;
+  int recorded_paths = 0;
+  Float64Array spots{val::null()};
+  Float64Array payments{val::null()};
+  Float64Array accumulated_profits{val::null()};
+};
+
+struct JsTarfValuationRequest {
+  JsTarfSpec tarf;
+  int paths = 0;
+  double seed = 1;
+
+  TarfValuationRequest toCpp() const {
+    return {.tarf = tarf.toCpp(),
+            .paths = paths,
+            .seed = static_cast<uint64_t>(seed)};
+  }
+};
+
+struct JsTarfSweepRequest {
+  JsTarfValuationRequest valuation;
+  TarfSweepField field = TarfSweepField::kVol;
+  NumberArray values{val::array()};
+};
+
+// A sweep's valuations, one entry per value in each array.
+struct JsTarfSweep {
+  Float64Array npvs{val::null()};
+  Float64Array standard_errors{val::null()};
+  Float64Array zero_cost_strikes{val::null()};
+  Float64Array weighted_forwards{val::null()};
+};
+
 // Unwraps a StatusOr, converting its value with `convert`, or throws a JS
 // Error with the status message.
 template <typename T, typename ConvertFn>
@@ -658,6 +739,55 @@ Float64Array jsEvaluateVol(const JsVolSpec& vol,
 
 double jsImpliedVolatility(const ImpliedVolRequest& request) {
   return valueOrThrow(impliedVolatility(request), [](double v) { return v; });
+}
+
+JsTarfBatchResult jsSimulateTarfBatch(const JsTarfBatchRequest& request) {
+  return valueOrThrow(
+      simulateTarfBatch({.tarf = request.tarf.toCpp(),
+                         .paths = request.paths,
+                         .seed = static_cast<uint64_t>(request.seed),
+                         .batch_index = request.batch_index,
+                         .recorded_paths = request.recorded_paths}),
+      [](const TarfBatchResult& r) {
+        return JsTarfBatchResult{
+            .times = toFloat64Array(r.times),
+            .fixing_times = toFloat64Array(r.fixing_times),
+            .forwards = toFloat64Array(r.forwards),
+            .discount_factors = toFloat64Array(r.discount_factors),
+            .npvs = toFloat64Array(r.npvs),
+            .knockout_fixings = toInt32Array(r.knockout_fixings),
+            .npv_sum = r.npv_sum,
+            .npv_sum_squares = r.npv_sum_squares,
+            .recorded_paths = r.recorded_paths,
+            .spots = toFloat64Array(r.spots),
+            .payments = toFloat64Array(r.payments),
+            .accumulated_profits = toFloat64Array(r.accumulated_profits)};
+      });
+}
+
+TarfValuation jsValueTarf(const JsTarfValuationRequest& request) {
+  return valueOrThrow(valueTarf(request.toCpp()),
+                      [](const TarfValuation& v) { return v; });
+}
+
+JsTarfSweep jsSweepTarf(const JsTarfSweepRequest& request) {
+  return valueOrThrow(sweepTarf({.valuation = request.valuation.toCpp(),
+                                 .field = request.field,
+                                 .values = toVector(request.values)}),
+                      [](const std::vector<TarfValuation>& valuations) {
+                        std::vector<double> npvs, errors, strikes, forwards;
+                        for (const TarfValuation& v : valuations) {
+                          npvs.push_back(v.npv);
+                          errors.push_back(v.standard_error);
+                          strikes.push_back(v.zero_cost_strike);
+                          forwards.push_back(v.weighted_forward);
+                        }
+                        return JsTarfSweep{
+                            .npvs = toFloat64Array(npvs),
+                            .standard_errors = toFloat64Array(errors),
+                            .zero_cost_strikes = toFloat64Array(strikes),
+                            .weighted_forwards = toFloat64Array(forwards)};
+                      });
 }
 
 }  // namespace
@@ -1003,6 +1133,71 @@ EMSCRIPTEN_BINDINGS(smileexplorer) {
       .field("residuals", &JsRepriceResult::residuals)
       .field("rmsError", &JsRepriceResult::rms_error);
 
+  em::value_object<JsTarfSpec>("TarfSpec")
+      .field("spot", &JsTarfSpec::spot)
+      .field("vol", &JsTarfSpec::vol)
+      .field("domestic", &JsTarfSpec::domestic)
+      .field("foreign", &JsTarfSpec::foreign)
+      .field("notional", &JsTarfSpec::notional)
+      .field("target", &JsTarfSpec::target)
+      .field("strike", &JsTarfSpec::strike)
+      .field("leverage", &JsTarfSpec::leverage)
+      .field("endYears", &JsTarfSpec::end_years)
+      .field("fixingFrequency", &JsTarfSpec::fixing_frequency)
+      .field("isLong", &JsTarfSpec::is_long)
+      .field("stepsPerFixing", &JsTarfSpec::steps_per_fixing);
+
+  em::value_object<JsTarfBatchRequest>("TarfBatchRequest")
+      .field("tarf", &JsTarfBatchRequest::tarf)
+      .field("paths", &JsTarfBatchRequest::paths)
+      .field("seed", &JsTarfBatchRequest::seed)
+      .field("batchIndex", &JsTarfBatchRequest::batch_index)
+      .field("recordedPaths", &JsTarfBatchRequest::recorded_paths);
+
+  em::value_object<JsTarfBatchResult>("TarfBatchResult")
+      .field("times", &JsTarfBatchResult::times)
+      .field("fixingTimes", &JsTarfBatchResult::fixing_times)
+      .field("forwards", &JsTarfBatchResult::forwards)
+      .field("discountFactors", &JsTarfBatchResult::discount_factors)
+      .field("npvs", &JsTarfBatchResult::npvs)
+      .field("knockoutFixings", &JsTarfBatchResult::knockout_fixings)
+      .field("npvSum", &JsTarfBatchResult::npv_sum)
+      .field("npvSumSquares", &JsTarfBatchResult::npv_sum_squares)
+      .field("recordedPaths", &JsTarfBatchResult::recorded_paths)
+      .field("spots", &JsTarfBatchResult::spots)
+      .field("payments", &JsTarfBatchResult::payments)
+      .field("accumulatedProfits", &JsTarfBatchResult::accumulated_profits);
+
+  em::value_object<JsTarfValuationRequest>("TarfValuationRequest")
+      .field("tarf", &JsTarfValuationRequest::tarf)
+      .field("paths", &JsTarfValuationRequest::paths)
+      .field("seed", &JsTarfValuationRequest::seed);
+
+  em::value_object<TarfValuation>("TarfValuation")
+      .field("npv", &TarfValuation::npv)
+      .field("standardError", &TarfValuation::standard_error)
+      .field("zeroCostStrike", &TarfValuation::zero_cost_strike)
+      .field("weightedForward", &TarfValuation::weighted_forward);
+
+  em::enum_<TarfSweepField>("TarfSweepField")
+      .value("Vol", TarfSweepField::kVol)
+      .value("Target", TarfSweepField::kTarget)
+      .value("Leverage", TarfSweepField::kLeverage);
+
+  em::value_object<JsTarfSweepRequest>("TarfSweepRequest")
+      .field("valuation", &JsTarfSweepRequest::valuation)
+      .field("field", &JsTarfSweepRequest::field)
+      .field("values", &JsTarfSweepRequest::values);
+
+  em::value_object<JsTarfSweep>("TarfSweep")
+      .field("npvs", &JsTarfSweep::npvs)
+      .field("standardErrors", &JsTarfSweep::standard_errors)
+      .field("zeroCostStrikes", &JsTarfSweep::zero_cost_strikes)
+      .field("weightedForwards", &JsTarfSweep::weighted_forwards);
+
+  em::function("simulateTarfBatch", &jsSimulateTarfBatch);
+  em::function("valueTarf", &jsValueTarf);
+  em::function("sweepTarf", &jsSweepTarf);
   em::function("calibrateSmile", &jsCalibrateSmile);
   em::function("smileSurfaces", &jsSmileSurfaces);
   em::function("repriceSmile", &jsRepriceSmile);

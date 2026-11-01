@@ -272,6 +272,45 @@ const smileGrid = {
 const repriced = engine.repriceSmile({grid: smileGrid, stepsPerYear: 200});
 assert.ok(repriced.rmsError < 0.001, `smile repriced on the tree (${repriced.rmsError})`);
 
+// A TARF, a batch at a time: EUR-USD, buying EUR monthly for a year.
+const tarf = {
+  spot: 1.1, vol: 0.08,
+  domestic: {maturities: [0.25, 1, 2, 5], rates: [0.0425, 0.04, 0.0375, 0.0375]},
+  foreign: {maturities: [0.25, 1, 2, 5], rates: [0.02, 0.021, 0.0225, 0.025]},
+  notional: 1e6, target: 2e5, strike: 1.1, leverage: 2, endYears: 1,
+  fixingFrequency: 1 / 12, isLong: true, stepsPerFixing: 4,
+};
+const tarfValuation = engine.valueTarf({tarf, paths: 4000, seed: 1});
+assert.ok(tarfValuation.zeroCostStrike < tarfValuation.weightedForward,
+          'TARF zero-cost strike below the forward');
+const atZeroCost = {...tarf, strike: tarfValuation.zeroCostStrike};
+const batch = (batchIndex) => engine.simulateTarfBatch({
+  tarf: atZeroCost, paths: 250, seed: 1, batchIndex, recordedPaths: 50});
+let tarfStart = performance.now();
+const batches = [0, 1, 2, 3].map(batch);
+const tarfBatchMs = (performance.now() - tarfStart) / 4;
+assert.equal(batches[0].npvs.length, 250);
+assert.equal(batches[0].spots.length, 50 * 49);
+// Batches are reproducible in any order, so pausing a run can't change it.
+assert.deepEqual([...batch(2).npvs], [...batches[2].npvs]);
+assert.notDeepEqual([...batches[1].npvs], [...batches[0].npvs]);
+const tarfMean = batches.reduce((s, b) => s + b.npvSum, 0) / 1000;
+const tarfSweep = engine.sweepTarf({
+  valuation: {tarf: atZeroCost, paths: 2000, seed: 1},
+  field: engine.TarfSweepField.Vol, values: [0.06, 0.08, 0.1]});
+assert.ok(tarfSweep.npvs[0] > tarfSweep.npvs[2], 'TARF vega is negative');
+tarfStart = performance.now();
+engine.valueTarf({tarf, paths: 4000, seed: 1});
+const tarfValuationMs = performance.now() - tarfStart;
+assert.throws(() => engine.simulateTarfBatch({
+  tarf, paths: 0, seed: 1, batchIndex: 0, recordedPaths: 0}), /paths/);
+console.log(
+    `TARF: zero-cost strike ${tarfValuation.zeroCostStrike.toFixed(4)} ` +
+    `(forward ${tarfValuation.weightedForward.toFixed(4)}), mean of 1000 ` +
+    `paths ${tarfMean.toFixed(0)}, ${tarfBatchMs.toFixed(2)} ms a batch, ` +
+    `valuation ${tarfValuationMs.toFixed(0)} ms, knocked out ${
+        [...batches[0].knockoutFixings].filter((k) => k >= 0).length}/250`);
+
 // Invalid requests throw a JS Error.
 assert.throws(
     () => engine.priceVanilla(request({expiryYears: -1})), /expiry_years/);
