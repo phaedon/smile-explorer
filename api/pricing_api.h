@@ -1,6 +1,7 @@
 #ifndef SMILEEXPLORER_API_PRICING_API_H_
 #define SMILEEXPLORER_API_PRICING_API_H_
 
+#include <string_view>
 #include <vector>
 
 #include "absl/status/statusor.h"
@@ -92,6 +93,10 @@ struct RateCurveSpec {
   std::vector<double> maturities;
   std::vector<double> rates;
 };
+
+// Checks a curve's maturities and rates, naming it (e.g. "domestic") in any
+// error.
+absl::Status validateCurve(const RateCurveSpec& curve, std::string_view name);
 
 // A Cox-Ross-Rubinstein tree for an exchange rate quoted FOR-DOM (the price of
 // one unit of the foreign currency, in the domestic currency), with flat vol.
