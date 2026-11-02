@@ -15,6 +15,7 @@
 
 #include "absl/status/statusor.h"
 #include "api/commodity_api.h"
+#include "api/convexity_api.h"
 #include "api/greeks_api.h"
 #include "api/pricing_api.h"
 #include "api/rates_options_api.h"
@@ -683,6 +684,106 @@ struct JsCommodityOptionResult {
   Int32Array exercised{val::null()};
 };
 
+struct JsFuturesStripRequest {
+  JsRateCurveSpec curve;
+  double mean_reversion = 0.0;
+  double sigma = 0.0;
+  NumberArray starts{val::array()};
+  double period_years = 0.25;
+};
+
+struct JsFuturesStripResult {
+  Float64Array starts{val::null()};
+  Float64Array ends{val::null()};
+  Float64Array forward_rates{val::null()};
+  Float64Array futures_rates{val::null()};
+  Float64Array term_futures_rates{val::null()};
+  Float64Array adjustments{val::null()};
+  Float64Array term_adjustments{val::null()};
+};
+
+struct JsFuturesTreeRequest {
+  JsHullWhiteTreeSpec tree;
+  double start_years = 0.0;
+  double end_years = 0.0;
+};
+
+struct JsFuturesTreeResult {
+  JsHullWhiteTreeResult tree;
+  int start_index = 0;
+  int end_index = 0;
+  Float64Array futures_rates{val::null()};
+  Float64Array forward_rates{val::null()};
+  double futures_rate = 0.0;
+  double forward_rate = 0.0;
+  double analytic_futures_rate = 0.0;
+  double analytic_forward_rate = 0.0;
+};
+
+struct JsConvexityHedgeSpec {
+  JsRateCurveSpec curve;
+  double mean_reversion = 0.0;
+  double implied_sigma = 0.0;
+  double realized_sigma = 0.0;
+  double start_years = 0.0;
+  double end_years = 0.0;
+  double notional = 1e6;
+  bool fixed_at_futures_rate = false;
+  int hedge_style = 0;
+  int steps_per_year = 252;
+
+  ConvexityHedgeSpec toCpp() const {
+    return {.curve = curve.toCpp(),
+            .mean_reversion = mean_reversion,
+            .implied_sigma = implied_sigma,
+            .realized_sigma = realized_sigma,
+            .start_years = start_years,
+            .end_years = end_years,
+            .notional = notional,
+            .fixed_at_futures_rate = fixed_at_futures_rate,
+            .hedge_style = hedge_style,
+            .steps_per_year = steps_per_year};
+  }
+};
+
+struct JsConvexityHedgeRequest {
+  JsConvexityHedgeSpec spec;
+  int paths = 0;
+  double seed = 1;
+  int batch_index = 0;
+  int recorded_paths = 0;
+  int record_every = 1;
+};
+
+struct JsConvexityHedgeResult {
+  double forward_rate = 0.0;
+  double futures_rate = 0.0;
+  double fixed_rate = 0.0;
+  double fra_value = 0.0;
+  double start_years = 0.0;
+  double end_years = 0.0;
+  double end_discount_factor = 0.0;
+  double adjustment_value = 0.0;
+  Float64Array pnls{val::null()};
+  Float64Array fra_pnls{val::null()};
+  Float64Array futures_pnls{val::null()};
+  Float64Array no_pai_pnls{val::null()};
+  double pnl_sum = 0.0;
+  double pnl_sum_squares = 0.0;
+  double pai_value_sum = 0.0;
+  double pai_value_sum_squares = 0.0;
+  Float64Array times{val::null()};
+  int recorded_paths = 0;
+  Float64Array short_rates{val::null()};
+  Float64Array futures_rates{val::null()};
+  Float64Array forward_rates{val::null()};
+  Float64Array hedge_ratios{val::null()};
+  Float64Array fra_values{val::null()};
+  Float64Array fra_cash{val::null()};
+  Float64Array no_pai_cash{val::null()};
+  Float64Array futures_cash{val::null()};
+};
+
 // Unwraps a StatusOr, converting its value with `convert`, or throws a JS
 // Error with the status message.
 template <typename T, typename ConvertFn>
@@ -858,6 +959,83 @@ JsTarfSweep jsSweepTarf(const JsTarfSweepRequest& request) {
                             .zero_cost_strikes = toFloat64Array(strikes),
                             .weighted_forwards = toFloat64Array(forwards)};
                       });
+}
+
+JsFuturesStripResult jsFuturesStrip(const JsFuturesStripRequest& request) {
+  return valueOrThrow(
+      futuresStrip({.curve = request.curve.toCpp(),
+                    .mean_reversion = request.mean_reversion,
+                    .sigma = request.sigma,
+                    .starts = toVector(request.starts),
+                    .period_years = request.period_years}),
+      [](const FuturesStripResult& r) {
+        return JsFuturesStripResult{
+            .starts = toFloat64Array(r.starts),
+            .ends = toFloat64Array(r.ends),
+            .forward_rates = toFloat64Array(r.forward_rates),
+            .futures_rates = toFloat64Array(r.futures_rates),
+            .term_futures_rates = toFloat64Array(r.term_futures_rates),
+            .adjustments = toFloat64Array(r.adjustments),
+            .term_adjustments = toFloat64Array(r.term_adjustments)};
+      });
+}
+
+JsFuturesTreeResult jsFuturesOnTree(const JsFuturesTreeRequest& request) {
+  return valueOrThrow(futuresOnTree({.tree = request.tree.toCpp(),
+                                     .start_years = request.start_years,
+                                     .end_years = request.end_years}),
+                      [](const FuturesTreeResult& r) {
+                        return JsFuturesTreeResult{
+                            .tree = toJs(r.tree),
+                            .start_index = r.start_index,
+                            .end_index = r.end_index,
+                            .futures_rates = toFloat64Array(r.futures_rates),
+                            .forward_rates = toFloat64Array(r.forward_rates),
+                            .futures_rate = r.futures_rate,
+                            .forward_rate = r.forward_rate,
+                            .analytic_futures_rate = r.analytic_futures_rate,
+                            .analytic_forward_rate = r.analytic_forward_rate};
+                      });
+}
+
+JsConvexityHedgeResult jsSimulateConvexityHedge(
+    const JsConvexityHedgeRequest& request) {
+  return valueOrThrow(
+      simulateConvexityHedgeBatch({.spec = request.spec.toCpp(),
+                                   .paths = request.paths,
+                                   .seed = static_cast<uint64_t>(request.seed),
+                                   .batch_index = request.batch_index,
+                                   .recorded_paths = request.recorded_paths,
+                                   .record_every = request.record_every}),
+      [](const ConvexityHedgeResult& r) {
+        return JsConvexityHedgeResult{
+            .forward_rate = r.forward_rate,
+            .futures_rate = r.futures_rate,
+            .fixed_rate = r.fixed_rate,
+            .fra_value = r.fra_value,
+            .start_years = r.start_years,
+            .end_years = r.end_years,
+            .end_discount_factor = r.end_discount_factor,
+            .adjustment_value = r.adjustment_value,
+            .pnls = toFloat64Array(r.pnls),
+            .fra_pnls = toFloat64Array(r.fra_pnls),
+            .futures_pnls = toFloat64Array(r.futures_pnls),
+            .no_pai_pnls = toFloat64Array(r.no_pai_pnls),
+            .pnl_sum = r.pnl_sum,
+            .pnl_sum_squares = r.pnl_sum_squares,
+            .pai_value_sum = r.pai_value_sum,
+            .pai_value_sum_squares = r.pai_value_sum_squares,
+            .times = toFloat64Array(r.times),
+            .recorded_paths = r.recorded_paths,
+            .short_rates = toFloat64Array(r.short_rates),
+            .futures_rates = toFloat64Array(r.futures_rates),
+            .forward_rates = toFloat64Array(r.forward_rates),
+            .hedge_ratios = toFloat64Array(r.hedge_ratios),
+            .fra_values = toFloat64Array(r.fra_values),
+            .fra_cash = toFloat64Array(r.fra_cash),
+            .no_pai_cash = toFloat64Array(r.no_pai_cash),
+            .futures_cash = toFloat64Array(r.futures_cash)};
+      });
 }
 
 JsCommodityTreeResult jsBuildCommodityTree(const JsCommoditySpec& spec) {
@@ -1377,6 +1555,91 @@ EMSCRIPTEN_BINDINGS(smileexplorer) {
       .field("optionValues", &JsCommodityOptionResult::option_values)
       .field("exercised", &JsCommodityOptionResult::exercised);
 
+  em::value_object<JsFuturesStripRequest>("FuturesStripRequest")
+      .field("curve", &JsFuturesStripRequest::curve)
+      .field("meanReversion", &JsFuturesStripRequest::mean_reversion)
+      .field("sigma", &JsFuturesStripRequest::sigma)
+      .field("starts", &JsFuturesStripRequest::starts)
+      .field("periodYears", &JsFuturesStripRequest::period_years);
+
+  em::value_object<JsFuturesStripResult>("FuturesStripResult")
+      .field("starts", &JsFuturesStripResult::starts)
+      .field("ends", &JsFuturesStripResult::ends)
+      .field("forwardRates", &JsFuturesStripResult::forward_rates)
+      .field("futuresRates", &JsFuturesStripResult::futures_rates)
+      .field("termFuturesRates", &JsFuturesStripResult::term_futures_rates)
+      .field("adjustments", &JsFuturesStripResult::adjustments)
+      .field("termAdjustments", &JsFuturesStripResult::term_adjustments);
+
+  em::value_object<JsFuturesTreeRequest>("FuturesTreeRequest")
+      .field("tree", &JsFuturesTreeRequest::tree)
+      .field("startYears", &JsFuturesTreeRequest::start_years)
+      .field("endYears", &JsFuturesTreeRequest::end_years);
+
+  em::value_object<JsFuturesTreeResult>("FuturesTreeResult")
+      .field("tree", &JsFuturesTreeResult::tree)
+      .field("startIndex", &JsFuturesTreeResult::start_index)
+      .field("endIndex", &JsFuturesTreeResult::end_index)
+      .field("futuresRates", &JsFuturesTreeResult::futures_rates)
+      .field("forwardRates", &JsFuturesTreeResult::forward_rates)
+      .field("futuresRate", &JsFuturesTreeResult::futures_rate)
+      .field("forwardRate", &JsFuturesTreeResult::forward_rate)
+      .field("analyticFuturesRate", &JsFuturesTreeResult::analytic_futures_rate)
+      .field("analyticForwardRate",
+             &JsFuturesTreeResult::analytic_forward_rate);
+
+  em::value_object<JsConvexityHedgeSpec>("ConvexityHedgeSpec")
+      .field("curve", &JsConvexityHedgeSpec::curve)
+      .field("meanReversion", &JsConvexityHedgeSpec::mean_reversion)
+      .field("impliedSigma", &JsConvexityHedgeSpec::implied_sigma)
+      .field("realizedSigma", &JsConvexityHedgeSpec::realized_sigma)
+      .field("startYears", &JsConvexityHedgeSpec::start_years)
+      .field("endYears", &JsConvexityHedgeSpec::end_years)
+      .field("notional", &JsConvexityHedgeSpec::notional)
+      .field("fixedAtFuturesRate", &JsConvexityHedgeSpec::fixed_at_futures_rate)
+      .field("hedgeStyle", &JsConvexityHedgeSpec::hedge_style)
+      .field("stepsPerYear", &JsConvexityHedgeSpec::steps_per_year);
+
+  em::value_object<JsConvexityHedgeRequest>("ConvexityHedgeRequest")
+      .field("spec", &JsConvexityHedgeRequest::spec)
+      .field("paths", &JsConvexityHedgeRequest::paths)
+      .field("seed", &JsConvexityHedgeRequest::seed)
+      .field("batchIndex", &JsConvexityHedgeRequest::batch_index)
+      .field("recordedPaths", &JsConvexityHedgeRequest::recorded_paths)
+      .field("recordEvery", &JsConvexityHedgeRequest::record_every);
+
+  em::value_object<JsConvexityHedgeResult>("ConvexityHedgeResult")
+      .field("forwardRate", &JsConvexityHedgeResult::forward_rate)
+      .field("futuresRate", &JsConvexityHedgeResult::futures_rate)
+      .field("fixedRate", &JsConvexityHedgeResult::fixed_rate)
+      .field("fraValue", &JsConvexityHedgeResult::fra_value)
+      .field("startYears", &JsConvexityHedgeResult::start_years)
+      .field("endYears", &JsConvexityHedgeResult::end_years)
+      .field("endDiscountFactor", &JsConvexityHedgeResult::end_discount_factor)
+      .field("adjustmentValue", &JsConvexityHedgeResult::adjustment_value)
+      .field("pnls", &JsConvexityHedgeResult::pnls)
+      .field("fraPnls", &JsConvexityHedgeResult::fra_pnls)
+      .field("futuresPnls", &JsConvexityHedgeResult::futures_pnls)
+      .field("noPaiPnls", &JsConvexityHedgeResult::no_pai_pnls)
+      .field("pnlSum", &JsConvexityHedgeResult::pnl_sum)
+      .field("pnlSumSquares", &JsConvexityHedgeResult::pnl_sum_squares)
+      .field("paiValueSum", &JsConvexityHedgeResult::pai_value_sum)
+      .field("paiValueSumSquares",
+             &JsConvexityHedgeResult::pai_value_sum_squares)
+      .field("times", &JsConvexityHedgeResult::times)
+      .field("recordedPaths", &JsConvexityHedgeResult::recorded_paths)
+      .field("shortRates", &JsConvexityHedgeResult::short_rates)
+      .field("futuresRates", &JsConvexityHedgeResult::futures_rates)
+      .field("forwardRates", &JsConvexityHedgeResult::forward_rates)
+      .field("hedgeRatios", &JsConvexityHedgeResult::hedge_ratios)
+      .field("fraValues", &JsConvexityHedgeResult::fra_values)
+      .field("fraCash", &JsConvexityHedgeResult::fra_cash)
+      .field("noPaiCash", &JsConvexityHedgeResult::no_pai_cash)
+      .field("futuresCash", &JsConvexityHedgeResult::futures_cash);
+
+  em::function("futuresStrip", &jsFuturesStrip);
+  em::function("futuresOnTree", &jsFuturesOnTree);
+  em::function("simulateConvexityHedge", &jsSimulateConvexityHedge);
   em::function("buildCommodityTree", &jsBuildCommodityTree);
   em::function("priceCommodityOption", &jsPriceCommodityOption);
   em::function("simulateTarfBatch", &jsSimulateTarfBatch);
