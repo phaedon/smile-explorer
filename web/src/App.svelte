@@ -1,6 +1,7 @@
 <script lang="ts">
   import BinomialEssay from './lib/BinomialEssay.svelte';
   import BondOptionEssay from './lib/BondOptionEssay.svelte';
+  import ConvexityEssay from './lib/ConvexityEssay.svelte';
   import FxEssay from './lib/FxEssay.svelte';
   import GasEssay from './lib/GasEssay.svelte';
   import GreeksEssay from './lib/GreeksEssay.svelte';
@@ -68,6 +69,12 @@
           title: 'Calibrating the rate tree',
           blurb: 'Swaptions and caps, fitting the model to quotes, and Bermudans.',
           component: SwaptionEssay,
+        },
+        {
+          id: 'convexity',
+          title: 'Futures, forwards and convexity',
+          blurb: 'SOFR futures against cleared FRAs: margin, PAI, and the hedge that earns the gap.',
+          component: ConvexityEssay,
         },
       ],
     },
