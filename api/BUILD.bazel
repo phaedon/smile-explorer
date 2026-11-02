@@ -7,6 +7,7 @@ cc_library(
     name = "pricing_api",
     srcs = [
         "commodity_api.cpp",
+        "convexity_api.cpp",
         "greeks_api.cpp",
         "hull_white_tree.cpp",
         "hull_white_tree.h",
@@ -18,6 +19,7 @@ cc_library(
     ],
     hdrs = [
         "commodity_api.h",
+        "convexity_api.h",
         "greeks_api.h",
         "pricing_api.h",
         "rates_options_api.h",
@@ -36,7 +38,10 @@ cc_library(
         "//derivatives:hull_white_analytic",
         "//rates:swap_rates",
         "//derivatives:bsm",
+        "//derivatives:convexity_hedge",
         "//derivatives:derivative",
+        "//derivatives:short_rate_rollback",
+        "//derivatives:sofr_futures",
         "//derivatives:hull_white_bond_option",
         "//derivatives:interest_rate_derivative",
         "//derivatives:target_redemption_forward",
@@ -133,6 +138,16 @@ cc_test(
     deps = [
         ":pricing_api",
         "//commodities:commodity_tree",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "convexity_api_test",
+    srcs = ["convexity_api_test.cpp"],
+    deps = [
+        ":pricing_api",
         "@abseil-cpp//absl/status",
         "@googletest//:gtest_main",
     ],
