@@ -206,3 +206,24 @@ cc_library(
     hdrs = ["short_rate_rollback.h"],
     deps = ["//trees:trinomial_tree"],
 )
+
+cc_library(
+    name = "convexity_hedge",
+    srcs = ["convexity_hedge.cpp"],
+    hdrs = ["convexity_hedge.h"],
+    deps = [
+        ":sofr_futures",
+        "//rates:rates_curve",
+    ],
+)
+
+cc_test(
+    name = "convexity_hedge_test",
+    srcs = ["convexity_hedge_test.cpp"],
+    deps = [
+        ":convexity_hedge",
+        ":sofr_futures",
+        "//rates:zero_curve",
+        "@googletest//:gtest_main",
+    ],
+)
