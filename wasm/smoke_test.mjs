@@ -350,6 +350,43 @@ console.log(
         gasOption.price.toFixed(4)}; tree ${gasTreeMs.toFixed(1)} ms, ` +
     `option ${gasOptionMs.toFixed(1)} ms`);
 
+// SOFR futures against collateralized FRAs: the strip, the tree, the sofrHedge.
+const sofr = {maturities: [0.5, 1, 2, 5, 10],
+              rates: [0.042, 0.04, 0.037, 0.036, 0.038]};
+const strip = engine.futuresStrip({
+  curve: sofr, meanReversion: 0.03, sigma: 0.009,
+  starts: Array.from({length: 40}, (_, i) => 0.25 * i), periodYears: 0.25});
+assert.equal(strip.adjustments.length, 40);
+assert.ok(strip.adjustments[39] > strip.adjustments[4] * 10);
+const futuresTree = engine.futuresOnTree({
+  tree: {meanReversion: 0.03, sigma: 0.01, dtYears: 1 / 24, horizonYears: 0,
+         curve: sofr, bondFace: 100},
+  startYears: 3, endYears: 3.25});
+assertNear(futuresTree.futuresRate - futuresTree.forwardRate,
+           futuresTree.analyticFuturesRate - futuresTree.analyticForwardRate,
+           1e-5, 'futures adjustment on the tree');
+let sofrStart = performance.now();
+const sofrHedge = engine.simulateConvexityHedge({
+  spec: {curve: sofr, meanReversion: 0.03, impliedSigma: 0.01,
+         realizedSigma: 0.01, startYears: 2, endYears: 2.25, notional: 1e6,
+         fixedAtFuturesRate: false, hedgeStyle: 0, stepsPerYear: 252},
+  paths: 500, seed: 1, batchIndex: 0, recordedPaths: 2, recordEvery: 5});
+const sofrMs = performance.now() - sofrStart;
+const paiValue = sofrHedge.paiValueSum / sofrHedge.pnls.length;
+assertNear(paiValue / -sofrHedge.adjustmentValue, 1, 0.15, 'PAI value');
+assert.throws(() => engine.simulateConvexityHedge({
+  spec: {curve: sofr, meanReversion: 0.03, impliedSigma: 0.01,
+         realizedSigma: 0.01, startYears: 2, endYears: 2.25, notional: 1e6,
+         fixedAtFuturesRate: false, hedgeStyle: 9, stepsPerYear: 252},
+  paths: 10, seed: 1, batchIndex: 0, recordedPaths: 0, recordEvery: 1}),
+  /hedge_style/);
+console.log(
+    `SOFR: 10y adjustment ${(strip.adjustments[39] * 1e4).toFixed(1)}bp, ` +
+    `2y ${(strip.adjustments[8] * 1e4).toFixed(2)}bp; PAI worth ${
+        paiValue.toFixed(0)} vs adjustment ${
+        sofrHedge.adjustmentValue.toFixed(0)}; ${sofrMs.toFixed(0)} ms for ` +
+    `500 daily paths`);
+
 // Invalid requests throw a JS Error.
 assert.throws(
     () => engine.priceVanilla(request({expiryYears: -1})), /expiry_years/);
