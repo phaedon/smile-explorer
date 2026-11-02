@@ -177,3 +177,32 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "sofr_futures",
+    hdrs = ["sofr_futures.h"],
+    deps = [
+        ":hull_white_analytic",
+        "//rates:rates_curve",
+    ],
+)
+
+cc_test(
+    name = "sofr_futures_test",
+    srcs = ["sofr_futures_test.cpp"],
+    deps = [
+        ":hull_white_analytic",
+        ":short_rate_rollback",
+        ":sofr_futures",
+        "//rates:short_rate_tree_curve",
+        "//rates:zero_curve",
+        "//trees:hull_white_propagator",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "short_rate_rollback",
+    hdrs = ["short_rate_rollback.h"],
+    deps = ["//trees:trinomial_tree"],
+)
